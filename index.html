@@ -23,88 +23,150 @@
     </div>
 
     <div id="app-content" class="hidden min-h-screen flex flex-col">
-        <header class="bg-blue-900 text-white shadow-md">
-            <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <h1 class="text-xl font-bold tracking-wide">📊 My Buddy Budget <span class="text-xs bg-green-500 text-white font-normal px-2 py-0.5 rounded-full ml-2">Cloud Synchro</span></h1>
-                <nav class="flex space-x-2 bg-blue-950 p-1 rounded-lg">
-                    <button onclick="switchTab('tab-transactions')" id="btn-tab-transactions" class="tab-btn px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-white">Transactions</button>
-                    <button onclick="switchTab('tab-config')" id="btn-tab-config" class="tab-btn px-4 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-white">Configuration</button>
+        <header class="bg-blue-900 text-white shadow-md sticky top-0 z-30">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
+                <h1 class="text-xl font-bold tracking-wide flex items-center gap-2">📊 My Buddy Budget <span class="text-[10px] bg-green-500 text-white font-normal px-2 py-0.5 rounded-full">Synchro Cloud</span></h1>
+                <nav class="flex space-x-2 bg-blue-950 p-1 rounded-lg w-full sm:w-auto justify-center">
+                    <button onclick="switchTab('tab-dashboard')" id="btn-tab-dashboard" class="tab-btn flex-1 sm:flex-none px-6 py-2 rounded-md text-sm font-medium bg-blue-600 text-white">Dashboard</button>
+                    <button onclick="switchTab('tab-transactions')" id="btn-tab-transactions" class="tab-btn flex-1 sm:flex-none px-6 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-white">Transactions</button>
                 </nav>
             </div>
         </header>
 
         <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6">
             
-            <section id="tab-transactions" class="tabs-content active space-y-6">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-lg shadow-sm">
-                    <h2 class="text-xl font-semibold text-gray-700">Historique général</h2>
+            <section id="tab-dashboard" class="tabs-content active space-y-6">
+                <div class="bg-white p-4 rounded-xl shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4 border border-gray-100">
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-800">Vue d'ensemble financière</h2>
+                        <p class="text-gray-500 text-xs">Analyse en temps réel de vos flux synchronisés.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label for="dashboard-month-select" class="text-sm font-medium text-gray-600">Période :</label>
+                        <select id="dashboard-month-select" onchange="calculateDashboardMetrics()" class="p-2 bg-gray-50 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-blue-500"></select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-l-4 border-l-green-500 border-gray-200">
+                        <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Entrées</span>
+                        <div id="kpi-entrises" class="text-2xl font-bold text-green-600 mt-1">0.00 €</div>
+                        <p class="text-gray-400 text-[11px] mt-1">Salaires, CAF, remboursements...</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-l-4 border-l-red-500 border-gray-200">
+                        <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Dépenses</span>
+                        <div id="kpi-depenses" class="text-2xl font-bold text-red-600 mt-1">0.00 €</div>
+                        <p class="text-gray-400 text-[11px] mt-1">Fixes, au quotidien, patinage, épargne...</p>
+                    </div>
+                    <div id="kpi-reste-card" class="bg-white p-5 rounded-xl shadow-sm border border-l-4 border-l-blue-500 border-gray-200">
+                        <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Reste à vivre / Solde</span>
+                        <div id="kpi-reste" class="text-2xl font-bold text-blue-600 mt-1">0.00 €</div>
+                        <p class="text-gray-400 text-[11px] mt-1">Disponibilité nette sur la période.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide border-b border-gray-100 pb-2">📊 Volume par Grandes Catégories</h3>
+                        <div id="categories-chart-container" class="space-y-4 pt-2">
+                            </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide border-b border-gray-100 pb-2">🎯 Classement des Postes de Dépenses</h3>
+                        <div id="postes-chart-container" class="space-y-3 pt-2 max-h-[350px] overflow-y-auto pr-1">
+                            </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                    <button onclick="document.getElementById('collapsed-config-panel').classList.toggle('hidden')" class="w-full flex justify-between items-center text-xs font-bold text-gray-500 tracking-wider uppercase">
+                        ⚙️ Gérer la Clé API Google Gemini (IA)
+                        <span>⚙️</span>
+                    </button>
+                    <div id="collapsed-config-panel" class="hidden mt-4 pt-4 border-t border-gray-200 space-y-3">
+                        <p class="text-xs text-gray-500">La clé API permet à l'intelligence artificielle de décoder et catégoriser vos fichiers CSV de banque.</p>
+                        <div class="flex flex-col sm:flex-row gap-2 max-w-xl">
+                            <input type="password" id="api-key-input" placeholder="AIzaSy..." class="flex-grow p-2 bg-white border border-gray-300 rounded text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+                            <button onclick="saveApiKey()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded text-xs transition">Enregistrer la clé</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-transactions" class="tabs-content space-y-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-800">Registre des Écritures</h2>
+                        <p class="text-gray-500 text-xs">Ajoutez manuellement ou importez massivement vos relevés.</p>
+                    </div>
                     <div class="flex flex-wrap gap-2 w-full sm:w-auto">
-                        <button onclick="toggleImportZone()" class="flex-grow sm:flex-grow-0 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded text-sm flex items-center justify-center gap-1 shadow">
+                        <button onclick="toggleImportZone()" class="flex-grow sm:flex-grow-0 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg text-sm flex items-center justify-center gap-1 shadow-sm transition">
                             🤖 Importer un CSV (IA)
                         </button>
-                        <button onclick="openTransactionModal()" class="flex-grow sm:flex-grow-0 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-sm flex items-center justify-center gap-1 shadow">
+                        <button onclick="openTransactionModal()" class="flex-grow sm:flex-grow-0 bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm flex items-center justify-center gap-1 shadow-sm transition">
                             ➕ Ajouter une opération
                         </button>
                     </div>
                 </div>
 
-                <div id="integrated-import-zone" class="hidden bg-white p-6 rounded-lg shadow-inner border border-gray-200 space-y-6 animate-fade-in">
-                    <div class="flex justify-between items-start">
+                <div id="integrated-import-zone" class="hidden bg-white p-6 rounded-xl shadow-inner border border-gray-200 space-y-6">
+                    <div class="flex justify-between items-start border-b border-gray-100 pb-3">
                         <div>
-                            <h3 class="text-lg font-medium text-gray-800">Assistant d'importation bancaire</h3>
-                            <p class="text-gray-500 text-xs">Sélectionnez votre fichier .csv pour l'analyser et le classifier avec Gemini.</p>
+                            <h3 class="text-base font-bold text-gray-800">Module d'importation CSV assisté par l'IA</h3>
+                            <p class="text-gray-500 text-xs">Téléversez un extrait de compte pour un traitement intelligent.</p>
                         </div>
                         <button onclick="toggleImportZone()" class="text-gray-400 hover:text-gray-600 text-xl font-bold px-2">&times;</button>
                     </div>
 
-                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-gray-50 p-4 rounded border border-gray-200">
-                        <input type="file" id="csv-file-input" accept=".csv" class="text-sm text-gray-600 flex-grow file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                        <button onclick="parseCSV()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded text-sm shadow whitespace-nowrap">Analyse initiale</button>
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <input type="file" id="csv-file-input" accept=".csv" class="text-sm text-gray-600 flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        <button onclick="parseCSV()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md text-xs shadow-sm whitespace-nowrap transition">Analyse du fichier</button>
                     </div>
 
-                    <div id="csv-mapping-container" class="hidden p-4 border border-blue-200 bg-blue-50/50 rounded space-y-4">
-                        <h4 class="font-medium text-blue-950 text-sm">🛠️ Associez les colonnes de votre fichier bancaire :</h4>
+                    <div id="csv-mapping-container" class="hidden p-4 border border-blue-200 bg-blue-50/50 rounded-lg space-y-4">
+                        <h4 class="font-bold text-blue-950 text-xs uppercase tracking-wide">🛠️ Configuration des correspondances de colonnes :</h4>
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1">Date de l'opération</label>
-                                <select id="map-date" class="w-full p-2 bg-white border border-gray-300 rounded text-sm"></select>
+                                <select id="map-date" class="w-full p-2 bg-white border border-gray-300 rounded-md text-xs"></select>
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1">Libellé / Texte Banque</label>
-                                <select id="map-details" class="w-full p-2 bg-white border border-gray-300 rounded text-sm"></select>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Libellé de la Banque</label>
+                                <select id="map-details" class="w-full p-2 bg-white border border-gray-300 rounded-md text-xs"></select>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1">Montant (€)</label>
-                                <select id="map-montant" class="w-full p-2 bg-white border border-gray-300 rounded text-sm"></select>
+                                <select id="map-montant" class="w-full p-2 bg-white border border-gray-300 rounded-md text-xs"></select>
                             </div>
                         </div>
-                        <button onclick="processCSVLines()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded text-sm shadow flex items-center gap-2">🤖 Envoyer à l'IA pour catégorisation</button>
+                        <button onclick="processCSVLines()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-md text-xs shadow flex items-center gap-1 transition">🤖 Lancer la catégorisation Gemini</button>
                     </div>
 
                     <div id="csv-preview-container" class="hidden space-y-4">
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                            <h4 class="font-semibold text-gray-700 text-sm">Prévisualisation de la catégorisation IA :</h4>
-                            <button onclick="saveImportedTransactions()" class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-sm shadow">💾 Valider et envoyer sur le Cloud</button>
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-indigo-50 p-3 rounded-lg">
+                            <h4 class="font-semibold text-indigo-950 text-xs">Vérifiez les propositions de l'IA avant validation définitive :</h4>
+                            <button onclick="saveImportedTransactions()" class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md text-xs shadow transition">💾 Injecter ces lignes dans le Cloud</button>
                         </div>
-                        <div class="overflow-x-auto border border-gray-200 rounded-lg">
-                            <table class="w-full text-left text-sm">
-                                <thead class="bg-gray-100 text-gray-600 text-xs font-semibold uppercase">
+                        <div class="overflow-x-auto border border-gray-200 rounded-xl">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-gray-100 text-gray-600 text-[11px] font-bold uppercase">
                                     <tr>
                                         <th class="p-3">Date</th>
-                                        <th class="p-3">Libellé Banque</th>
-                                        <th class="p-3">Catégorie IA</th>
-                                        <th class="p-3">Poste IA</th>
-                                        <th class="p-3">Description IA</th>
+                                        <th class="p-3">Libellé original</th>
+                                        <th class="p-3">Catégorie</th>
+                                        <th class="p-3">Poste</th>
+                                        <th class="p-3">Description</th>
                                         <th class="p-3">Montant</th>
                                     </tr>
                                 </thead>
-                                <tbody id="csv-preview-tbody" class="divide-y divide-gray-200"></tbody>
+                                <tbody id="csv-preview-tbody" class="divide-y divide-gray-200 bg-white"></tbody>
                             </table>
                         </div>
                     </div>
                 </div>
 
-                <div class="bg-white rounded-lg shadow overflow-x-auto">
+                <div class="bg-white rounded-xl shadow overflow-x-auto border border-gray-100">
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-200 text-gray-600 text-xs uppercase tracking-wider font-semibold">
@@ -118,84 +180,67 @@
                             </tr>
                         </thead>
                         <tbody id="transactions-table-body" class="divide-y divide-gray-100 text-sm">
-                            <tr><td colspan="7" class="p-8 text-center text-gray-400 italic">Connexion au cloud en cours...</td></tr>
+                            <tr><td colspan="7" class="p-8 text-center text-gray-400 italic">Connexion sécurisée en cours...</td></tr>
                         </tbody>
                     </table>
-                </div>
-            </section>
-
-            <section id="tab-config" class="tabs-content space-y-6">
-                <div class="bg-white p-6 rounded-lg shadow space-y-4">
-                    <h2 class="text-xl font-semibold text-gray-700">Configuration de l'IA (Google Gemini)</h2>
-                    <p class="text-sm text-gray-500">Pour utiliser la catégorisation automatique, collez votre clé d'API Gemini ci-dessous.</p>
-                    <div class="flex flex-col sm:flex-row gap-2 max-w-xl">
-                        <input type="password" id="api-key-input" placeholder="AIzaSy..." class="flex-grow p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                        <button onclick="saveApiKey()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded text-sm transition">Sauvegarder la clé</button>
-                    </div>
-                </div>
-
-                <div class="bg-white p-6 rounded-lg shadow">
-                    <h2 class="text-xl font-semibold mb-2 text-gray-700">Dictionnaire des Catégories</h2>
-                    <p class="text-sm text-gray-500 mb-6">Visualisez l'arborescence à 3 niveaux.</p>
-                    <div id="config-tree-container" class="space-y-4 max-h-[500px] overflow-y-auto border border-gray-200 p-4 rounded bg-gray-50"></div>
                 </div>
             </section>
         </main>
     </div>
 
     <div id="transaction-modal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-40 hidden">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 overflow-hidden border border-gray-100">
             <div class="bg-blue-900 text-white px-6 py-4 flex justify-between items-center">
-                <h3 id="modal-title" class="font-semibold text-lg">Nouvelle opération</h3>
-                <button onclick="closeTransactionModal()" class="text-white/70 hover:text-white text-xl font-bold">&times;</button>
+                <h3 id="modal-title" class="font-bold text-base">Éditer l'opération</h3>
+                <button onclick="closeTransactionModal()" class="text-white/70 hover:text-white text-xl font-bold px-2">&times;</button>
             </div>
             <form id="transaction-form" onsubmit="saveTransaction(event)" class="p-6 space-y-4">
                 <input type="hidden" id="edit-index">
                 <input type="hidden" id="edit-db-id">
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Date de l'opération</label>
-                    <input type="date" id="form-date" required class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Date</label>
+                    <input type="date" id="form-date" required class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Catégorie</label>
-                        <select id="form-categorie" onchange="updatePosteDropdown()" required class="w-full p-2 border border-gray-300 rounded bg-white focus:ring-2 focus:ring-blue-500 outline-none"></select>
+                        <select id="form-categorie" onchange="updatePosteDropdown()" required class="w-full p-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none"></select>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Poste</label>
-                        <select id="form-poste" onchange="updateDescriptionDropdown()" required class="w-full p-2 border border-gray-300 rounded bg-white focus:ring-2 focus:ring-blue-500 outline-none"></select>
+                        <select id="form-poste" onchange="updateDescriptionDropdown()" required class="w-full p-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none"></select>
                     </div>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Description</label>
-                    <select id="form-description" required class="w-full p-2 border border-gray-300 rounded bg-white focus:ring-2 focus:ring-blue-500 outline-none"></select>
+                    <select id="form-description" required class="w-full p-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none"></select>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Détails (Libre)</label>
-                    <input type="text" id="form-details" placeholder="Ex: Leclerc Lille..." class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Détails / Note (Libre)</label>
+                    <input type="text" id="form-details" placeholder="Ex: Auchan, CB internet..." class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Montant (€)</label>
-                    <input type="number" step="0.01" id="form-montant" placeholder="0.00" required class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Montant de la transaction (€)</label>
+                    <input type="number" step="0.01" id="form-montant" placeholder="0.00" required class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
-                <div class="flex justify-end space-x-2 pt-2">
-                    <button type="button" onclick="closeTransactionModal()" class="px-4 py-2 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 text-sm font-medium">Annuler</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium shadow">Enregistrer</button>
+                <div class="flex justify-end space-x-2 pt-2 border-t border-gray-100">
+                    <button type="button" onclick="closeTransactionModal()" class="px-4 py-2.5 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 text-xs font-bold transition">Annuler</button>
+                    <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm transition">Sauvegarder</button>
                 </div>
             </form>
         </div>
     </div>
 
     <script>
-        // --- 1. CONFIGURATION DE VOS CLÉS SECRÈTES ---
+        // --- 1. CONFIGURATION DE VOS ACCÈS SECRÈTS ---
         const SECRET_PASSWORD = "2227"; 
         const SUPABASE_URL = "https://ybxpjhcmhyycvousuepw.supabase.co"; 
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlieHBqaGNtaHl5Y3ZvdXN1ZXB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MTA5MzQsImV4cCI6MjA5NTE4NjkzNH0.JWOTI763oWDm8W_48kqvsbslgcMT98nrUoKLTYf53JY";
 
-        // Initialisation de Supabase
+        // Initialisation de la connexion Cloud
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        const initialStructure = {
+        const budgetStructure = {
             "ENTRÉES": {
                 "Salaire 1": ["Revenu principal", "chômage", "frais km"],
                 "Salaire 2": ["Revenu secondaire"],
@@ -230,7 +275,6 @@
             }
         };
 
-        let budgetStructure = initialStructure;
         let transactions = [];
         let tempImportedTransactions = [];
         let csvHeaders = [];
@@ -259,34 +303,33 @@
             });
             document.getElementById(tabId).classList.add('active');
             document.getElementById('btn-' + tabId).classList.add('bg-blue-600', 'text-white');
-        }
-
-        function toggleImportZone() {
-            const zone = document.getElementById('integrated-import-zone');
-            if (zone.classList.contains('hidden')) {
-                zone.classList.remove('hidden');
-                // Réinitialiser les champs d'import au déploiement
-                document.getElementById('csv-file-input').value = '';
-                document.getElementById('csv-mapping-container').classList.add('hidden');
-                document.getElementById('csv-preview-container').classList.add('hidden');
-            } else {
-                zone.classList.add('hidden');
+            
+            // Forcer le recalcul si on va sur le dashboard
+            if(tabId === 'tab-dashboard') {
+                buildMonthDropdown();
             }
         }
 
         function initApp() {
             fetchTransactionsFromCloud();
-            renderConfigTree();
             populateCategorieDropdown();
             document.getElementById('api-key-input').value = localStorage.getItem('gemini_api_key') || '';
         }
 
         function saveApiKey() {
             localStorage.setItem('gemini_api_key', document.getElementById('api-key-input').value.trim());
-            alert("Clé API enregistrée !");
+            alert("Clé API Google Gemini mémorisée dans votre terminal.");
         }
 
-        // --- CHARGEMENT CLOUD DEPUIS SUPABASE ---
+        function toggleImportZone() {
+            const zone = document.getElementById('integrated-import-zone');
+            zone.classList.toggle('hidden');
+            document.getElementById('csv-file-input').value = '';
+            document.getElementById('csv-mapping-container').classList.add('hidden');
+            document.getElementById('csv-preview-container').classList.add('hidden');
+        }
+
+        // --- SYNCHRONISATION DEPUIS LE CLOUD ---
         async function fetchTransactionsFromCloud() {
             try {
                 const { data, error } = await _supabase
@@ -296,19 +339,20 @@
 
                 if (error) throw error;
                 transactions = data || [];
-                renderTransactions();
+                renderTransactionsTable();
+                buildMonthDropdown(); // Mettre à jour le sélecteur du Dashboard
             } catch (err) {
-                console.error("Erreur de chargement cloud:", err);
-                alert("Impossible de charger les données synchronisées.");
+                console.error(err);
+                document.getElementById('transactions-table-body').innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">Erreur de chargement. Vérifiez vos clés.</td></tr>`;
             }
         }
 
-        function renderTransactions() {
+        function renderTransactionsTable() {
             const tbody = document.getElementById('transactions-table-body');
             tbody.innerHTML = '';
 
             if (transactions.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 italic">Aucune opération sur le cloud. Ajoutez-en une !</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 italic">Aucune opération détectée sur le serveur cloud.</td></tr>`;
                 return;
             }
 
@@ -318,20 +362,173 @@
                 const formatMontant = (isPositive ? "+" : "-") + Math.abs(t.montant).toFixed(2) + " €";
 
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 transition-colors";
+                tr.className = "hover:bg-gray-50 transition-colors border-b border-gray-100";
                 tr.innerHTML = `
-                    <td class="p-4 whitespace-nowrap text-gray-600">${formatDateFr(t.date)}</td>
-                    <td class="p-4"><span class="px-2 py-1 rounded text-xs bg-slate-100 font-medium text-slate-700">${t.categorie}</span></td>
-                    <td class="p-4 text-gray-700 font-medium">${t.poste}</td>
-                    <td class="p-4 text-gray-600">${t.description}</td>
-                    <td class="p-4 text-gray-500 italic max-w-xs truncate" title="${t.details || ''}">${t.details || '-'}</td>
-                    <td class="p-4 whitespace-nowrap ${montantClass}">${formatMontant}</td>
-                    <td class="p-4 text-center whitespace-nowrap space-x-2">
-                        <button onclick="editTransaction(${index})" class="text-blue-600 hover:text-blue-900 font-medium text-xs bg-blue-50 px-2 py-1 rounded">Modifier</button>
-                        <button onclick="deleteTransaction(${index})" class="text-red-600 hover:text-red-900 font-medium text-xs bg-red-50 px-2 py-1 rounded">Supprimer</button>
+                    <td class="p-4 whitespace-nowrap text-gray-600 font-mono text-xs">${formatDateFr(t.date)}</td>
+                    <td class="p-4"><span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-700 uppercase tracking-tight">${t.categorie}</span></td>
+                    <td class="p-4 text-gray-800 font-semibold text-xs">${t.poste}</td>
+                    <td class="p-4 text-gray-600 text-xs">${t.description}</td>
+                    <td class="p-4 text-gray-400 italic text-xs max-w-xs truncate" title="${t.details || ''}">${t.details || '-'}</td>
+                    <td class="p-4 whitespace-nowrap text-right ${montantClass}">${formatMontant}</td>
+                    <td class="p-4 text-center whitespace-nowrap space-x-1">
+                        <button onclick="editTransaction(${index})" class="text-blue-600 hover:bg-blue-100 text-xs px-2 py-1 rounded transition">Modifier</button>
+                        <button onclick="deleteTransaction(${index})" class="text-red-500 hover:bg-red-100 text-xs px-2 py-1 rounded transition">Supprimer</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
+            });
+        }
+
+        // --- CONSTRUCTEUR DU TABLEAU DE BORD (DASHBOARD) ---
+        function buildMonthDropdown() {
+            const select = document.getElementById('dashboard-month-select');
+            const previousValue = select.value;
+            select.innerHTML = '';
+
+            // Extraire tous les mois distincts présents dans la base
+            const monthsMap = {};
+            
+            // Toujours mettre au moins le mois courant par défaut
+            const now = new Date();
+            const currentPeriodStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            monthsMap[currentPeriodStr] = true;
+
+            transactions.forEach(t => {
+                if(t.date) {
+                    const period = t.date.substring(0, 7); // "YYYY-MM"
+                    monthsMap[period] = true;
+                }
+            });
+
+            // Trier les mois par ordre décroissant (plus récent d'abord)
+            const sortedPeriods = Object.keys(monthsMap).sort((a,b) => b.localeCompare(a));
+
+            const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+
+            sortedPeriods.forEach(p => {
+                const [year, month] = p.split('-');
+                const opt = document.createElement('option');
+                opt.value = p;
+                opt.innerText = `${monthNames[parseInt(month) - 1]} ${year}`;
+                select.appendChild(opt);
+            });
+
+            // Rétablir la sélection précédente ou sélectionner le premier
+            if(previousValue && sortedPeriods.includes(previousValue)) {
+                select.value = previousValue;
+            } else {
+                select.value = sortedPeriods.includes(currentPeriodStr) ? currentPeriodStr : sortedPeriods[0];
+            }
+
+            calculateDashboardMetrics();
+        }
+
+        function calculateDashboardMetrics() {
+            const targetPeriod = document.getElementById('dashboard-month-select').value; // "YYYY-MM"
+            if(!targetPeriod) return;
+
+            let totalEntrees = 0;
+            let totalDepenses = 0;
+
+            // Dictionnaires de sommation
+            const catTotals = {};
+            const posteTotals = {};
+
+            // Initialiser les grandes catégories
+            Object.keys(budgetStructure).forEach(c => catTotals[c] = 0);
+
+            // Filtrer les opérations du mois sélectionné
+            const filtered = transactions.filter(t => t.date && t.date.startsWith(targetPeriod));
+
+            filtered.forEach(t => {
+                const val = Math.abs(t.montant);
+                if(t.categorie === "ENTRÉES") {
+                    totalEntrees += val;
+                    catTotals["ENTRÉES"] += val;
+                } else {
+                    totalDepenses += val;
+                    if(catTotals[t.categorie] !== undefined) {
+                        catTotals[t.categorie] += val;
+                    }
+                    // Somme par poste de dépense
+                    posteTotals[t.poste] = (posteTotals[t.poste] || 0) + val;
+                }
+            });
+
+            const resteAVivre = totalEntrees - totalDepenses;
+
+            // Mettre à jour l'affichage des KPIs
+            document.getElementById('kpi-entrises').innerText = totalEntrees.toFixed(2) + " €";
+            document.getElementById('kpi-depenses').innerText = totalDepenses.toFixed(2) + " €";
+            
+            const resteEl = document.getElementById('kpi-reste');
+            const resteCard = document.getElementById('kpi-reste-card');
+            resteEl.innerText = resteAVivre.toFixed(2) + " €";
+            
+            if(resteAVivre >= 0) {
+                resteEl.className = "text-2xl font-bold text-blue-600 mt-1";
+                resteCard.className = "bg-white p-5 rounded-xl shadow-sm border border-l-4 border-l-blue-500 border-gray-200";
+            } else {
+                resteEl.className = "text-2xl font-bold text-amber-600 mt-1";
+                resteCard.className = "bg-white p-5 rounded-xl shadow-sm border border-l-4 border-l-amber-500 border-gray-200";
+            }
+
+            // --- CONSTRUIRE LE GRAPH 1 : PAR CATÉGORIES ---
+            const catContainer = document.getElementById('categories-chart-container');
+            catContainer.innerHTML = '';
+            
+            const maxCatValue = Math.max(...Object.values(catTotals), 1);
+
+            Object.keys(catTotals).forEach(cat => {
+                const sum = catTotals[cat];
+                const pctOfMax = (sum / maxCatValue) * 100;
+                const isIncome = cat === "ENTRÉES";
+                const barColor = isIncome ? "bg-green-500" : "bg-blue-600";
+
+                const div = document.createElement('div');
+                div.className = "space-y-1";
+                div.innerHTML = `
+                    <div class="flex justify-between text-xs font-semibold text-gray-700">
+                        <span>${cat}</span>
+                        <span class="${isIncome ? 'text-green-600':'text-gray-900'}">${sum.toFixed(2)} €</span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                        <div class="${barColor} h-3 rounded-full transition-all duration-500" style="width: ${pctOfMax}%"></div>
+                    </div>
+                `;
+                catContainer.appendChild(div);
+            });
+
+            // --- CONSTRUIRE LE GRAPH 2 : CRASH TEST PAR POSTES (TRIÉ PAR MONTANT) ---
+            const posteContainer = document.getElementById('postes-chart-container');
+            posteContainer.innerHTML = '';
+
+            const sortedPostes = Object.keys(posteTotals).sort((a,b) => posteTotals[b] - posteTotals[a]);
+
+            if(sortedPostes.length === 0) {
+                posteContainer.innerHTML = `<p class="text-center text-gray-400 italic text-xs py-8">Aucune dépense enregistrée sur ce mois.</p>`;
+                return;
+            }
+
+            const maxPosteValue = Math.max(...Object.values(posteTotals), 1);
+
+            sortedPostes.forEach(p => {
+                const sum = posteTotals[p];
+                const pctOfMax = (sum / maxPosteValue) * 100;
+                const pctOfTotalDepenses = totalDepenses > 0 ? (sum / totalDepenses) * 100 : 0;
+
+                const div = document.createElement('div');
+                div.className = "space-y-1";
+                div.innerHTML = `
+                    <div class="flex justify-between text-xs">
+                        <span class="font-medium text-gray-800">📋 ${p} <span class="text-[10px] text-gray-400 font-normal">(${pctOfTotalDepenses.toFixed(0)}%)</span></span>
+                        <span class="font-bold text-gray-900">${sum.toFixed(2)} €</span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                        <div class="bg-indigo-500 h-2 rounded-full transition-all duration-500" style="width: ${pctOfMax}%"></div>
+                    </div>
+                `;
+                posteContainer.appendChild(div);
             });
         }
 
@@ -362,45 +559,40 @@
                 fetchTransactionsFromCloud();
             } catch (err) {
                 console.error(err);
-                alert("Erreur lors de la sauvegarde sur le Cloud.");
+                alert("Incident lors du traitement avec la base de données cloud.");
             }
         }
 
         async function deleteTransaction(idx) {
-            if (confirm("Voulez-vous vraiment supprimer cette opération du Cloud ?")) {
+            if (confirm("Voulez-vous supprimer de manière irréversible cette ligne du cloud ?")) {
                 const target = transactions[idx];
                 try {
                     const { error } = await _supabase.from('transactions').delete().eq('id', target.id);
                     if (error) throw error;
                     fetchTransactionsFromCloud();
                 } catch (err) {
-                    alert("Erreur de suppression.");
+                    alert("Erreur réseau ou droits insuffisants.");
                 }
             }
         }
 
-        // --- ENVOI DE L'IMPORT CSV DIRECTEMENT SUR LE CLOUD ---
         async function saveImportedTransactions() {
             if(tempImportedTransactions.length === 0) return;
-            
             try {
                 const { error } = await _supabase.from('transactions').insert(tempImportedTransactions);
                 if (error) throw error;
                 
-                alert(`${tempImportedTransactions.length} lignes envoyées et synchronisées avec succès !`);
+                alert(`${tempImportedTransactions.length} écritures injectées et synchronisées !`);
                 tempImportedTransactions = [];
-                
-                // Fermer et réinitialiser le tiroir d'importation
                 toggleImportZone();
-                
                 fetchTransactionsFromCloud();
             } catch (err) {
                 console.error(err);
-                alert("Erreur lors de l'envoi massif sur le cloud.");
+                alert("Erreur lors de l'intégration massive.");
             }
         }
 
-        // --- MOTEUR BANCAIRE ET PARSING ---
+        // --- PARSING ET STRUCTURE EN AMONT ---
         function parseCSV() {
             const fileInput = document.getElementById('csv-file-input');
             if (fileInput.files.length === 0) return;
@@ -421,7 +613,7 @@
         function populateMappingDropdowns(headers) {
             ['map-date', 'map-details', 'map-montant'].forEach(id => {
                 const select = document.getElementById(id);
-                select.innerHTML = '<option value="">-- Choisir --</option>';
+                select.innerHTML = '<option value="">-- Assigner --</option>';
                 headers.forEach((h, i) => {
                     const opt = document.createElement('option');
                     opt.value = i; opt.innerText = h;
@@ -436,20 +628,20 @@
 
         async function processCSVLines() {
             const apiKey = localStorage.getItem('gemini_api_key');
-            if(!apiKey) { alert("Ajoutez votre clé Gemini en Configuration."); return; }
+            if(!apiKey) { alert("Veuillez renseigner votre clé Google Gemini dans l'encadré de configuration en bas du Dashboard."); return; }
 
             const idxDate = document.getElementById('map-date').value;
             const idxDetails = document.getElementById('map-details').value;
             const idxMontant = document.getElementById('map-montant').value;
 
-            const rowsToProcess = csvRows.slice(0, 40);
+            const rowsToProcess = csvRows.slice(0, 45);
             const cleanLinesForAI = rowsToProcess.map((row, i) => ({ id: i, libelle: row[idxDetails] || '', montant: row[idxMontant] || '' }));
 
-            document.getElementById('csv-preview-tbody').innerHTML = `<tr><td colspan="6" class="p-8 text-center text-indigo-600 animate-pulse">🤖 L'IA analyse les libellés...</td></tr>`;
+            document.getElementById('csv-preview-tbody').innerHTML = `<tr><td colspan="6" class="p-8 text-center font-bold text-indigo-600 animate-pulse">🤖 L'IA Gemini classe vos dépenses selon votre structure...</td></tr>`;
             document.getElementById('csv-preview-container').classList.remove('hidden');
 
             try {
-                const promptSystem = `Tu es un robot comptable. Aligne les opérations sur cette arborescence JSON : ${JSON.stringify(budgetStructure)}. Réponds UNIQUEMENT par un tableau JSON [ {"id":0, "categorie":"...", "poste":"...", "description":"..."} ]`;
+                const promptSystem = `Tu es un automate comptable rigoureux. Analyse les libellés bancaires et renvoie UNIQUEMENT un tableau JSON structuré pour correspondre à cet arbre : ${JSON.stringify(budgetStructure)}. Format de réponse attendu : [ {"id":0, "categorie":"...", "poste":"...", "description":"..."} ]`;
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -479,19 +671,19 @@
 
                     tempImportedTransactions.push(txObj);
                     const tr = document.createElement('tr');
-                    tr.className = "text-xs hover:bg-gray-50";
+                    tr.className = "text-xs hover:bg-gray-50 bg-white";
                     tr.innerHTML = `
-                        <td class="p-3">${formatDateFr(txObj.date)}</td>
-                        <td class="p-3 text-gray-500 italic truncate max-w-xs">${txObj.details}</td>
-                        <td class="p-3"><span class="bg-blue-100 px-2 py-0.5 rounded text-blue-800">${txObj.categorie}</span></td>
-                        <td class="p-3 font-medium">${txObj.poste}</td>
-                        <td class="p-3 text-gray-600">${txObj.description}</td>
-                        <td class="p-3 font-bold">${cleanMontant.toFixed(2)} €</td>
+                        <td class="p-3 font-mono text-gray-500">${formatDateFr(txObj.date)}</td>
+                        <td class="p-3 text-gray-600 font-medium truncate max-w-xs">${txObj.details}</td>
+                        <td class="p-3"><span class="bg-blue-50 px-2 py-0.5 rounded text-blue-700 font-bold text-[10px]">${txObj.categorie}</span></td>
+                        <td class="p-3 text-gray-800 font-semibold">${txObj.poste}</td>
+                        <td class="p-3 text-gray-500">${txObj.description}</td>
+                        <td class="p-3 font-bold text-right">${cleanMontant.toFixed(2)} €</td>
                     `;
                     tbody.appendChild(tr);
                 });
             } catch (err) {
-                document.getElementById('csv-preview-tbody').innerHTML = `<tr><td colspan="6" class="p-8 text-red-500 text-center">Erreur lors de l'analyse IA.</td></tr>`;
+                document.getElementById('csv-preview-tbody').innerHTML = `<tr><td colspan="6" class="p-8 text-red-500 text-center font-medium">Une anomalie est survenue lors de l'appel à l'API Gemini. Vérifiez le format du fichier ou votre clé.</td></tr>`;
             }
         }
 
@@ -515,7 +707,7 @@
             document.getElementById('transaction-form').reset();
             
             if (editIdx !== null) {
-                document.getElementById('modal-title').innerText = "Modifier l'opération Cloud";
+                document.getElementById('modal-title').innerText = "Modifier la ligne Cloud";
                 document.getElementById('edit-index').value = editIdx;
                 const t = transactions[editIdx];
                 document.getElementById('edit-db-id').value = t.id;
@@ -528,7 +720,7 @@
                 document.getElementById('form-details').value = t.details || '';
                 document.getElementById('form-montant').value = Math.abs(t.montant);
             } else {
-                document.getElementById('modal-title').innerText = "Nouvelle opération Cloud";
+                document.getElementById('modal-title').innerText = "Ajouter manuellement";
                 document.getElementById('edit-index').value = "";
                 document.getElementById('edit-db-id').value = "";
                 document.getElementById('form-date').value = new Date().toISOString().split('T')[0];
@@ -554,23 +746,6 @@
         function updateDescriptionDropdown() {
             const c = document.getElementById('form-categorie').value, p = document.getElementById('form-poste').value, s = document.getElementById('form-description'); s.innerHTML = '';
             if (budgetStructure[c] && budgetStructure[c][p]) budgetStructure[c][p].forEach(d => { const o = document.createElement('option'); o.value = d; o.innerText = d; s.appendChild(o); });
-        }
-
-        function renderConfigTree() {
-            const container = document.getElementById('config-tree-container'); container.innerHTML = '';
-            Object.keys(budgetStructure).forEach(cat => {
-                const catDiv = document.createElement('div'); catDiv.className = "bg-white p-3 rounded border border-gray-100 shadow-sm";
-                catDiv.innerHTML = `<span class="font-bold text-blue-900 text-sm">📁 ${cat}</span>`;
-                const pContainer = document.createElement('div'); pContainer.className = "ml-6 mt-2 space-y-2 border-l-2 border-gray-200 pl-3";
-                Object.keys(budgetStructure[cat]).forEach(p => {
-                    const pDiv = document.createElement('div'); pDiv.className = "text-xs text-gray-700";
-                    pDiv.innerHTML = `<span class="font-semibold text-gray-800">📋 ${p}</span>`;
-                    const dDiv = document.createElement('div'); dDiv.className = "ml-4 mt-1 text-gray-500 flex flex-wrap gap-1";
-                    budgetStructure[cat][p].forEach(d => { dDiv.innerHTML += `<span class="bg-gray-100 px-1.5 py-0.5 rounded text-[11px]">${d}</span>`; });
-                    pDiv.appendChild(dDiv); pContainer.appendChild(pDiv);
-                });
-                catDiv.appendChild(pContainer); container.appendChild(catDiv);
-            });
         }
     </script>
 </body>
