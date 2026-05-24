@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suivi de Budget Mensuel</title>
-    <!-- Tailwind CSS pour un design propre et moderne -->
+    <title>My Buddy Budget</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
         .tabs-content { display: none; }
@@ -13,22 +12,19 @@
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans">
 
-    <!-- PAGE DE CONNEXION -->
     <div id="login-page" class="fixed inset-0 bg-gray-900 flex flex-col items-center justify-center z-50">
         <div class="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full mx-4">
-            <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">Mon Budget Privé</h1>
+            <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">My Buddy Budget</h1>
             <input type="password" id="password-input" placeholder="Mot de passe" class="w-full p-3 border border-gray-300 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
             <button onclick="checkPassword()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded transition duration-200">Se connecter</button>
             <p id="login-error" class="text-red-500 text-sm mt-3 hidden text-center">Mot de passe incorrect.</p>
         </div>
     </div>
 
-    <!-- APPLICATION PRINCIPALE -->
     <div id="app-content" class="hidden min-h-screen flex flex-col">
-        <!-- Barre de navigation -->
         <header class="bg-blue-900 text-white shadow-md">
             <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <h1 class="text-xl font-bold tracking-wide">📊 Suivi Budget & Dépenses</h1>
+                <h1 class="text-xl font-bold tracking-wide">📊 My Buddy Budget</h1>
                 <nav class="flex space-x-2 bg-blue-950 p-1 rounded-lg">
                     <button onclick="switchTab('tab-transactions')" id="btn-tab-transactions" class="tab-btn px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-white">Transactions</button>
                     <button onclick="switchTab('tab-import')" id="btn-tab-import" class="tab-btn px-4 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-white">Import CSV & IA</button>
@@ -39,14 +35,12 @@
 
         <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6">
             
-            <!-- ONGLET 1 : TRANSACTIONS -->
             <section id="tab-transactions" class="tabs-content active space-y-6">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-lg shadow-sm">
                     <h2 class="text-xl font-semibold text-gray-700">Historique des opérations</h2>
                     <button onclick="openTransactionModal()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-sm flex items-center gap-1">➕ Ajouter une opération</button>
                 </div>
 
-                <!-- Tableau des transactions -->
                 <div class="bg-white rounded-lg shadow overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
@@ -61,37 +55,87 @@
                             </tr>
                         </thead>
                         <tbody id="transactions-table-body" class="divide-y divide-gray-100 text-sm">
-                            <!-- Rempli par JavaScript -->
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
             </section>
 
-            <!-- ONGLET 2 : IMPORT CSV & IA -->
             <section id="tab-import" class="tabs-content space-y-6">
-                <div class="bg-white p-6 rounded-lg shadow">
-                    <h2 class="text-xl font-semibold mb-4 text-gray-700">Importer des données bancaires</h2>
-                    <p class="text-gray-500 text-sm mb-4">Cette section permettra d'analyser vos fichiers d'export de compte et de pré-catégoriser les lignes grâce à l'IA.</p>
-                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50">
-                        <span class="text-gray-400">Le module d'importation et de connexion IA sera configuré à l'étape suivante.</span>
+                <div class="bg-white p-6 rounded-lg shadow space-y-6">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-700 mb-1">Importer un relevé bancaire (CSV)</h2>
+                        <p class="text-gray-500 text-sm">Sélectionnez le fichier téléchargé depuis votre banque (.csv).</p>
+                    </div>
+
+                    <div class="flex items-center gap-4 bg-gray-50 p-4 rounded border border-gray-200">
+                        <input type="file" id="csv-file-input" accept=".csv" class="text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        <button onclick="parseCSV()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded text-sm shadow">Analyse initiale</button>
+                    </div>
+
+                    <div id="csv-mapping-container" class="hidden p-4 border border-blue-200 bg-blue-50/50 rounded space-y-4">
+                        <h3 class="font-medium text-blue-950 text-sm">🛠️ Associez les colonnes de votre fichier bancaire :</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Date de l'opération</label>
+                                <select id="map-date" class="w-full p-2 bg-white border border-gray-300 rounded text-sm"></select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Libellé / Texte de la banque (Détails)</label>
+                                <select id="map-details" class="w-full p-2 bg-white border border-gray-300 rounded text-sm"></select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Montant (€)</label>
+                                <select id="map-montant" class="w-full p-2 bg-white border border-gray-300 rounded text-sm"></select>
+                            </div>
+                        </div>
+                        <button onclick="processCSVLines()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded text-sm shadow flex items-center gap-2">🤖 Envoyer à l'IA pour catégorisation</button>
+                    </div>
+
+                    <div id="csv-preview-container" class="hidden space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-semibold text-gray-700">Lignes détectées et catégorisées par l'IA :</h3>
+                            <button onclick="saveImportedTransactions()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-sm shadow">💾 Valider et intégrer à mon budget</button>
+                        </div>
+                        <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-gray-100 text-gray-600 text-xs font-semibold uppercase">
+                                    <tr>
+                                        <th class="p-3">Date</th>
+                                        <th class="p-3">Libellé Banque</th>
+                                        <th class="p-3">Catégorie IA</th>
+                                        <th class="p-3">Poste IA</th>
+                                        <th class="p-3">Description IA</th>
+                                        <th class="p-3">Montant</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="csv-preview-tbody" class="divide-y divide-gray-200">
+                                    </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <!-- ONGLET 3 : CONFIGURATION -->
             <section id="tab-config" class="tabs-content space-y-6">
+                <div class="bg-white p-6 rounded-lg shadow space-y-4">
+                    <h2 class="text-xl font-semibold text-gray-700">Configuration de l'IA (Google Gemini)</h2>
+                    <p class="text-sm text-gray-500">Pour utiliser la catégorisation automatique, collez votre clé d'API Gemini ci-dessous. Elle reste stockée de manière sécurisée dans votre navigateur.</p>
+                    <div class="flex flex-col sm:flex-row gap-2 max-w-xl">
+                        <input type="password" id="api-key-input" placeholder="AIzaSy..." class="flex-grow p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        <button onclick="saveApiKey()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded text-sm transition">Sauvegarder la clé</button>
+                    </div>
+                </div>
+
                 <div class="bg-white p-6 rounded-lg shadow">
                     <h2 class="text-xl font-semibold mb-2 text-gray-700">Dictionnaire des Catégories</h2>
                     <p class="text-sm text-gray-500 mb-6">Visualisez l'arborescence à 3 niveaux utilisée pour classifier vos dépenses.</p>
                     <div id="config-tree-container" class="space-y-4 max-h-[500px] overflow-y-auto border border-gray-200 p-4 rounded bg-gray-50">
-                        <!-- Rempli par JavaScript -->
-                    </div>
+                        </div>
                 </div>
             </section>
         </main>
     </div>
 
-    <!-- MODAL : AJOUT / MODIFICATION TRANSACTION -->
     <div id="transaction-modal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-40 hidden">
         <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
             <div class="bg-blue-900 text-white px-6 py-4 flex justify-between items-center">
@@ -134,10 +178,9 @@
         </div>
     </div>
 
-    <!-- LOGIQUE LOGICIELLE (JAVASCRIPT) -->
     <script>
         // Le mot de passe très simple pour bloquer l'écran à l'ouverture
-        const SECRET_PASSWORD = "222703"; 
+        const SECRET_PASSWORD = "ChangerCeMotDePasse123!"; 
 
         // Structure initiale de vos catégories conformes à votre demande
         const initialStructure = {
@@ -178,6 +221,9 @@
         // Chargement ou initialisation des bases de données locales au navigateur
         let budgetStructure = JSON.parse(localStorage.getItem('budget_structure')) || initialStructure;
         let transactions = JSON.parse(localStorage.getItem('budget_transactions')) || [];
+        let tempImportedTransactions = []; // Stockage temporaire des lignes lues du CSV
+        let csvHeaders = [];
+        let csvRows = [];
 
         // Vérification du mot de passe
         function checkPassword() {
@@ -192,12 +238,10 @@
             }
         }
 
-        // Permettre la validation par la touche Entrée sur le mot de passe
         document.getElementById('password-input').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') checkPassword();
         });
 
-        // Gestion des onglets
         function switchTab(tabId) {
             document.querySelectorAll('.tabs-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => {
@@ -211,210 +255,117 @@
             activeBtn.classList.add('bg-blue-600', 'text-white');
         }
 
-        // Initialisation de l'application
         function initApp() {
             renderTransactions();
             renderConfigTree();
             populateCategorieDropdown();
+            // Charger la clé API existante si elle est sauvée
+            document.getElementById('api-key-input').value = localStorage.getItem('gemini_api_key') || '';
         }
 
-        // Affichage du tableau des transactions
-        function renderTransactions() {
-            const tbody = document.getElementById('transactions-table-body');
-            tbody.innerHTML = '';
+        function saveApiKey() {
+            const key = document.getElementById('api-key-input').value.trim();
+            localStorage.setItem('gemini_api_key', key);
+            alert("Clé API enregistrée localement avec succès !");
+        }
 
-            if (transactions.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 italic">Aucune opération enregistrée. Cliquez sur Ajouter pour commencer.</td></tr>`;
+        // --- SECTION MOTEUR CSV ---
+        function parseCSV() {
+            const fileInput = document.getElementById('csv-file-input');
+            if (fileInput.files.length === 0) {
+                alert("Veuillez sélectionner un fichier CSV d'abord.");
                 return;
             }
 
-            // Tri par date décroissante
-            const sorted = [...transactions].sort((a,b) => new Date(b.date) - new Date(a.date));
-
-            sorted.forEach((t, actualIndex) => {
-                // Retrouver l'index d'origine dans le vrai tableau pour la modification
-                const originalIndex = transactions.findIndex(item => item === t);
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const text = e.target.result;
+                // Découpage automatique des lignes
+                const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
+                if(lines.length === 0) { alert("Le fichier semble vide."); return; }
                 
-                const isPositive = t.categorie === "ENTRÉES";
-                const montantClass = isPositive ? "text-green-600 font-semibold" : "text-gray-700 font-medium";
-                const formatMontant = (isPositive ? "+" : "-") + Math.abs(t.montant).toFixed(2) + " €";
+                // Détection du séparateur (virgule ou point-virgule souvent en France)
+                let separator = ",";
+                if (lines[0].includes(";")) separator = ";";
 
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 transition-colors";
-                tr.innerHTML = `
-                    <td class="p-4 whitespace-nowrap text-gray-600">${formatDateFr(t.date)}</td>
-                    <td class="p-4"><span class="px-2 py-1 rounded text-xs bg-slate-100 font-medium text-slate-700">${t.categorie}</span></td>
-                    <td class="p-4 text-gray-700 font-medium">${t.poste}</td>
-                    <td class="p-4 text-gray-600">${t.description}</td>
-                    <td class="p-4 text-gray-500 italic max-w-xs truncate" title="${t.details || ''}">${t.details || '-'}</td>
-                    <td class="p-4 whitespace-nowrap ${montantClass}">${formatMontant}</td>
-                    <td class="p-4 text-center whitespace-nowrap space-x-2">
-                        <button onclick="editTransaction(${originalIndex})" class="text-blue-600 hover:text-blue-900 font-medium text-xs bg-blue-50 px-2 py-1 rounded">Modifier</button>
-                        <button onclick="deleteTransaction(${originalIndex})" class="text-red-600 hover:text-red-900 font-medium text-xs bg-red-50 px-2 py-1 rounded">Supprimer</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        // Format des dates
-        function formatDateFr(dateStr) {
-            if (!dateStr) return '';
-            const d = dateStr.split('-');
-            return `${d[2]}/${d[1]}/${d[0]}`;
-        }
-
-        // Fenêtre modale : Gestion Ouverte/Fermeture
-        function openTransactionModal(editIdx = null) {
-            const modal = document.getElementById('transaction-modal');
-            const form = document.getElementById('transaction-form');
-            form.reset();
-            
-            if (editIdx !== null) {
-                document.getElementById('modal-title').innerText = "Modifier l'opération";
-                document.getElementById('edit-index').value = editIdx;
+                // Extraction des en-têtes
+                csvHeaders = lines[0].split(separator).map(h => h.replace(/["']/g, "").trim());
                 
-                const t = transactions[editIdx];
-                document.getElementById('form-date').value = t.date;
-                document.getElementById('form-categorie').value = t.categorie;
-                updatePosteDropdown();
-                document.getElementById('form-poste').value = t.poste;
-                updateDescriptionDropdown();
-                document.getElementById('form-description').value = t.description;
-                document.getElementById('form-details').value = t.details || '';
-                document.getElementById('form-montant').value = Math.abs(t.montant);
-            } else {
-                document.getElementById('modal-title').innerText = "Nouvelle opération";
-                document.getElementById('edit-index').value = "";
-                document.getElementById('form-date').value = new Date().toISOString().split('T')[0];
-                if(document.getElementById('form-categorie').options.length > 0) {
-                    document.getElementById('form-categorie').selectedIndex = 0;
-                    updatePosteDropdown();
-                }
-            }
-            modal.classList.remove('hidden');
-        }
-
-        function closeTransactionModal() {
-            document.getElementById('transaction-modal').classList.add('hidden');
-        }
-
-        // Remplissage dynamique des menus déroulants liés (Arborescence)
-        function populateCategorieDropdown() {
-            const catSelect = document.getElementById('form-categorie');
-            catSelect.innerHTML = '';
-            Object.keys(budgetStructure).forEach(cat => {
-                const opt = document.createElement('option');
-                opt.value = cat;
-                opt.innerText = cat;
-                catSelect.appendChild(opt);
-            });
-        }
-
-        function updatePosteDropdown() {
-            const cat = document.getElementById('form-categorie').value;
-            const posteSelect = document.getElementById('form-poste');
-            posteSelect.innerHTML = '';
-            
-            if (budgetStructure[cat]) {
-                Object.keys(budgetStructure[cat]).forEach(poste => {
-                    const opt = document.createElement('option');
-                    opt.value = poste;
-                    opt.innerText = poste;
-                    posteSelect.appendChild(opt);
+                // Extraction des lignes de données
+                csvRows = lines.slice(1).map(line => {
+                    return line.split(separator).map(v => v.replace(/["']/g, "").trim());
                 });
-            }
-            updateDescriptionDropdown();
-        }
 
-        function updateDescriptionDropdown() {
-            const cat = document.getElementById('form-categorie').value;
-            const poste = document.getElementById('form-poste').value;
-            const descSelect = document.getElementById('form-description');
-            descSelect.innerHTML = '';
-
-            if (budgetStructure[cat] && budgetStructure[cat][poste]) {
-                budgetStructure[cat][poste].forEach(desc => {
-                    const opt = document.createElement('option');
-                    opt.value = desc;
-                    opt.innerText = desc;
-                    descSelect.appendChild(opt);
-                });
-            }
-        }
-
-        // Sauvegarder (Ajouter ou Modifier) une opération
-        function saveTransaction(e) {
-            e.preventDefault();
-            const idx = document.getElementById('edit-index').value;
-            
-            const newTx = {
-                date: document.getElementById('form-date').value,
-                categorie: document.getElementById('form-categorie').value,
-                poste: document.getElementById('form-poste').value,
-                description: document.getElementById('form-description').value,
-                details: document.getElementById('form-details').value,
-                montant: parseFloat(document.getElementById('form-montant').value)
+                // Remplir les menus de correspondances (Mapping)
+                populateMappingDropdowns(csvHeaders);
+                document.getElementById('csv-mapping-container').classList.remove('hidden');
             };
 
-            if (idx === "") {
-                transactions.push(newTx);
-            } else {
-                transactions[parseInt(idx)] = newTx;
-            }
-
-            localStorage.setItem('budget_transactions', JSON.stringify(transactions));
-            renderTransactions();
-            closeTransactionModal();
+            reader.readAsText(file, 'ISO-8859-1'); // Souvent le format des banques françaises
         }
 
-        // Modifier l'opération
-        function editTransaction(idx) {
-            openTransactionModal(idx);
-        }
-
-        // Supprimer l'opération
-        function deleteTransaction(idx) {
-            if (confirm("Voulez-vous vraiment supprimer cette opération ?")) {
-                transactions.splice(idx, 1);
-                localStorage.setItem('budget_transactions', JSON.stringify(transactions));
-                renderTransactions();
-            }
-        }
-
-        // Afficher l'arbre de configuration (Visualisation de la structure)
-        function renderConfigTree() {
-            const container = document.getElementById('config-tree-container');
-            container.innerHTML = '';
-
-            Object.keys(budgetStructure).forEach(cat => {
-                const catDiv = document.createElement('div');
-                catDiv.className = "bg-white p-3 rounded border border-gray-100 shadow-sm";
-                catDiv.innerHTML = `<span class="font-bold text-blue-900 text-sm">📁 Catégorie : ${cat}</span>`;
-                
-                const posteContainer = document.createElement('div');
-                posteContainer.className = "ml-6 mt-2 space-y-2 border-l-2 border-gray-200 pl-3";
-
-                Object.keys(budgetStructure[cat]).forEach(poste => {
-                    const posteDiv = document.createElement('div');
-                    posteDiv.className = "text-xs text-gray-700";
-                    posteDiv.innerHTML = `<span class="font-semibold text-gray-800">📋 Poste : ${poste}</span>`;
-
-                    const descDiv = document.createElement('div');
-                    descDiv.className = "ml-4 mt-1 text-gray-500 flex flex-wrap gap-1";
+        function populateMappingDropdowns(headers) {
+            ['map-date', 'map-details', 'map-montant'].forEach(id => {
+                const select = document.getElementById(id);
+                select.innerHTML = '<option value="">-- Choisir une colonne --</option>';
+                headers.forEach((h, index) => {
+                    const opt = document.createElement('option');
+                    opt.value = index;
+                    opt.innerText = h;
                     
-                    budgetStructure[cat][poste].forEach(desc => {
-                        descDiv.innerHTML += `<span class="bg-gray-100 px-1.5 py-0.5 rounded text-[11px]">${desc}</span>`;
-                    });
+                    // Tentative d'auto-sélection intelligente
+                    const lowerH = h.toLowerCase();
+                    if(id === 'map-date' && (lowerH.includes('date') || lowerH.includes('opér'))) opt.selected = true;
+                    if(id === 'map-details' && (lowerH.includes('libell') || lowerH.includes('texte') || lowerH.includes('motif') || lowerH.includes('descript'))) opt.selected = true;
+                    if(id === 'map-montant' && (lowerH.includes('montant') || lowerH.includes('valeur') || lowerH.includes('debit'))) opt.selected = true;
 
-                    posteDiv.appendChild(descDiv);
-                    posteContainer.appendChild(posteDiv);
+                    select.appendChild(opt);
                 });
-
-                catDiv.appendChild(posteContainer);
-                container.appendChild(catDiv);
             });
         }
-    </script>
-</body>
-</html>
+
+        // --- LOGIQUE IA AVEC GEMINI ---
+        async function processCSVLines() {
+            const apiKey = localStorage.getItem('gemini_api_key');
+            if(!apiKey) {
+                alert("Erreur : Veuillez d'abord ajouter votre clé d'API Gemini dans l'onglet 'Configuration' !");
+                switchTab('tab-config');
+                return;
+            }
+
+            const idxDate = document.getElementById('map-date').value;
+            const idxDetails = document.getElementById('map-details').value;
+            const idxMontant = document.getElementById('map-montant').value;
+
+            if(idxDate === "" || idxDetails === "" || idxMontant === "") {
+                alert("Veuillez associer les 3 colonnes obligatoires.");
+                return;
+            }
+
+            // Pour éviter de saturer l'IA, on prend les 40 premières lignes maximum par import
+            const rowsToProcess = csvRows.slice(0, 40);
+            
+            // Préparer les données épurées à envoyer à l'IA
+            const cleanLinesForAI = rowsToProcess.map((row, i) => {
+                return {
+                    id: i,
+                    libelle: row[idxDetails] || '',
+                    montant: row[idxMontant] || ''
+                };
+            });
+
+            document.getElementById('csv-preview-tbody').innerHTML = `<tr><td colspan="6" class="p-8 text-center text-indigo-600 font-medium animate-pulse">🤖 L'IA analyse vos libellés bancaires... Merci de patienter quelques secondes.</td></tr>`;
+            document.getElementById('csv-preview-container').classList.remove('hidden');
+
+            // Appel API direct vers Gemini
+            try {
+                const promptSystem = `Tu es un robot comptable ultra-précis. Tu dois analyser une liste de transactions bancaires et les ranger UNIQUEMENT dans l'arborescence stricte fournie ci-dessous.
+                
+                Voici mon dictionnaire de catégories autorisées au format JSON (Catégorie > Poste > Liste des Descriptions autorisées) :
+                ${JSON.stringify(budgetStructure)}
+
+                Pour chaque transaction reçue, trouve le meilleur triplet (categorie, poste, description). Si le montant est positif, privilégie obligatoirement la catégorie "ENTRÉES". Si tu hésites vraiment pour une dépense, mets la catégorie "DÉPENSES QUOTIDIENNES", poste "SHOPPING" et description "MAISON et AUTRE".
+                
+                Réponds UNIQUEMENT sous la forme d'un tableau JSON valide, sans blabla, sans markdown \`\`\`json, juste le tableau comme ceci :
