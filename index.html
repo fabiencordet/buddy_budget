@@ -718,7 +718,7 @@
             const idxDetails = document.getElementById('map-details').value;
             const idxMontant = document.getElementById('map-montant').value;
 
-            const rowsToProcess = csvRows.slice(0, 45);
+            const rowsToProcess = csvRows.slice(0, 200);
             const cleanLinesForAI = rowsToProcess.map((row, i) => ({ id: i, libelle: row[idxDetails] || '', montant: row[idxMontant] || '' }));
 
             document.getElementById('csv-preview-tbody').innerHTML = `<tr><td colspan="4" class="p-4 text-center font-medium text-slate-500 animate-pulse">Classification automatique...</td></tr>`;
