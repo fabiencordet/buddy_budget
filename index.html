@@ -58,15 +58,15 @@
 
                     <div class="grid grid-cols-3 gap-2 h-12">
                         <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/60 shadow-2xs flex flex-col justify-center">
-                            <span class="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Entrées</span>
+                            <span class="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Entrées (Flux +)</span>
                             <div id="kpi-entrises" class="text-xs font-semibold text-emerald-600 truncate">0.00 €</div>
                         </div>
                         <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/60 shadow-2xs flex flex-col justify-center">
-                            <span class="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Dépenses</span>
+                            <span class="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Dépenses (Flux -)</span>
                             <div id="kpi-depenses" class="text-xs font-semibold text-rose-600 truncate">0.00 €</div>
                         </div>
                         <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/60 shadow-2xs flex flex-col justify-center">
-                            <span class="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Solde</span>
+                            <span class="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Solde Période</span>
                             <div id="kpi-reste" class="text-xs font-semibold text-slate-900 truncate">0.00 €</div>
                         </div>
                     </div>
@@ -75,7 +75,7 @@
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs lg:col-span-2 space-y-3">
                         <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100 flex justify-between">
-                            <span>📁 Répartition (par Mois d'Affectation)</span>
+                            <span>📁 Volume Net des Catégories (Affichage en valeur absolue)</span>
                             <span class="text-[10px] font-normal italic text-slate-400">Cliquez pour explorer</span>
                         </h3>
                         <div id="categories-chart-container" class="space-y-3 pt-1"></div>
@@ -83,7 +83,7 @@
 
                     <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs space-y-3">
                         <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100">
-                            <span>📋 Classement des Postes</span>
+                            <span>📋 Dépenses Nettes par Poste</span>
                         </h3>
                         <div id="postes-chart-container" class="space-y-3 max-h-[400px] overflow-y-auto pr-1"></div>
                     </div>
@@ -259,7 +259,10 @@
                 </div>
                 <div>
                     <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Montant (€)</label>
-                    <input type="number" step="0.01" id="form-montant" placeholder="0.00" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none font-medium">
+                    <div class="relative">
+                        <input type="number" step="0.01" id="form-montant" placeholder="0.00" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none font-medium">
+                        <span class="absolute right-3 top-2 text-[10px] text-slate-400 italic">Négatif (-) pour débit</span>
+                    </div>
                 </div>
                 <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100">
                     <button type="button" onclick="closeTransactionModal()" class="px-3 py-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 text-xs transition">Annuler</button>
@@ -382,9 +385,8 @@
             }
         }
 
-        // Fonction pour inverser le statut pointé/non pointé directement au clic
         async function togglePointage(index, event) {
-            if(event) event.stopPropagation(); // Évite d'ouvrir le volet de détails au clic sur le bouton de pointage
+            if(event) event.stopPropagation(); 
             const t = transactions[index];
             const nouveauStatut = !t.pointe;
             
@@ -410,14 +412,15 @@
             transactions.forEach((t, index) => {
                 const cleanCat = (t.categorie || '').toUpperCase().trim();
                 const cleanPoste = (t.poste || '').toUpperCase().trim();
-                const isPositive = cleanCat === "ENTRÉES";
-                const mColor = isPositive ? "text-emerald-600 font-medium" : "text-slate-700 font-medium";
-                const mText = (isPositive ? "+" : "-") + Math.abs(t.montant).toFixed(2) + " €";
+                
+                // Détection de la couleur basée sur le VRAI SIGNE MATHÉMATIQUE de la base
+                const rawMontant = parseFloat(t.montant) || 0;
+                const isPositive = rawMontant >= 0;
+                const mColor = isPositive ? "text-emerald-600 font-medium" : "text-rose-600 font-medium";
+                const mText = (isPositive ? "+" : "") + rawMontant.toFixed(2) + " €";
+                
                 const finalAffectation = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
 
-                // Différenciation graphique pointée vs non pointée
-                // - Pointée : style stable, icône verte validée
-                // - Non pointée : fond très légèrement teinté sable/jaune et texte standard pour attirer l'attention
                 const rowBgClass = t.pointe ? "bg-white text-slate-700" : "bg-amber-50/40 text-slate-900 font-medium";
                 const checkIcon = t.pointe ? "🟢" : "⚪";
                 const checkTitle = t.pointe ? "Transaction vérifiée (Pointée)" : "En attente de vérification (Non pointée)";
@@ -477,7 +480,8 @@
         function openDetailsDrawer(index) {
             const t = transactions[index];
             const cleanCat = (t.categorie || '').toUpperCase().trim();
-            const isPositive = cleanCat === "ENTRÉES";
+            const rawMontant = parseFloat(t.montant) || 0;
+            const isPositive = rawMontant >= 0;
             const finalAffectation = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
             
             document.getElementById('drawer-date').innerText = formatDateFr(t.date);
@@ -492,8 +496,8 @@
             pStatus.className = t.pointe ? "font-semibold text-emerald-600" : "font-semibold text-amber-600";
 
             const mEl = document.getElementById('drawer-montant');
-            mEl.innerText = (isPositive ? "+" : "-") + Math.abs(t.montant).toFixed(2) + " €";
-            mEl.className = isPositive ? "text-sm font-semibold text-emerald-600" : "text-sm font-semibold text-slate-900";
+            mEl.innerText = (isPositive ? "+" : "") + rawMontant.toFixed(2) + " €";
+            mEl.className = isPositive ? "text-sm font-semibold text-emerald-600" : "text-sm font-semibold text-rose-600";
 
             document.getElementById('drawer-actions-container').innerHTML = `
                 <button onclick="closeDetailsDrawer(); editTransaction(${index})" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 rounded-xl transition">Modifier</button>
@@ -552,7 +556,8 @@
             const targetPeriod = document.getElementById('dashboard-month-select').value;
             if(!targetPeriod) return;
 
-            let totalEntrees = 0, totalDepenses = 0;
+            // Suivi des vrais flux d'argent entrants (+) et sortants (-) pour la synthèse haute
+            let totalFluxEntrants = 0, totalFluxSortants = 0;
             const catTotals = {}, posteTotals = {}, drillDownTree = {};
 
             Object.keys(budgetStructure).forEach(c => {
@@ -566,17 +571,26 @@
             });
 
             filtered.forEach(t => {
-                const val = Math.abs(t.montant) || 0;
+                const val = parseFloat(t.montant) || 0;
                 const catClean = (t.categorie || '').toUpperCase().trim();
                 const posteClean = (t.poste || '').toUpperCase().trim();
                 const descClean = t.description || 'Autre / Inconnu';
 
-                if(catClean === "ENTRÉES") {
-                    totalEntrees += val;
-                    catTotals["ENTRÉES"] = (catTotals["ENTRÉES"] || 0) + val;
+                // Calcul KPI généraux basé sur le signe réel du montant
+                if(val >= 0) {
+                    totalFluxEntrants += val;
                 } else {
-                    totalDepenses += val;
-                    if(catTotals[catClean] !== undefined) catTotals[catClean] += val;
+                    totalFluxSortants += Math.abs(val);
+                }
+
+                // Pour la somme catégorielle, on fait une addition algébrique nette
+                if(catTotals[catClean] !== undefined) {
+                    catTotals[catClean] += val;
+                } else {
+                    catTotals[catClean] = val;
+                }
+
+                if(catClean !== "ENTRÉES") {
                     posteTotals[posteClean] = (posteTotals[posteClean] || 0) + val;
                 }
 
@@ -587,17 +601,20 @@
                 drillDownTree[catClean][posteClean].descs[descClean] = (drillDownTree[catClean][posteClean].descs[descClean] || 0) + val;
             });
 
-            document.getElementById('kpi-entrises').innerText = totalEntrees.toFixed(2) + " €";
-            document.getElementById('kpi-depenses').innerText = totalDepenses.toFixed(2) + " €";
-            document.getElementById('kpi-reste').innerText = (totalEntrees - totalDepenses).toFixed(2) + " €";
+            document.getElementById('kpi-entrises').innerText = totalFluxEntrants.toFixed(2) + " €";
+            document.getElementById('kpi-depenses').innerText = "-" + totalFluxSortants.toFixed(2) + " €";
+            document.getElementById('kpi-reste').innerText = (totalFluxEntrants - totalFluxSortants).toFixed(2) + " €";
 
             const catContainer = document.getElementById('categories-chart-container');
             catContainer.innerHTML = '';
-            const maxCatValue = Math.max(...Object.values(catTotals), 1);
+            
+            // Pour l'affichage des barres graphiques, on utilise les valeurs absolues nettes
+            const absCatValues = Object.values(catTotals).map(v => Math.abs(v));
+            const maxCatValue = Math.max(...absCatValues, 1);
 
             Object.keys(catTotals).forEach(cat => {
-                const sum = catTotals[cat] || 0;
-                const pct = (sum / maxCatValue) * 100;
+                const sumNet = catTotals[cat] || 0;
+                const pct = (Math.abs(sumNet) / maxCatValue) * 100;
                 const isCatExpanded = !!expandedCategories[cat];
 
                 const div = document.createElement('div');
@@ -605,10 +622,10 @@
                 div.innerHTML = `
                     <div class="flex justify-between items-center text-xs font-semibold text-slate-800 cursor-pointer hover:text-slate-500" onclick="toggleCategoryDrillDown('${cat}')">
                         <span class="flex items-center gap-1">${isCatExpanded ? '▼' : '▶'} ${cat}</span>
-                        <span class="font-mono">${sum.toFixed(2)} €</span>
+                        <span class="font-mono ${sumNet >= 0 ? 'text-emerald-600' : 'text-slate-800'}">${sumNet >= 0 ? '+' : ''}${sumNet.toFixed(2)} €</span>
                     </div>
                     <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden" onclick="toggleCategoryDrillDown('${cat}')">
-                        <div class="${cat === 'ENTRÉES' ? 'bg-emerald-500':'bg-slate-800'} h-1.5 rounded-full transition-all duration-300" style="width: ${pct}%"></div>
+                        <div class="${sumNet >= 0 ? 'bg-emerald-500':'bg-slate-800'} h-1.5 rounded-full transition-all duration-300" style="width: ${pct}%"></div>
                     </div>
                 `;
 
@@ -620,7 +637,8 @@
                     if(Object.keys(subPostes).length === 0) {
                         subBlock.innerHTML = `<div class="text-slate-400 italic text-[10px]">Aucune écriture.</div>`;
                     } else {
-                        Object.keys(subPostes).sort((a,b) => subPostes[b]._sum - subPostes[a]._sum).forEach(subP => {
+                        // Tri des sous-postes par leur importance absolue
+                        Object.keys(subPostes).sort((a,b) => Math.abs(subPostes[b]._sum) - Math.abs(subPostes[a]._sum)).forEach(subP => {
                             const pData = subPostes[subP];
                             const comboKey = `${cat}_${subP}`;
                             const isPosteExpanded = !!expandedPostes[comboKey];
@@ -630,18 +648,19 @@
                             posteWrapper.innerHTML = `
                                 <div class="flex justify-between text-slate-700 cursor-pointer hover:text-slate-900 font-medium" onclick="event.stopPropagation(); togglePosteDrillDownCombo('${comboKey}')">
                                     <span class="flex items-center gap-1">${isPosteExpanded ? '▼' : '▶'} 📋 ${subP}</span>
-                                    <span class="font-bold text-slate-800 font-mono">${pData._sum.toFixed(2)} €</span>
+                                    <span class="font-bold font-mono ${pData._sum >= 0 ? 'text-emerald-600' : 'text-slate-800'}">${pData._sum >= 0 ? '+' : ''}${pData._sum.toFixed(2)} €</span>
                                 </div>
                             `;
 
                             if(isPosteExpanded) {
                                 const descBlock = document.createElement('div');
                                 descBlock.className = "ml-4 pl-2 border-l border-slate-300 space-y-0.5 pt-1 text-[10px] text-slate-500 font-normal";
-                                Object.keys(pData.descs).sort((a,b) => pData.descs[b] - pData.descs[a]).forEach(desc => {
+                                Object.keys(pData.descs).sort((a,b) => Math.abs(pData.descs[b]) - Math.abs(pData.descs[a])).forEach(desc => {
+                                    const dVol = pData.descs[desc];
                                     descBlock.innerHTML += `
                                         <div class="flex justify-between py-0.5 border-b border-slate-100/50 last:border-0">
                                             <span>🔹 ${desc}</span>
-                                            <span class="font-medium font-mono">${pData.descs[desc].toFixed(2)} €</span>
+                                            <span class="font-medium font-mono ${dVol >= 0 ? 'text-emerald-500' : ''}">${dVol >= 0 ? '+' : ''}${dVol.toFixed(2)} €</span>
                                         </div>`;
                                 });
                                 posteWrapper.appendChild(descBlock);
@@ -654,23 +673,29 @@
                 catContainer.appendChild(div);
             });
 
+            // Section Droite : Classement linéaire des Postes de Dépenses
             const pContainer = document.getElementById('postes-chart-container'); pContainer.innerHTML = '';
-            const sortedPostes = Object.keys(posteTotals).sort((a,b) => posteTotals[b] - posteTotals[a]);
+            const sortedPostes = Object.keys(posteTotals).sort((a,b) => Math.abs(posteTotals[b]) - Math.abs(posteTotals[a]));
 
             if(sortedPostes.length === 0) {
                 pContainer.innerHTML = `<p class="text-center text-slate-400 italic text-[11px] py-4">Aucune dépense.</p>`;
                 return;
             }
 
-            const maxPosteValue = Math.max(...Object.values(posteTotals), 1);
+            const maxPosteValue = Math.max(...Object.values(posteTotals).map(v => Math.abs(v)), 1);
             sortedPostes.forEach(p => {
-                const sum = posteTotals[p] || 0;
-                const pct = (sum / maxPosteValue) * 100;
+                const sumNet = posteTotals[p] || 0;
+                const pct = (Math.abs(sumNet) / maxPosteValue) * 100;
                 const d = document.createElement('div');
                 d.className = "space-y-1 text-[11px]";
                 d.innerHTML = `
-                    <div class="flex justify-between text-slate-700 font-medium"><span class="truncate max-w-[140px]">📋 ${p}</span><span class="font-semibold font-mono text-slate-900">${sum.toFixed(2)} €</span></div>
-                    <div class="w-full bg-slate-100 h-1 rounded-full"><div class="bg-slate-400 h-1 rounded-full" style="width: ${pct}%"></div></div>
+                    <div class="flex justify-between text-slate-700 font-medium">
+                        <span class="truncate max-w-[140px]">📋 ${p}</span>
+                        <span class="font-semibold font-mono text-slate-900">${sumNet >= 0 ? '+' : ''}${sumNet.toFixed(2)} €</span>
+                    </div>
+                    <div class="w-full bg-slate-100 h-1 rounded-full">
+                        <div class="${sumNet >= 0 ? 'bg-emerald-400' : 'bg-slate-400'} h-1 rounded-full" style="width: ${pct}%"></div>
+                    </div>
                 `;
                 pContainer.appendChild(d);
             });
@@ -681,6 +706,7 @@
             const idx = document.getElementById('edit-index').value;
             const dbId = document.getElementById('edit-db-id').value;
             
+            // CONSERVATION STRICTE du signe mathématique fourni par l'utilisateur
             const txData = {
                 date: document.getElementById('form-date').value,
                 mois_affectation: document.getElementById('form-affectation').value,
@@ -688,12 +714,12 @@
                 poste: document.getElementById('form-poste').value.toUpperCase().trim(),
                 description: document.getElementById('form-description').value,
                 details: document.getElementById('form-details').value,
-                montant: parseFloat(document.getElementById('form-montant').value)
+                montant: parseFloat(document.getElementById('form-montant').value) 
             };
 
             try {
                 if (idx === "") { 
-                    txData.pointe = false; // Par défaut, une nouvelle transaction manuelle n'est pas pointée
+                    txData.pointe = false; 
                     await _supabase.from('transactions').insert([txData]); 
                 } else { 
                     await _supabase.from('transactions').update(txData).eq('id', dbId); 
@@ -795,6 +821,8 @@
 
                     currentChunk.forEach((row, indexInChunk) => {
                         const aiMatch = aiMatches.find(m => m.id === indexInChunk) || { categorie: 'DÉPENSES QUOTICIENNES', poste: 'SHOPPING', description: 'MAISON et AUTRE' };
+                        
+                        // Préservation du signe natif du CSV lors de l'import automatique
                         let cleanMontant = parseFloat((row[idxMontant]||'0').replace(/[^0-9.,-]/g, '').replace(',', '.'));
                         const finalTargetDate = cleanCsvDate(row[idxDate] || '');
 
@@ -803,116 +831,3 @@
                             mois_affectation: getYearMonthString(finalTargetDate),
                             categorie: aiMatch.categorie.toUpperCase().trim(),
                             poste: aiMatch.poste.toUpperCase().trim(),
-                            description: aiMatch.description,
-                            details: row[idxDetails] || '',
-                            montant: Math.abs(cleanMontant),
-                            pointe: false // Les éléments importés par défaut ne sont pas encore vérifiés
-                        };
-
-                        tempImportedTransactions.push(txObj);
-                    });
-
-                } catch (err) {
-                    console.error(`Erreur lors du traitement du lot ${currentBatchNumber}`, err);
-                    currentChunk.forEach((row) => {
-                        let cleanMontant = parseFloat((row[idxMontant]||'0').replace(/[^0-9.,-]/g, '').replace(',', '.'));
-                        const finalTargetDate = cleanCsvDate(row[idxDate] || '');
-                        tempImportedTransactions.push({
-                            date: finalTargetDate,
-                            mois_affectation: getYearMonthString(finalTargetDate),
-                            categorie: 'DÉPENSES QUOTICIENNES',
-                            poste: 'SHOPPING',
-                            description: 'MAISON et AUTRE',
-                            details: row[idxDetails] || '',
-                            montant: Math.abs(cleanMontant),
-                            pointe: false
-                        });
-                    });
-                }
-            }
-
-            tbody.innerHTML = '';
-            tempImportedTransactions.forEach((txObj) => {
-                const tr = document.createElement('tr'); 
-                tr.className = "text-[11px] border-b border-slate-100";
-                tr.innerHTML = `
-                    <td class="p-2 font-mono text-slate-400">${formatDateFr(txObj.date)}</td>
-                    <td class="p-2 truncate max-w-[120px]">${txObj.details}</td>
-                    <td class="p-2 font-semibold text-slate-700">${txObj.poste}</td>
-                    <td class="p-2 text-right font-mono">${txObj.montant.toFixed(2)} €</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        async function saveImportedTransactions() {
-            if(tempImportedTransactions.length === 0) return;
-            try {
-                await _supabase.from('transactions').insert(tempImportedTransactions);
-                alert(`${tempImportedTransactions.length} écritures importées !`);
-                tempImportedTransactions = []; toggleImportZone(); fetchTransactionsFromCloud();
-            } catch (err) { alert("Erreur."); }
-        }
-
-        function cleanCsvDate(dateStr) {
-            const parts = dateStr.match(/(\d+)/g);
-            if (parts && parts.length >= 3) {
-                let d = parts[0].padStart(2, '0'), m = parts[1].padStart(2, '0'), y = parts[2];
-                if (y.length === 2) y = "20" + y; return `${y}-${m}-${d}`;
-            }
-            return new Date().toISOString().split('T')[0];
-        }
-
-        function formatDateFr(dateStr) { 
-            if (!dateStr) return ''; const cleanD = dateStr.split('T')[0]; const d = cleanD.split('-'); 
-            if(d.length < 3) return dateStr; return `${d[2]}/${d[1]}/${d[0]}`; 
-        }
-
-        function openTransactionModal(editIdx = null) {
-            const modal = document.getElementById('transaction-modal');
-            document.getElementById('transaction-form').reset();
-            
-            if (editIdx !== null) {
-                document.getElementById('modal-title').innerText = "Modifier l'écriture";
-                document.getElementById('edit-index').value = editIdx;
-                const t = transactions[editIdx];
-                document.getElementById('edit-db-id').value = t.id;
-                document.getElementById('form-date').value = t.date ? t.date.split('T')[0] : '';
-                document.getElementById('form-affectation').value = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
-                document.getElementById('form-categorie').value = (t.categorie || '').toUpperCase().trim();
-                updatePosteDropdown();
-                document.getElementById('form-poste').value = (t.poste || '').toUpperCase().trim();
-                updateDescriptionDropdown();
-                document.getElementById('form-description').value = t.description;
-                document.getElementById('form-details').value = t.details || '';
-                document.getElementById('form-montant').value = Math.abs(t.montant);
-            } else {
-                document.getElementById('modal-title').innerText = "Ajouter une opération";
-                document.getElementById('edit-index').value = ""; document.getElementById('edit-db-id').value = "";
-                const today = new Date().toISOString().split('T')[0];
-                document.getElementById('form-date').value = today;
-                document.getElementById('form-affectation').value = getYearMonthString(today);
-                if(document.getElementById('form-categorie').options.length > 0) {
-                    document.getElementById('form-categorie').selectedIndex = 0; updatePosteDropdown();
-                }
-            }
-            modal.classList.remove('hidden');
-        }
-
-        function closeTransactionModal() { document.getElementById('transaction-modal').classList.add('hidden'); }
-        function populateCategorieDropdown() {
-            const s = document.getElementById('form-categorie'); s.innerHTML = '';
-            Object.keys(budgetStructure).forEach(c => { const o = document.createElement('option'); o.value = c; o.innerText = c; s.appendChild(o); });
-        }
-        function updatePosteDropdown() {
-            const c = document.getElementById('form-categorie').value, s = document.getElementById('form-poste'); s.innerHTML = '';
-            if (budgetStructure[c]) Object.keys(budgetStructure[c]).forEach(p => { const o = document.createElement('option'); o.value = p; o.innerText = p; s.appendChild(o); });
-            updateDescriptionDropdown();
-        }
-        function updateDescriptionDropdown() {
-            const c = document.getElementById('form-categorie').value, p = document.getElementById('form-poste').value, s = document.getElementById('form-description'); s.innerHTML = '';
-            if (budgetStructure[c] && budgetStructure[c][p]) budgetStructure[c][p].forEach(d => { const o = document.createElement('option'); o.value = d; o.innerText = d; s.appendChild(o); });
-        }
-    </script>
-</body>
-</html>
