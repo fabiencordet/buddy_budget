@@ -75,7 +75,7 @@
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs lg:col-span-2 space-y-3">
                         <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100 flex justify-between">
-                            <span>📁 Volume Net des Catégories (Affichage en valeur absolue)</span>
+                            <span>📁 Volume des Catégories (Respect strict de vos saisies)</span>
                             <span class="text-[10px] font-normal italic text-slate-400">Cliquez pour explorer</span>
                         </h3>
                         <div id="categories-chart-container" class="space-y-3 pt-1"></div>
@@ -83,7 +83,7 @@
 
                     <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs space-y-3">
                         <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100">
-                            <span>📋 Dépenses Nettes par Poste</span>
+                            <span>📋 Volume par Poste</span>
                         </h3>
                         <div id="postes-chart-container" class="space-y-3 max-h-[400px] overflow-y-auto pr-1"></div>
                     </div>
@@ -210,7 +210,7 @@
                     <div id="drawer-details" class="bg-slate-50 border border-slate-200 p-2 rounded-lg text-[11px] text-slate-500 italic whitespace-normal break-words"></div>
                 </div>
                 <div class="flex justify-between items-center pt-1">
-                    <span class="text-slate-400">Montant Net</span>
+                    <span class="text-slate-400">Montant Saisi</span>
                     <span id="drawer-montant" class="text-base font-semibold"></span>
                 </div>
                 <div class="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100" id="drawer-actions-container"></div>
@@ -261,7 +261,7 @@
                     <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Montant (€)</label>
                     <div class="relative">
                         <input type="number" step="0.01" id="form-montant" placeholder="0.00" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none font-medium">
-                        <span class="absolute right-3 top-2 text-[10px] text-slate-400 italic">Négatif (-) pour débit</span>
+                        <span class="absolute right-3 top-2 text-[10px] text-slate-400 italic">Strictement tel quel</span>
                     </div>
                 </div>
                 <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100">
@@ -275,6 +275,7 @@
     <script>
         const _supabase = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
+        // Arbre mis à jour selon vos directives (Ajout de BANQUE dans PRÉLEVÈMENTS FIXES)
         const budgetStructure = {
             "ENTRÉES": {
                 "SALAIRE 1": ["Revenu principal", "chômage", "frais km", "Remboursement"],
@@ -282,6 +283,7 @@
                 "CAF": ["Prestations familiales", "Remboursement"]
             },
             "PRÉLEVÈMENTS (FIXES)": {
+                "BANQUE": ["SG", "Fortuneo", "Boursobank", "Remboursement"],
                 "MÉNAGE ET URSSAF": ["Lina", "Remboursement"],
                 "INVESTISSEMENT IMMO": ["SCI Lille", "Remboursement"],
                 "ÉNERGIE": ["EAU", "GAZ", "ELECTRICITE", "Remboursement"],
@@ -413,14 +415,12 @@
                 const cleanCat = (t.categorie || '').toUpperCase().trim();
                 const cleanPoste = (t.poste || '').toUpperCase().trim();
                 
-                // Détection de la couleur basée sur le VRAI SIGNE MATHÉMATIQUE de la base
+                // Le montant est lu sans modification ni inversion arbitraire de signe
                 const rawMontant = parseFloat(t.montant) || 0;
-                const isPositive = rawMontant >= 0;
-                const mColor = isPositive ? "text-emerald-600 font-medium" : "text-rose-600 font-medium";
-                const mText = (isPositive ? "+" : "") + rawMontant.toFixed(2) + " €";
+                const mColor = "text-slate-800 font-medium";
+                const mText = rawMontant.toFixed(2) + " €";
                 
                 const finalAffectation = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
-
                 const rowBgClass = t.pointe ? "bg-white text-slate-700" : "bg-amber-50/40 text-slate-900 font-medium";
                 const checkIcon = t.pointe ? "🟢" : "⚪";
                 const checkTitle = t.pointe ? "Transaction vérifiée (Pointée)" : "En attente de vérification (Non pointée)";
@@ -481,7 +481,6 @@
             const t = transactions[index];
             const cleanCat = (t.categorie || '').toUpperCase().trim();
             const rawMontant = parseFloat(t.montant) || 0;
-            const isPositive = rawMontant >= 0;
             const finalAffectation = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
             
             document.getElementById('drawer-date').innerText = formatDateFr(t.date);
@@ -496,8 +495,8 @@
             pStatus.className = t.pointe ? "font-semibold text-emerald-600" : "font-semibold text-amber-600";
 
             const mEl = document.getElementById('drawer-montant');
-            mEl.innerText = (isPositive ? "+" : "") + rawMontant.toFixed(2) + " €";
-            mEl.className = isPositive ? "text-sm font-semibold text-emerald-600" : "text-sm font-semibold text-rose-600";
+            mEl.innerText = rawMontant.toFixed(2) + " €";
+            mEl.className = "text-sm font-semibold text-slate-900";
 
             document.getElementById('drawer-actions-container').innerHTML = `
                 <button onclick="closeDetailsDrawer(); editTransaction(${index})" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 rounded-xl transition">Modifier</button>
@@ -556,8 +555,7 @@
             const targetPeriod = document.getElementById('dashboard-month-select').value;
             if(!targetPeriod) return;
 
-            // Suivi des vrais flux d'argent entrants (+) et sortants (-) pour la synthèse haute
-            let totalFluxEntrants = 0, totalFluxSortants = 0;
+            let totalEntrees = 0, totalDepenses = 0;
             const catTotals = {}, posteTotals = {}, drillDownTree = {};
 
             Object.keys(budgetStructure).forEach(c => {
@@ -576,14 +574,13 @@
                 const posteClean = (t.poste || '').toUpperCase().trim();
                 const descClean = t.description || 'Autre / Inconnu';
 
-                // Calcul KPI généraux basé sur le signe réel du montant
-                if(val >= 0) {
-                    totalFluxEntrants += val;
+                // Représentation brute stricte sans forcer de signe négatif
+                if(catClean === "ENTRÉES") {
+                    totalEntrees += val;
                 } else {
-                    totalFluxSortants += Math.abs(val);
+                    totalDepenses += val;
                 }
 
-                // Pour la somme catégorielle, on fait une addition algébrique nette
                 if(catTotals[catClean] !== undefined) {
                     catTotals[catClean] += val;
                 } else {
@@ -601,20 +598,18 @@
                 drillDownTree[catClean][posteClean].descs[descClean] = (drillDownTree[catClean][posteClean].descs[descClean] || 0) + val;
             });
 
-            document.getElementById('kpi-entrises').innerText = totalFluxEntrants.toFixed(2) + " €";
-            document.getElementById('kpi-depenses').innerText = "-" + totalFluxSortants.toFixed(2) + " €";
-            document.getElementById('kpi-reste').innerText = (totalFluxEntrants - totalFluxSortants).toFixed(2) + " €";
+            document.getElementById('kpi-entrises').innerText = totalEntrees.toFixed(2) + " €";
+            document.getElementById('kpi-depenses').innerText = totalDepenses.toFixed(2) + " €";
+            document.getElementById('kpi-reste').innerText = (totalEntrees - totalDepenses).toFixed(2) + " €";
 
             const catContainer = document.getElementById('categories-chart-container');
             catContainer.innerHTML = '';
             
-            // Pour l'affichage des barres graphiques, on utilise les valeurs absolues nettes
-            const absCatValues = Object.values(catTotals).map(v => Math.abs(v));
-            const maxCatValue = Math.max(...absCatValues, 1);
+            const maxCatValue = Math.max(...Object.values(catTotals), 1);
 
             Object.keys(catTotals).forEach(cat => {
                 const sumNet = catTotals[cat] || 0;
-                const pct = (Math.abs(sumNet) / maxCatValue) * 100;
+                const pct = (sumNet / maxCatValue) * 100;
                 const isCatExpanded = !!expandedCategories[cat];
 
                 const div = document.createElement('div');
@@ -622,10 +617,10 @@
                 div.innerHTML = `
                     <div class="flex justify-between items-center text-xs font-semibold text-slate-800 cursor-pointer hover:text-slate-500" onclick="toggleCategoryDrillDown('${cat}')">
                         <span class="flex items-center gap-1">${isCatExpanded ? '▼' : '▶'} ${cat}</span>
-                        <span class="font-mono ${sumNet >= 0 ? 'text-emerald-600' : 'text-slate-800'}">${sumNet >= 0 ? '+' : ''}${sumNet.toFixed(2)} €</span>
+                        <span class="font-mono text-slate-800">${sumNet.toFixed(2)} €</span>
                     </div>
                     <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden" onclick="toggleCategoryDrillDown('${cat}')">
-                        <div class="${sumNet >= 0 ? 'bg-emerald-500':'bg-slate-800'} h-1.5 rounded-full transition-all duration-300" style="width: ${pct}%"></div>
+                        <div class="bg-slate-800 h-1.5 rounded-full transition-all duration-300" style="width: ${pct}%"></div>
                     </div>
                 `;
 
@@ -637,8 +632,7 @@
                     if(Object.keys(subPostes).length === 0) {
                         subBlock.innerHTML = `<div class="text-slate-400 italic text-[10px]">Aucune écriture.</div>`;
                     } else {
-                        // Tri des sous-postes par leur importance absolue
-                        Object.keys(subPostes).sort((a,b) => Math.abs(subPostes[b]._sum) - Math.abs(subPostes[a]._sum)).forEach(subP => {
+                        Object.keys(subPostes).sort((a,b) => subPostes[b]._sum - subPostes[a]._sum).forEach(subP => {
                             const pData = subPostes[subP];
                             const comboKey = `${cat}_${subP}`;
                             const isPosteExpanded = !!expandedPostes[comboKey];
@@ -648,19 +642,19 @@
                             posteWrapper.innerHTML = `
                                 <div class="flex justify-between text-slate-700 cursor-pointer hover:text-slate-900 font-medium" onclick="event.stopPropagation(); togglePosteDrillDownCombo('${comboKey}')">
                                     <span class="flex items-center gap-1">${isPosteExpanded ? '▼' : '▶'} 📋 ${subP}</span>
-                                    <span class="font-bold font-mono ${pData._sum >= 0 ? 'text-emerald-600' : 'text-slate-800'}">${pData._sum >= 0 ? '+' : ''}${pData._sum.toFixed(2)} €</span>
+                                    <span class="font-bold font-mono text-slate-800">${pData._sum.toFixed(2)} €</span>
                                 </div>
                             `;
 
                             if(isPosteExpanded) {
                                 const descBlock = document.createElement('div');
                                 descBlock.className = "ml-4 pl-2 border-l border-slate-300 space-y-0.5 pt-1 text-[10px] text-slate-500 font-normal";
-                                Object.keys(pData.descs).sort((a,b) => Math.abs(pData.descs[b]) - Math.abs(pData.descs[a])).forEach(desc => {
+                                Object.keys(pData.descs).sort((a,b) => pData.descs[b] - pData.descs[a]).forEach(desc => {
                                     const dVol = pData.descs[desc];
                                     descBlock.innerHTML += `
                                         <div class="flex justify-between py-0.5 border-b border-slate-100/50 last:border-0">
                                             <span>🔹 ${desc}</span>
-                                            <span class="font-medium font-mono ${dVol >= 0 ? 'text-emerald-500' : ''}">${dVol >= 0 ? '+' : ''}${dVol.toFixed(2)} €</span>
+                                            <span class="font-medium font-mono text-slate-700">${dVol.toFixed(2)} €</span>
                                         </div>`;
                                 });
                                 posteWrapper.appendChild(descBlock);
@@ -673,28 +667,27 @@
                 catContainer.appendChild(div);
             });
 
-            // Section Droite : Classement linéaire des Postes de Dépenses
             const pContainer = document.getElementById('postes-chart-container'); pContainer.innerHTML = '';
-            const sortedPostes = Object.keys(posteTotals).sort((a,b) => Math.abs(posteTotals[b]) - Math.abs(posteTotals[a]));
+            const sortedPostes = Object.keys(posteTotals).sort((a,b) => posteTotals[b] - posteTotals[a]);
 
             if(sortedPostes.length === 0) {
-                pContainer.innerHTML = `<p class="text-center text-slate-400 italic text-[11px] py-4">Aucune dépense.</p>`;
+                pContainer.innerHTML = `<p class="text-center text-slate-400 italic text-[11px] py-4">Aucune donnée.</p>`;
                 return;
             }
 
-            const maxPosteValue = Math.max(...Object.values(posteTotals).map(v => Math.abs(v)), 1);
+            const maxPosteValue = Math.max(...Object.values(posteTotals), 1);
             sortedPostes.forEach(p => {
                 const sumNet = posteTotals[p] || 0;
-                const pct = (Math.abs(sumNet) / maxPosteValue) * 100;
+                const pct = (sumNet / maxPosteValue) * 100;
                 const d = document.createElement('div');
                 d.className = "space-y-1 text-[11px]";
                 d.innerHTML = `
                     <div class="flex justify-between text-slate-700 font-medium">
                         <span class="truncate max-w-[140px]">📋 ${p}</span>
-                        <span class="font-semibold font-mono text-slate-900">${sumNet >= 0 ? '+' : ''}${sumNet.toFixed(2)} €</span>
+                        <span class="font-semibold font-mono text-slate-900">${sumNet.toFixed(2)} €</span>
                     </div>
                     <div class="w-full bg-slate-100 h-1 rounded-full">
-                        <div class="${sumNet >= 0 ? 'bg-emerald-400' : 'bg-slate-400'} h-1 rounded-full" style="width: ${pct}%"></div>
+                        <div class="bg-slate-400 h-1 rounded-full" style="width: ${pct}%"></div>
                     </div>
                 `;
                 pContainer.appendChild(d);
@@ -706,7 +699,6 @@
             const idx = document.getElementById('edit-index').value;
             const dbId = document.getElementById('edit-db-id').value;
             
-            // CONSERVATION STRICTE du signe mathématique fourni par l'utilisateur
             const txData = {
                 date: document.getElementById('form-date').value,
                 mois_affectation: document.getElementById('form-affectation').value,
@@ -822,8 +814,10 @@
                     currentChunk.forEach((row, indexInChunk) => {
                         const aiMatch = aiMatches.find(m => m.id === indexInChunk) || { categorie: 'DÉPENSES QUOTICIENNES', poste: 'SHOPPING', description: 'MAISON et AUTRE' };
                         
-                        // Préservation du signe natif du CSV lors de l'import automatique
-                        let cleanMontant = parseFloat((row[idxMontant]||'0').replace(/[^0-9.,-]/g, '').replace(',', '.'));
+                        // Nettoyage brut de la valeur textuelle sans altération de signe
+                        let rawTextVal = (row[idxMontant]||'0').replace(/[^0-9.,-]/g, '').replace(',', '.');
+                        let cleanMontant = parseFloat(rawTextVal);
+
                         const finalTargetDate = cleanCsvDate(row[idxDate] || '');
 
                         const txObj = {
@@ -843,7 +837,8 @@
                 } catch (err) {
                     console.error(`Erreur lors du traitement du lot ${currentBatchNumber}`, err);
                     currentChunk.forEach((row) => {
-                        let cleanMontant = parseFloat((row[idxMontant]||'0').replace(/[^0-9.,-]/g, '').replace(',', '.'));
+                        let rawTextVal = (row[idxMontant]||'0').replace(/[^0-9.,-]/g, '').replace(',', '.');
+                        let cleanMontant = parseFloat(rawTextVal);
                         const finalTargetDate = cleanCsvDate(row[idxDate] || '');
                         tempImportedTransactions.push({
                             date: finalTargetDate,
@@ -867,7 +862,7 @@
                     <td class="p-2 font-mono text-slate-400">${formatDateFr(txObj.date)}</td>
                     <td class="p-2 truncate max-w-[120px]">${txObj.details}</td>
                     <td class="p-2 font-semibold text-slate-700">${txObj.poste}</td>
-                    <td class="p-2 text-right font-mono ${txObj.montant >= 0 ? 'text-emerald-600':'text-rose-600'}">${txObj.montant >= 0 ? '+':''}${txObj.montant.toFixed(2)} €</td>
+                    <td class="p-2 text-right font-mono text-slate-700">${txObj.montant.toFixed(2)} €</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -913,8 +908,6 @@
                 updateDescriptionDropdown();
                 document.getElementById('form-description').value = t.description;
                 document.getElementById('form-details').value = t.details || '';
-                
-                // On met la vraie valeur brute présente en BDD (qui intègre son propre signe)
                 document.getElementById('form-montant').value = parseFloat(t.montant);
             } else {
                 document.getElementById('modal-title').innerText = "Ajouter une opération";
