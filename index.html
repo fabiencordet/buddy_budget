@@ -831,3 +831,118 @@
                             mois_affectation: getYearMonthString(finalTargetDate),
                             categorie: aiMatch.categorie.toUpperCase().trim(),
                             poste: aiMatch.poste.toUpperCase().trim(),
+                            description: aiMatch.description,
+                            details: row[idxDetails] || '',
+                            montant: cleanMontant, 
+                            pointe: false 
+                        };
+
+                        tempImportedTransactions.push(txObj);
+                    });
+
+                } catch (err) {
+                    console.error(`Erreur lors du traitement du lot ${currentBatchNumber}`, err);
+                    currentChunk.forEach((row) => {
+                        let cleanMontant = parseFloat((row[idxMontant]||'0').replace(/[^0-9.,-]/g, '').replace(',', '.'));
+                        const finalTargetDate = cleanCsvDate(row[idxDate] || '');
+                        tempImportedTransactions.push({
+                            date: finalTargetDate,
+                            mois_affectation: getYearMonthString(finalTargetDate),
+                            categorie: 'DÉPENSES QUOTICIENNES',
+                            poste: 'SHOPPING',
+                            description: 'MAISON et AUTRE',
+                            details: row[idxDetails] || '',
+                            montant: cleanMontant,
+                            pointe: false
+                        });
+                    });
+                }
+            }
+
+            tbody.innerHTML = '';
+            tempImportedTransactions.forEach((txObj) => {
+                const tr = document.createElement('tr'); 
+                tr.className = "text-[11px] border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="p-2 font-mono text-slate-400">${formatDateFr(txObj.date)}</td>
+                    <td class="p-2 truncate max-w-[120px]">${txObj.details}</td>
+                    <td class="p-2 font-semibold text-slate-700">${txObj.poste}</td>
+                    <td class="p-2 text-right font-mono ${txObj.montant >= 0 ? 'text-emerald-600':'text-rose-600'}">${txObj.montant >= 0 ? '+':''}${txObj.montant.toFixed(2)} €</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function saveImportedTransactions() {
+            if(tempImportedTransactions.length === 0) return;
+            try {
+                await _supabase.from('transactions').insert(tempImportedTransactions);
+                alert(`${tempImportedTransactions.length} écritures importées !`);
+                tempImportedTransactions = []; toggleImportZone(); fetchTransactionsFromCloud();
+            } catch (err) { alert("Erreur."); }
+        }
+
+        function cleanCsvDate(dateStr) {
+            const parts = dateStr.match(/(\d+)/g);
+            if (parts && parts.length >= 3) {
+                let d = parts[0].padStart(2, '0'), m = parts[1].padStart(2, '0'), y = parts[2];
+                if (y.length === 2) y = "20" + y; return `${y}-${m}-${d}`;
+            }
+            return new Date().toISOString().split('T')[0];
+        }
+
+        function formatDateFr(dateStr) { 
+            if (!dateStr) return ''; const cleanD = dateStr.split('T')[0]; const d = cleanD.split('-'); 
+            if(d.length < 3) return dateStr; return `${d[2]}/${d[1]}/${d[0]}`; 
+        }
+
+        function openTransactionModal(editIdx = null) {
+            const modal = document.getElementById('transaction-modal');
+            document.getElementById('transaction-form').reset();
+            
+            if (editIdx !== null) {
+                document.getElementById('modal-title').innerText = "Modifier l'écriture";
+                document.getElementById('edit-index').value = editIdx;
+                const t = transactions[editIdx];
+                document.getElementById('edit-db-id').value = t.id;
+                document.getElementById('form-date').value = t.date ? t.date.split('T')[0] : '';
+                document.getElementById('form-affectation').value = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
+                document.getElementById('form-categorie').value = (t.categorie || '').toUpperCase().trim();
+                updatePosteDropdown();
+                document.getElementById('form-poste').value = (t.poste || '').toUpperCase().trim();
+                updateDescriptionDropdown();
+                document.getElementById('form-description').value = t.description;
+                document.getElementById('form-details').value = t.details || '';
+                
+                // On met la vraie valeur brute présente en BDD (qui intègre son propre signe)
+                document.getElementById('form-montant').value = parseFloat(t.montant);
+            } else {
+                document.getElementById('modal-title').innerText = "Ajouter une opération";
+                document.getElementById('edit-index').value = ""; document.getElementById('edit-db-id').value = "";
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('form-date').value = today;
+                document.getElementById('form-affectation').value = getYearMonthString(today);
+                if(document.getElementById('form-categorie').options.length > 0) {
+                    document.getElementById('form-categorie').selectedIndex = 0; updatePosteDropdown();
+                }
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeTransactionModal() { document.getElementById('transaction-modal').classList.add('hidden'); }
+        function populateCategorieDropdown() {
+            const s = document.getElementById('form-categorie'); s.innerHTML = '';
+            Object.keys(budgetStructure).forEach(c => { const o = document.createElement('option'); o.value = c; o.innerText = c; s.appendChild(o); });
+        }
+        function updatePosteDropdown() {
+            const c = document.getElementById('form-categorie').value, s = document.getElementById('form-poste'); s.innerHTML = '';
+            if (budgetStructure[c]) Object.keys(budgetStructure[c]).forEach(p => { const o = document.createElement('option'); o.value = p; o.innerText = p; s.appendChild(o); });
+            updateDescriptionDropdown();
+        }
+        function updateDescriptionDropdown() {
+            const c = document.getElementById('form-categorie').value, p = document.getElementById('form-poste').value, s = document.getElementById('form-description'); s.innerHTML = '';
+            if (budgetStructure[c] && budgetStructure[c][p]) budgetStructure[c][p].forEach(d => { const o = document.createElement('option'); o.value = d; o.innerText = d; s.appendChild(o); });
+        }
+    </script>
+</body>
+</html>
