@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Buddy Budget</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         .tabs-content { display: none; }
         .tabs-content.active { display: block; }
@@ -24,7 +25,7 @@
     <div id="app-content" class="hidden min-h-screen flex flex-col">
         <header class="bg-blue-900 text-white shadow-md">
             <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <h1 class="text-xl font-bold tracking-wide">📊 My Buddy Budget</h1>
+                <h1 class="text-xl font-bold tracking-wide">📊 My Buddy Budget <span class="text-xs bg-green-500 text-white font-normal px-2 py-0.5 rounded-full ml-2">Nuage Synchro</span></h1>
                 <nav class="flex space-x-2 bg-blue-950 p-1 rounded-lg">
                     <button onclick="switchTab('tab-transactions')" id="btn-tab-transactions" class="tab-btn px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-white">Transactions</button>
                     <button onclick="switchTab('tab-import')" id="btn-tab-import" class="tab-btn px-4 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-white">Import CSV & IA</button>
@@ -37,7 +38,7 @@
             
             <section id="tab-transactions" class="tabs-content active space-y-6">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-lg shadow-sm">
-                    <h2 class="text-xl font-semibold text-gray-700">Historique des opérations</h2>
+                    <h2 class="text-xl font-semibold text-gray-700">Historique général (Synchronisé)</h2>
                     <button onclick="openTransactionModal()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-sm flex items-center gap-1">➕ Ajouter une opération</button>
                 </div>
 
@@ -55,7 +56,8 @@
                             </tr>
                         </thead>
                         <tbody id="transactions-table-body" class="divide-y divide-gray-100 text-sm">
-                            </tbody>
+                            <tr><td colspan="7" class="p-8 text-center text-gray-400 italic">Connexion au cloud en cours...</td></tr>
+                        </tbody>
                     </table>
                 </div>
             </section>
@@ -80,7 +82,7 @@
                                 <select id="map-date" class="w-full p-2 bg-white border border-gray-300 rounded text-sm"></select>
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1">Libellé / Texte de la banque (Détails)</label>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Libellé / Texte de la banque</label>
                                 <select id="map-details" class="w-full p-2 bg-white border border-gray-300 rounded text-sm"></select>
                             </div>
                             <div>
@@ -94,7 +96,7 @@
                     <div id="csv-preview-container" class="hidden space-y-4">
                         <div class="flex justify-between items-center">
                             <h3 class="font-semibold text-gray-700">Lignes détectées et catégorisées par l'IA :</h3>
-                            <button onclick="saveImportedTransactions()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-sm shadow">💾 Valider et intégrer à mon budget</button>
+                            <button onclick="saveImportedTransactions()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-sm shadow">💾 Valider et envoyer sur le Cloud Synchro</button>
                         </div>
                         <div class="overflow-x-auto border border-gray-200 rounded-lg">
                             <table class="w-full text-left text-sm">
@@ -108,8 +110,7 @@
                                         <th class="p-3">Montant</th>
                                     </tr>
                                 </thead>
-                                <tbody id="csv-preview-tbody" class="divide-y divide-gray-200">
-                                    </tbody>
+                                <tbody id="csv-preview-tbody" class="divide-y divide-gray-200"></tbody>
                             </table>
                         </div>
                     </div>
@@ -119,7 +120,7 @@
             <section id="tab-config" class="tabs-content space-y-6">
                 <div class="bg-white p-6 rounded-lg shadow space-y-4">
                     <h2 class="text-xl font-semibold text-gray-700">Configuration de l'IA (Google Gemini)</h2>
-                    <p class="text-sm text-gray-500">Pour utiliser la catégorisation automatique, collez votre clé d'API Gemini ci-dessous. Elle reste stockée de manière sécurisée dans votre navigateur.</p>
+                    <p class="text-sm text-gray-500">Pour utiliser la catégorisation automatique, collez votre clé d'API Gemini ci-dessous.</p>
                     <div class="flex flex-col sm:flex-row gap-2 max-w-xl">
                         <input type="password" id="api-key-input" placeholder="AIzaSy..." class="flex-grow p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         <button onclick="saveApiKey()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded text-sm transition">Sauvegarder la clé</button>
@@ -128,9 +129,8 @@
 
                 <div class="bg-white p-6 rounded-lg shadow">
                     <h2 class="text-xl font-semibold mb-2 text-gray-700">Dictionnaire des Catégories</h2>
-                    <p class="text-sm text-gray-500 mb-6">Visualisez l'arborescence à 3 niveaux utilisée pour classifier vos dépenses.</p>
-                    <div id="config-tree-container" class="space-y-4 max-h-[500px] overflow-y-auto border border-gray-200 p-4 rounded bg-gray-50">
-                        </div>
+                    <p class="text-sm text-gray-500 mb-6">Visualisez l'arborescence à 3 niveaux.</p>
+                    <div id="config-tree-container" class="space-y-4 max-h-[500px] overflow-y-auto border border-gray-200 p-4 rounded bg-gray-50"></div>
                 </div>
             </section>
         </main>
@@ -144,6 +144,7 @@
             </div>
             <form id="transaction-form" onsubmit="saveTransaction(event)" class="p-6 space-y-4">
                 <input type="hidden" id="edit-index">
+                <input type="hidden" id="edit-db-id">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Date de l'opération</label>
                     <input type="date" id="form-date" required class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none">
@@ -164,7 +165,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Détails (Libre)</label>
-                    <input type="text" id="form-details" placeholder="Ex: Leclerc Lille, Essence vacances..." class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                    <input type="text" id="form-details" placeholder="Ex: Leclerc Lille..." class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Montant (€)</label>
@@ -179,10 +180,14 @@
     </div>
 
     <script>
-        // Le mot de passe très simple pour bloquer l'écran à l'ouverture
+        // --- 1. CONFIGURATION DE VOS CLÉS SECRÈTES ---
         const SECRET_PASSWORD = "2227"; 
+        const SUPABASE_URL = "https://ybxpjhcmhyycvousuepw.supabase.co"; 
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlieHBqaGNtaHl5Y3ZvdXN1ZXB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MTA5MzQsImV4cCI6MjA5NTE4NjkzNH0.JWOTI763oWDm8W_48kqvsbslgcMT98nrUoKLTYf53JY";
 
-        // Structure initiale de vos catégories conformes à votre demande
+        // Initialisation du client de connexion Supabase
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         const initialStructure = {
             "ENTRÉES": {
                 "Salaire 1": ["Revenu principal", "chômage", "frais km"],
@@ -218,14 +223,12 @@
             }
         };
 
-        // Chargement ou initialisation des bases de données locales au navigateur
-        let budgetStructure = JSON.parse(localStorage.getItem('budget_structure')) || initialStructure;
-        let transactions = JSON.parse(localStorage.getItem('budget_transactions')) || [];
-        let tempImportedTransactions = []; // Stockage temporaire des lignes lues du CSV
+        let budgetStructure = initialStructure;
+        let transactions = [];
+        let tempImportedTransactions = [];
         let csvHeaders = [];
         let csvRows = [];
 
-        // Vérification du mot de passe
         function checkPassword() {
             const input = document.getElementById('password-input').value;
             if (input === SECRET_PASSWORD) {
@@ -233,8 +236,7 @@
                 document.getElementById('app-content').classList.remove('hidden');
                 initApp();
             } else {
-                const error = document.getElementById('login-error');
-                error.classList.remove('hidden');
+                document.getElementById('login-error').classList.remove('hidden');
             }
         }
 
@@ -248,249 +250,49 @@
                 el.classList.remove('bg-blue-600', 'text-white');
                 el.classList.add('text-gray-300', 'hover:text-white');
             });
-
             document.getElementById(tabId).classList.add('active');
-            const activeBtn = document.getElementById('btn-' + tabId);
-            activeBtn.classList.remove('text-gray-300', 'hover:text-white');
-            activeBtn.classList.add('bg-blue-600', 'text-white');
+            document.getElementById('btn-' + tabId).classList.add('bg-blue-600', 'text-white');
         }
 
         function initApp() {
-            renderTransactions();
+            fetchTransactionsFromCloud();
             renderConfigTree();
             populateCategorieDropdown();
-            // Charger la clé API existante si elle est sauvée
             document.getElementById('api-key-input').value = localStorage.getItem('gemini_api_key') || '';
         }
 
         function saveApiKey() {
-            const key = document.getElementById('api-key-input').value.trim();
-            localStorage.setItem('gemini_api_key', key);
-            alert("Clé API enregistrée localement avec succès !");
+            localStorage.setItem('gemini_api_key', document.getElementById('api-key-input').value.trim());
+            alert("Clé API enregistrée !");
         }
 
-        // --- SECTION MOTEUR CSV ---
-        function parseCSV() {
-            const fileInput = document.getElementById('csv-file-input');
-            if (fileInput.files.length === 0) {
-                alert("Veuillez sélectionner un fichier CSV d'abord.");
-                return;
-            }
-
-            const file = fileInput.files[0];
-            const reader = new FileReader();
-            
-            reader.onload = function(e) {
-                const text = e.target.result;
-                // Découpage automatique des lignes
-                const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
-                if(lines.length === 0) { alert("Le fichier semble vide."); return; }
-                
-                // Détection du séparateur (virgule ou point-virgule souvent en France)
-                let separator = ",";
-                if (lines[0].includes(";")) separator = ";";
-
-                // Extraction des en-têtes
-                csvHeaders = lines[0].split(separator).map(h => h.replace(/["']/g, "").trim());
-                
-                // Extraction des lignes de données
-                csvRows = lines.slice(1).map(line => {
-                    return line.split(separator).map(v => v.replace(/["']/g, "").trim());
-                });
-
-                // Remplir les menus de correspondances (Mapping)
-                populateMappingDropdowns(csvHeaders);
-                document.getElementById('csv-mapping-container').classList.remove('hidden');
-            };
-
-            reader.readAsText(file, 'ISO-8859-1'); // Souvent le format des banques françaises
-        }
-
-        function populateMappingDropdowns(headers) {
-            ['map-date', 'map-details', 'map-montant'].forEach(id => {
-                const select = document.getElementById(id);
-                select.innerHTML = '<option value="">-- Choisir une colonne --</option>';
-                headers.forEach((h, index) => {
-                    const opt = document.createElement('option');
-                    opt.value = index;
-                    opt.innerText = h;
-                    
-                    // Tentative d'auto-sélection intelligente
-                    const lowerH = h.toLowerCase();
-                    if(id === 'map-date' && (lowerH.includes('date') || lowerH.includes('opér'))) opt.selected = true;
-                    if(id === 'map-details' && (lowerH.includes('libell') || lowerH.includes('texte') || lowerH.includes('motif') || lowerH.includes('descript'))) opt.selected = true;
-                    if(id === 'map-montant' && (lowerH.includes('montant') || lowerH.includes('valeur') || lowerH.includes('debit'))) opt.selected = true;
-
-                    select.appendChild(opt);
-                });
-            });
-        }
-
-        // --- LOGIQUE IA AVEC GEMINI ---
-        async function processCSVLines() {
-            const apiKey = localStorage.getItem('gemini_api_key');
-            if(!apiKey) {
-                alert("Erreur : Veuillez d'abord ajouter votre clé d'API Gemini dans l'onglet 'Configuration' !");
-                switchTab('tab-config');
-                return;
-            }
-
-            const idxDate = document.getElementById('map-date').value;
-            const idxDetails = document.getElementById('map-details').value;
-            const idxMontant = document.getElementById('map-montant').value;
-
-            if(idxDate === "" || idxDetails === "" || idxMontant === "") {
-                alert("Veuillez associer les 3 colonnes obligatoires.");
-                return;
-            }
-
-            // Pour éviter de saturer l'IA, on prend les 40 premières lignes maximum par import
-            const rowsToProcess = csvRows.slice(0, 40);
-            
-            // Préparer les données épurées à envoyer à l'IA
-            const cleanLinesForAI = rowsToProcess.map((row, i) => {
-                return {
-                    id: i,
-                    libelle: row[idxDetails] || '',
-                    montant: row[idxMontant] || ''
-                };
-            });
-
-            document.getElementById('csv-preview-tbody').innerHTML = `<tr><td colspan="6" class="p-8 text-center text-indigo-600 font-medium animate-pulse">🤖 L'IA analyse vos libellés bancaires... Merci de patienter quelques secondes.</td></tr>`;
-            document.getElementById('csv-preview-container').classList.remove('hidden');
-
-            // Appel API direct vers Gemini
+        // --- CHARGEMENT CLOUD DEPUIS SUPABASE ---
+        async function fetchTransactionsFromCloud() {
             try {
-                const promptSystem = `Tu es un robot comptable ultra-précis. Tu dois analyser une liste de transactions bancaires et les ranger UNIQUEMENT dans l'arborescence stricte fournie ci-dessous.
-                
-                Voici mon dictionnaire de catégories autorisées au format JSON (Catégorie > Poste > Liste des Descriptions autorisées) :
-                ${JSON.stringify(budgetStructure)}
+                const { data, error } = await _supabase
+                    .from('transactions')
+                    .select('*')
+                    .order('date', { ascending: false });
 
-                Pour chaque transaction reçue, trouve le meilleur triplet (categorie, poste, description). Si le montant est positif, privilégie obligatoirement la catégorie "ENTRÉES". Si tu hésites vraiment pour une dépense, mets la catégorie "DÉPENSES QUOTIDIENNES", poste "SHOPPING" et description "MAISON et AUTRE".
-                
-                Réponds UNIQUEMENT sous la forme d'un tableau JSON valide, sans blabla, sans markdown \`\`\`json, juste le tableau comme ceci :
-                [
-                  {"id": 0, "categorie": "...", "poste": "...", "description": "..."},
-                  {"id": 1, "categorie": "...", "poste": "...", "description": "..."}
-                ]`;
-
-                const promptUser = `Voici mes transactions à catégoriser :\n${JSON.stringify(cleanLinesForAI)}`;
-
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: promptSystem + "\n\n" + promptUser }]
-                        }],
-                        generationConfig: {
-                            responseMimeType: "application/json"
-                        }
-                    })
-                });
-
-                if (!response.ok) throw new Error("Erreur lors de la communication avec l'API Gemini.");
-
-                const data = await response.json();
-                let aiTextResponse = data.candidates[0].content.parts[0].text;
-                
-                // Nettoyage au cas où Gemini renvoie du texte autour du JSON
-                aiTextResponse = aiTextResponse.replace(/```json/g, "").replace(/```/g, "").trim();
-                const aiMatches = JSON.parse(aiTextResponse);
-
-                // Reconstruire le tableau final pour validation humaine
-                tempImportedTransactions = [];
-                const tbody = document.getElementById('csv-preview-tbody');
-                tbody.innerHTML = '';
-
-                rowsToProcess.forEach((row, i) => {
-                    const aiMatch = aiMatches.find(m => m.id === i) || { categorie: 'DÉPENSES QUOTIDIENNES', poste: 'SHOPPING', description: 'MAISON et AUTRE' };
-                    
-                    // Nettoyage et formatage de la date du CSV vers le format AAAA-MM-JJ requis
-                    let rawDate = row[idxDate] || '';
-                    let formattedDate = cleanCsvDate(rawDate);
-                    
-                    // Nettoyage du montant
-                    let rawMontant = row[idxMontant] || '0';
-                    let cleanMontant = parseFloat(rawMontant.replace(/[^0-9.,-]/g, '').replace(',', '.'));
-
-                    const txObj = {
-                        date: formattedDate,
-                        categorie: aiMatch.categorie,
-                        poste: aiMatch.poste,
-                        description: aiMatch.description,
-                        details: row[idxDetails] || '',
-                        montant: Math.abs(cleanMontant)
-                    };
-
-                    tempImportedTransactions.push(txObj);
-
-                    const tr = document.createElement('tr');
-                    tr.className = "hover:bg-gray-50 text-xs";
-                    tr.innerHTML = `
-                        <td class="p-3">${formatDateFr(txObj.date)}</td>
-                        <td class="p-3 text-gray-500 italic max-w-xs truncate">${txObj.details}</td>
-                        <td class="p-3"><span class="bg-blue-100 font-medium px-2 py-0.5 rounded text-blue-800">${txObj.categorie}</span></td>
-                        <td class="p-3 font-medium">${txObj.poste}</td>
-                        <td class="p-3 text-gray-600">${txObj.description}</td>
-                        <td class="p-3 font-bold">${cleanMontant.toFixed(2)} €</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-
-            } catch (error) {
-                console.error(error);
-                alert("Erreur d'analyse de l'IA. Vérifiez votre clé API ou le format de vos données.");
-                document.getElementById('csv-preview-tbody').innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-500 font-medium">❌ Une erreur est survenue lors de la catégorisation.</td></tr>`;
+                if (error) throw error;
+                transactions = data || [];
+                renderTransactions();
+            } catch (err) {
+                console.error("Erreur de chargement cloud:", err);
+                alert("Impossible de charger les données synchronisées.");
             }
         }
 
-        // Tente de convertir des dates types 24/05/2026 en 2026-05-24
-        function cleanCsvDate(dateStr) {
-            const parts = dateStr.match(/(\d+)/g);
-            if (parts && parts.length >= 3) {
-                let day = parts[0].padStart(2, '0');
-                let month = parts[1].padStart(2, '0');
-                let year = parts[2];
-                if (year.length === 2) year = "20" + year;
-                return `${year}-${month}-${day}`;
-            }
-            return new Date().toISOString().split('T')[0]; // repli
-        }
-
-        function saveImportedTransactions() {
-            if(tempImportedTransactions.length === 0) return;
-            
-            // Fusionner l'ancien historique avec le nouvel import
-            transactions = transactions.concat(tempImportedTransactions);
-            localStorage.setItem('budget_transactions', JSON.stringify(transactions));
-            
-            alert(`${tempImportedTransactions.length} transactions importées et catégorisées avec succès !`);
-            tempImportedTransactions = [];
-            
-            // Reset affichage onglet import et retour à l'historique
-            document.getElementById('csv-file-input').value = '';
-            document.getElementById('csv-mapping-container').classList.add('hidden');
-            document.getElementById('csv-preview-container').classList.add('hidden');
-            
-            renderTransactions();
-            switchTab('tab-transactions');
-        }
-
-        // --- AFFICHAGE HISTORIQUE ---
         function renderTransactions() {
             const tbody = document.getElementById('transactions-table-body');
             tbody.innerHTML = '';
 
             if (transactions.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 italic">Aucune opération enregistrée. Cliquez sur Ajouter pour commencer.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 italic">Aucune opération sur le cloud. Ajoutez-en une !</td></tr>`;
                 return;
             }
 
-            const sorted = [...transactions].sort((a,b) => new Date(b.date) - new Date(a.date));
-
-            sorted.forEach((t) => {
-                const originalIndex = transactions.findIndex(item => item === t);
+            transactions.forEach((t, index) => {
                 const isPositive = t.categorie === "ENTRÉES";
                 const montantClass = isPositive ? "text-green-600 font-semibold" : "text-gray-700 font-medium";
                 const formatMontant = (isPositive ? "+" : "-") + Math.abs(t.montant).toFixed(2) + " €";
@@ -505,30 +307,201 @@
                     <td class="p-4 text-gray-500 italic max-w-xs truncate" title="${t.details || ''}">${t.details || '-'}</td>
                     <td class="p-4 whitespace-nowrap ${montantClass}">${formatMontant}</td>
                     <td class="p-4 text-center whitespace-nowrap space-x-2">
-                        <button onclick="editTransaction(${originalIndex})" class="text-blue-600 hover:text-blue-900 font-medium text-xs bg-blue-50 px-2 py-1 rounded">Modifier</button>
-                        <button onclick="deleteTransaction(${originalIndex})" class="text-red-600 hover:text-red-900 font-medium text-xs bg-red-50 px-2 py-1 rounded">Supprimer</button>
+                        <button onclick="editTransaction(${index})" class="text-blue-600 hover:text-blue-900 font-medium text-xs bg-blue-50 px-2 py-1 rounded">Modifier</button>
+                        <button onclick="deleteTransaction(${index})" class="text-red-600 hover:text-red-900 font-medium text-xs bg-red-50 px-2 py-1 rounded">Supprimer</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
+        // --- ENREGISTRER / MODIFIER SUR LE CLOUD ---
+        async function saveTransaction(e) {
+            e.preventDefault();
+            const idx = document.getElementById('edit-index').value;
+            const dbId = document.getElementById('edit-db-id').value;
+            
+            const txData = {
+                date: document.getElementById('form-date').value,
+                categorie: document.getElementById('form-categorie').value,
+                poste: document.getElementById('form-poste').value,
+                description: document.getElementById('form-description').value,
+                details: document.getElementById('form-details').value,
+                montant: parseFloat(document.getElementById('form-montant').value)
+            };
+
+            try {
+                if (idx === "") {
+                    // Insertion Cloud
+                    const { error } = await _supabase.from('transactions').insert([txData]);
+                    if (error) throw error;
+                } else {
+                    // Mise à jour Cloud
+                    const { error } = await _supabase.from('transactions').update(txData).eq('id', dbId);
+                    if (error) throw error;
+                }
+                closeTransactionModal();
+                fetchTransactionsFromCloud(); // Recharger depuis le cloud
+            } catch (err) {
+                console.error(err);
+                alert("Erreur lors de la sauvegarde sur le Cloud.");
+            }
+        }
+
+        async function deleteTransaction(idx) {
+            if (confirm("Voulez-vous vraiment supprimer cette opération du Cloud ?")) {
+                const target = transactions[idx];
+                try {
+                    const { error } = await _supabase.from('transactions').delete().eq('id', target.id);
+                    if (error) throw error;
+                    fetchTransactionsFromCloud();
+                } catch (err) {
+                    alert("Erreur de suppression.");
+                }
+            }
+        }
+
+        // --- ENVOI DE L'IMPORT CSV DIRECTEMENT SUR LE CLOUD ---
+        async function saveImportedTransactions() {
+            if(tempImportedTransactions.length === 0) return;
+            
+            try {
+                const { error } = await _supabase.from('transactions').insert(tempImportedTransactions);
+                if (error) throw error;
+                
+                alert(`${tempImportedTransactions.length} lignes envoyées et synchronisées avec succès !`);
+                tempImportedTransactions = [];
+                document.getElementById('csv-file-input').value = '';
+                document.getElementById('csv-mapping-container').classList.add('hidden');
+                document.getElementById('csv-preview-container').classList.add('hidden');
+                
+                fetchTransactionsFromCloud();
+                switchTab('tab-transactions');
+            } catch (err) {
+                console.error(err);
+                alert("Erreur lors de l'envoi massif sur le cloud.");
+            }
+        }
+
+        // --- MOTEUR BANCAIRE ET PARSING (Identique) ---
+        function parseCSV() {
+            const fileInput = document.getElementById('csv-file-input');
+            if (fileInput.files.length === 0) return;
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
+                let separator = lines[0].includes(";") ? ";" : ",";
+                csvHeaders = lines[0].split(separator).map(h => h.replace(/["']/g, "").trim());
+                csvRows = lines.slice(1).map(line => line.split(separator).map(v => v.replace(/["']/g, "").trim()));
+                populateMappingDropdowns(csvHeaders);
+                document.getElementById('csv-mapping-container').classList.remove('hidden');
+            };
+            reader.readAsText(file, 'ISO-8859-1');
+        }
+
+        function populateMappingDropdowns(headers) {
+            ['map-date', 'map-details', 'map-montant'].forEach(id => {
+                const select = document.getElementById(id);
+                select.innerHTML = '<option value="">-- Choisir --</option>';
+                headers.forEach((h, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = i; opt.innerText = h;
+                    const l = h.toLowerCase();
+                    if(id === 'map-date' && (l.includes('date') || l.includes('opér'))) opt.selected = true;
+                    if(id === 'map-details' && (l.includes('libell') || l.includes('texte') || l.includes('motif'))) opt.selected = true;
+                    if(id === 'map-montant' && (l.includes('montant') || l.includes('valeur') || l.includes('debit'))) opt.selected = true;
+                    select.appendChild(opt);
+                });
+            });
+        }
+
+        async function processCSVLines() {
+            const apiKey = localStorage.getItem('gemini_api_key');
+            if(!apiKey) { alert("Ajoutez votre clé Gemini en Configuration."); return; }
+
+            const idxDate = document.getElementById('map-date').value;
+            const idxDetails = document.getElementById('map-details').value;
+            const idxMontant = document.getElementById('map-montant').value;
+
+            const rowsToProcess = csvRows.slice(0, 40);
+            const cleanLinesForAI = rowsToProcess.map((row, i) => ({ id: i, libelle: row[idxDetails] || '', montant: row[idxMontant] || '' }));
+
+            document.getElementById('csv-preview-tbody').innerHTML = `<tr><td colspan="6" class="p-8 text-center text-indigo-600 animate-pulse">🤖 L'IA analyse les libellés...</td></tr>`;
+            document.getElementById('csv-preview-container').classList.remove('hidden');
+
+            try {
+                const promptSystem = `Tu es un robot comptable. Aligne les opérations sur cette arborescence JSON : ${JSON.stringify(budgetStructure)}. Réponds UNIQUEMENT par un tableau JSON [ {"id":0, "categorie":"...", "poste":"...", "description":"..."} ]`;
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: promptSystem + "\n\n" + JSON.stringify(cleanLinesForAI) }] }], generationConfig: { responseMimeType: "application/json" } })
+                });
+
+                const data = await response.json();
+                let aiTextResponse = data.candidates[0].content.parts[0].text.replace(/```json/g, "").replace(/```/g, "").trim();
+                const aiMatches = JSON.parse(aiTextResponse);
+
+                tempImportedTransactions = [];
+                const tbody = document.getElementById('csv-preview-tbody');
+                tbody.innerHTML = '';
+
+                rowsToProcess.forEach((row, i) => {
+                    const aiMatch = aiMatches.find(m => m.id === i) || { categorie: 'DÉPENSES QUOTIDIENNES', poste: 'SHOPPING', description: 'MAISON et AUTRE' };
+                    let cleanMontant = parseFloat((row[idxMontant]||'0').replace(/[^0-9.,-]/g, '').replace(',', '.'));
+
+                    const txObj = {
+                        date: cleanCsvDate(row[idxDate] || ''),
+                        categorie: aiMatch.categorie,
+                        poste: aiMatch.poste,
+                        description: aiMatch.description,
+                        details: row[idxDetails] || '',
+                        montant: Math.abs(cleanMontant)
+                    };
+
+                    tempImportedTransactions.push(txObj);
+                    const tr = document.createElement('tr');
+                    tr.className = "text-xs hover:bg-gray-50";
+                    tr.innerHTML = `
+                        <td class="p-3">${formatDateFr(txObj.date)}</td>
+                        <td class="p-3 text-gray-500 italic truncate max-w-xs">${txObj.details}</td>
+                        <td class="p-3"><span class="bg-blue-100 px-2 py-0.5 rounded">${txObj.categorie}</span></td>
+                        <td class="p-3">${txObj.poste}</td>
+                        <td class="p-3">${txObj.description}</td>
+                        <td class="p-3 font-bold">${cleanMontant.toFixed(2)} €</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                document.getElementById('csv-preview-tbody').innerHTML = `<tr><td colspan="6" class="p-8 text-red-500">Erreur lors de l'analyse IA.</td></tr>`;
+            }
+        }
+
+        function cleanCsvDate(dateStr) {
+            const parts = dateStr.match(/(\d+)/g);
+            if (parts && parts.length >= 3) {
+                let d = parts[0].padStart(2, '0'), m = parts[1].padStart(2, '0'), y = parts[2];
+                if (y.length === 2) y = "20" + y;
+                return `${y}-${m}-${d}`;
+            }
+            return new Date().toISOString().split('T')[0];
+        }
+
         function formatDateFr(dateStr) {
             if (!dateStr) return '';
-            const d = dateStr.split('-');
-            return `${d[2]}/${d[1]}/${d[0]}`;
+            const d = dateStr.split('-'); return `${d[2]}/${d[1]}/${d[0]}`;
         }
 
         function openTransactionModal(editIdx = null) {
             const modal = document.getElementById('transaction-modal');
-            const form = document.getElementById('transaction-form');
-            form.reset();
+            document.getElementById('transaction-form').reset();
             
             if (editIdx !== null) {
-                document.getElementById('modal-title').innerText = "Modifier l'opération";
+                document.getElementById('modal-title').innerText = "Modifier l'opération Cloud";
                 document.getElementById('edit-index').value = editIdx;
-                
                 const t = transactions[editIdx];
+                document.getElementById('edit-db-id').value = t.id;
                 document.getElementById('form-date').value = t.date;
                 document.getElementById('form-categorie').value = t.categorie;
                 updatePosteDropdown();
@@ -538,8 +511,9 @@
                 document.getElementById('form-details').value = t.details || '';
                 document.getElementById('form-montant').value = Math.abs(t.montant);
             } else {
-                document.getElementById('modal-title').innerText = "Nouvelle opération";
+                document.getElementById('modal-title').innerText = "Nouvelle opération Cloud";
                 document.getElementById('edit-index').value = "";
+                document.getElementById('edit-db-id').value = "";
                 document.getElementById('form-date').value = new Date().toISOString().split('T')[0];
                 if(document.getElementById('form-categorie').options.length > 0) {
                     document.getElementById('form-categorie').selectedIndex = 0;
@@ -549,119 +523,36 @@
             modal.classList.remove('hidden');
         }
 
-        function closeTransactionModal() {
-            document.getElementById('transaction-modal').classList.add('hidden');
-        }
+        function closeTransactionModal() { document.getElementById('transaction-modal').classList.add('hidden'); }
 
         function populateCategorieDropdown() {
-            const catSelect = document.getElementById('form-categorie');
-            catSelect.innerHTML = '';
-            Object.keys(budgetStructure).forEach(cat => {
-                const opt = document.createElement('option');
-                opt.value = cat;
-                opt.innerText = cat;
-                catSelect.appendChild(opt);
-            });
+            const s = document.getElementById('form-categorie'); s.innerHTML = '';
+            Object.keys(budgetStructure).forEach(c => { const o = document.createElement('option'); o.value = c; o.innerText = c; s.appendChild(o); });
         }
-
         function updatePosteDropdown() {
-            const cat = document.getElementById('form-categorie').value;
-            const posteSelect = document.getElementById('form-poste');
-            posteSelect.innerHTML = '';
-            
-            if (budgetStructure[cat]) {
-                Object.keys(budgetStructure[cat]).forEach(poste => {
-                    const opt = document.createElement('option');
-                    opt.value = poste;
-                    opt.innerText = poste;
-                    posteSelect.appendChild(opt);
-                });
-            }
+            const c = document.getElementById('form-categorie').value, s = document.getElementById('form-poste'); s.innerHTML = '';
+            if (budgetStructure[c]) Object.keys(budgetStructure[c]).forEach(p => { const o = document.createElement('option'); o.value = p; o.innerText = p; s.appendChild(o); });
             updateDescriptionDropdown();
         }
-
         function updateDescriptionDropdown() {
-            const cat = document.getElementById('form-categorie').value;
-            const poste = document.getElementById('form-poste').value;
-            const descSelect = document.getElementById('form-description');
-            descSelect.innerHTML = '';
-
-            if (budgetStructure[cat] && budgetStructure[cat][poste]) {
-                budgetStructure[cat][poste].forEach(desc => {
-                    const opt = document.createElement('option');
-                    opt.value = desc;
-                    opt.innerText = desc;
-                    descSelect.appendChild(opt);
-                });
-            }
-        }
-
-        function saveTransaction(e) {
-            e.preventDefault();
-            const idx = document.getElementById('edit-index').value;
-            
-            const newTx = {
-                date: document.getElementById('form-date').value,
-                categorie: document.getElementById('form-categorie').value,
-                poste: document.getElementById('form-poste').value,
-                description: document.getElementById('form-description').value,
-                details: document.getElementById('form-details').value,
-                montant: parseFloat(document.getElementById('form-montant').value)
-            };
-
-            if (idx === "") {
-                transactions.push(newTx);
-            } else {
-                transactions[parseInt(idx)] = newTx;
-            }
-
-            localStorage.setItem('budget_transactions', JSON.stringify(transactions));
-            renderTransactions();
-            closeTransactionModal();
-        }
-
-        function editTransaction(idx) {
-            openTransactionModal(idx);
-        }
-
-        function deleteTransaction(idx) {
-            if (confirm("Voulez-vous vraiment supprimer cette opération ?")) {
-                transactions.splice(idx, 1);
-                localStorage.setItem('budget_transactions', JSON.stringify(transactions));
-                renderTransactions();
-            }
+            const c = document.getElementById('form-categorie').value, p = document.getElementById('form-poste').value, s = document.getElementById('form-description'); s.innerHTML = '';
+            if (budgetStructure[c] && budgetStructure[c][p]) budgetStructure[c][p].forEach(d => { const o = document.createElement('option'); o.value = d; o.innerText = d; s.appendChild(o); });
         }
 
         function renderConfigTree() {
-            const container = document.getElementById('config-tree-container');
-            container.innerHTML = '';
-
+            const container = document.getElementById('config-tree-container'); container.innerHTML = '';
             Object.keys(budgetStructure).forEach(cat => {
-                const catDiv = document.createElement('div');
-                catDiv.className = "bg-white p-3 rounded border border-gray-100 shadow-sm";
-                catDiv.innerHTML = `<span class="font-bold text-blue-900 text-sm">📁 Catégorie : ${cat}</span>`;
-                
-                const posteContainer = document.createElement('div');
-                posteContainer.className = "ml-6 mt-2 space-y-2 border-l-2 border-gray-200 pl-3";
-
-                Object.keys(budgetStructure[cat]).forEach(poste => {
-                    const posteDiv = document.createElement('div');
-                    posteDiv.className = "text-xs text-gray-700";
-                    posteDiv.innerHTML = `<span class="font-semibold text-gray-800">📋 Poste : ${poste}</span>`;
-
-                    const descDiv = document.createElement('div');
-                    descDiv.className = "ml-4 mt-1 text-gray-500 flex flex-wrap gap-1";
-                    
-                    budgetStructure[cat][poste].forEach(desc => {
-                        descDiv.innerHTML += `<span class="bg-gray-100 px-1.5 py-0.5 rounded text-[11px]">${desc}</span>`;
-                    });
-
-                    posteDiv.appendChild(descDiv);
-                    posteContainer.appendChild(posteDiv);
+                const catDiv = document.createElement('div'); catDiv.className = "bg-white p-3 rounded border border-gray-100 shadow-sm";
+                catDiv.innerHTML = `<span class="font-bold text-blue-900 text-sm">📁 ${cat}</span>`;
+                const pContainer = document.createElement('div'); pContainer.className = "ml-6 mt-2 space-y-2 border-l-2 border-gray-200 pl-3";
+                Object.keys(budgetStructure[cat]).forEach(p => {
+                    const pDiv = document.createElement('div'); pDiv.className = "text-xs text-gray-700";
+                    pDiv.innerHTML = `<span class="font-semibold text-gray-800">📋 ${p}</span>`;
+                    const dDiv = document.createElement('div'); dDiv.className = "ml-4 mt-1 text-gray-500 flex flex-wrap gap-1";
+                    budgetStructure[cat][p].forEach(d => { dDiv.innerHTML += `<span class="bg-gray-100 px-1.5 py-0.5 rounded text-[11px]">${d}</span>`; });
+                    pDiv.appendChild(dDiv); pContainer.appendChild(pDiv);
                 });
-
-                catDiv.appendChild(posteContainer);
-                container.appendChild(catDiv);
+                catDiv.appendChild(pContainer); container.appendChild(catDiv);
             });
         }
     </script>
