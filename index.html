@@ -275,7 +275,7 @@
     <script>
         const _supabase = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
-        // Arbre mis à jour selon vos directives (Ajout de BANQUE dans PRÉLEVÈMENTS FIXES)
+        // Arbre structurel corrigé (DÉPENSES QUOTIDIENNES + Poste ANIMAUX)
         const budgetStructure = {
             "ENTRÉES": {
                 "SALAIRE 1": ["Revenu principal", "chômage", "frais km", "Remboursement"],
@@ -297,8 +297,9 @@
             "ÉPARGNE": {
                 "ÉPARGNE": ["Épargne, Ménage", "Épargne, Leonie", "Épargne, Emile", "Remboursement"]
             },
-            "DÉPENSES QUOTICIENNES": {
+            "DÉPENSES QUOTIDIENNES": {
                 "ALIMENTATION": ["Courses alimentaires", "Remboursement"],
+                "ANIMAUX": ["Nourriture", "Vétérinaire", "Remboursement"],
                 "VOITURE": ["FRAIS", "Carburant et parking", "Remboursement"],
                 "SANTÉ": ["Spécialistes", "Médecin", "Pharmacie", "Labo", "Remboursement"],
                 "CADEAUX": ["Événements / Fêtes", "Remboursement"],
@@ -415,7 +416,6 @@
                 const cleanCat = (t.categorie || '').toUpperCase().trim();
                 const cleanPoste = (t.poste || '').toUpperCase().trim();
                 
-                // Le montant est lu sans modification ni inversion arbitraire de signe
                 const rawMontant = parseFloat(t.montant) || 0;
                 const mColor = "text-slate-800 font-medium";
                 const mText = rawMontant.toFixed(2) + " €";
@@ -574,7 +574,6 @@
                 const posteClean = (t.poste || '').toUpperCase().trim();
                 const descClean = t.description || 'Autre / Inconnu';
 
-                // Représentation brute stricte sans forcer de signe négatif
                 if(catClean === "ENTRÉES") {
                     totalEntrees += val;
                 } else {
@@ -812,9 +811,8 @@
                     const aiMatches = JSON.parse(aiTextResponse);
 
                     currentChunk.forEach((row, indexInChunk) => {
-                        const aiMatch = aiMatches.find(m => m.id === indexInChunk) || { categorie: 'DÉPENSES QUOTICIENNES', poste: 'SHOPPING', description: 'MAISON et AUTRE' };
+                        const aiMatch = aiMatches.find(m => m.id === indexInChunk) || { categorie: 'DÉPENSES QUOTIDIENNES', poste: 'SHOPPING', description: 'MAISON et AUTRE' };
                         
-                        // Nettoyage brut de la valeur textuelle sans altération de signe
                         let rawTextVal = (row[idxMontant]||'0').replace(/[^0-9.,-]/g, '').replace(',', '.');
                         let cleanMontant = parseFloat(rawTextVal);
 
@@ -843,7 +841,7 @@
                         tempImportedTransactions.push({
                             date: finalTargetDate,
                             mois_affectation: getYearMonthString(finalTargetDate),
-                            categorie: 'DÉPENSES QUOTICIENNES',
+                            categorie: 'DÉPENSES QUOTIDIENNES',
                             poste: 'SHOPPING',
                             description: 'MAISON et AUTRE',
                             details: row[idxDetails] || '',
