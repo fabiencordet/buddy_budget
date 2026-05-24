@@ -10,6 +10,12 @@
     <style>
         .tabs-content { display: none; }
         .tabs-content.active { display: block; }
+        /* Masquer la flèche par défaut du select pour l'UI à flèches personnalisée */
+        .select-clean {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans antialiased">
@@ -40,30 +46,36 @@
         <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-6">
             
             <section id="tab-dashboard" class="tabs-content active space-y-4">
-                <div class="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs">
-                    <span class="text-sm font-medium text-slate-800">Analyse de la période</span>
-                    <select id="dashboard-month-select" onchange="calculateDashboardMetrics()" class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"></select>
-                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
+                    <div class="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-200/60 shadow-2xs h-12">
+                        <button onclick="navigateMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600 transition font-bold text-sm">&lt;</button>
+                        <div class="relative flex-grow mx-2 text-center">
+                            <select id="dashboard-month-select" onchange="calculateDashboardMetrics()" class="select-clean w-full bg-transparent text-center text-xs font-semibold text-slate-700 outline-none cursor-pointer"></select>
+                        </div>
+                        <button onclick="navigateMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600 transition font-bold text-sm">&gt;</button>
+                    </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs">
-                        <span class="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Entrées</span>
-                        <div id="kpi-entrises" class="text-xl font-semibold text-emerald-600 mt-0.5">0.00 €</div>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs">
-                        <span class="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Dépenses</span>
-                        <div id="kpi-depenses" class="text-xl font-semibold text-rose-600 mt-0.5">0.00 €</div>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs">
-                        <span class="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Solde</span>
-                        <div id="kpi-reste" class="text-xl font-semibold text-slate-900 mt-0.5">0.00 €</div>
+                    <div class="grid grid-cols-3 gap-2 h-12">
+                        <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/60 shadow-2xs flex flex-col justify-center">
+                            <span class="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Entrées</span>
+                            <div id="kpi-entrises" class="text-xs font-semibold text-emerald-600 truncate">0.00 €</div>
+                        </div>
+                        <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/60 shadow-2xs flex flex-col justify-center">
+                            <span class="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Dépenses</span>
+                            <div id="kpi-depenses" class="text-xs font-semibold text-rose-600 truncate">0.00 €</div>
+                        </div>
+                        <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/60 shadow-2xs flex flex-col justify-center">
+                            <span class="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Solde</span>
+                            <div id="kpi-reste" class="text-xs font-semibold text-slate-900 truncate">0.00 €</div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs lg:col-span-2 space-y-3">
                         <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100 flex justify-between">
-                            <span>📁 Répartition par Catégorie & Poste</span>
+                            <span>📁 Répartition (par Mois d'Affectation)</span>
                             <span class="text-[10px] font-normal italic text-slate-400">Cliquez pour explorer</span>
                         </h3>
                         <div id="categories-chart-container" class="space-y-3 pt-1"></div>
@@ -138,6 +150,7 @@
                             <thead>
                                 <tr class="bg-slate-50/70 border-b border-slate-200/80 text-slate-400 text-[11px] uppercase tracking-wider font-semibold">
                                     <th class="p-3.5">Date</th>
+                                    <th class="p-3.5">Affectation</th>
                                     <th class="p-3.5">Catégorie</th>
                                     <th class="p-3.5">Poste</th>
                                     <th class="p-3.5">Description</th>
@@ -168,8 +181,12 @@
             </div>
             <div class="p-4 space-y-3 text-xs text-slate-700">
                 <div class="flex justify-between border-b border-slate-100 pb-1.5">
-                    <span class="text-slate-400">Date</span>
+                    <span class="text-slate-400">Date effective</span>
                     <span id="drawer-date" class="font-medium font-mono"></span>
+                </div>
+                <div class="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span class="text-slate-400">Mois Dashboard</span>
+                    <span id="drawer-affectation" class="font-medium text-slate-800"></span>
                 </div>
                 <div class="flex justify-between border-b border-slate-100 pb-1.5">
                     <span class="text-slate-400">Catégorie</span>
@@ -205,10 +222,18 @@
             <form id="transaction-form" onsubmit="saveTransaction(event)" class="p-4 space-y-3">
                 <input type="hidden" id="edit-index">
                 <input type="hidden" id="edit-db-id">
-                <div>
-                    <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Date</label>
-                    <input type="date" id="form-date" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none">
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Date</label>
+                        <input type="date" id="form-date" onchange="syncDefaultAffectationMonth()" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Mois Dashboard</label>
+                        <input type="month" id="form-affectation" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none">
+                    </div>
                 </div>
+
                 <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Catégorie</label>
@@ -242,43 +267,42 @@
     <script>
         const _supabase = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
-        // Arbre budgétaire unifié
+        // Structure unifiée avec injection de la description "Remboursement" partout, et suppression du poste dédié dans ENTRÉES.
         const budgetStructure = {
             "ENTRÉES": {
-                "SALAIRE 1": ["Revenu principal", "chômage", "frais km"],
-                "SALAIRE 2": ["Revenu secondaire"],
-                "CAF": ["Prestations familiales"],
-                "REMBOURSEMENTS": ["Assurances", "Santé", "Santé, AXA", "Santé, MGEN"]
+                "SALAIRE 1": ["Revenu principal", "chômage", "frais km", "Remboursement"],
+                "SALAIRE 2": ["Revenu secondaire", "Remboursement"],
+                "CAF": ["Prestations familiales", "Remboursement"]
             },
             "PRÉLEVÈMENTS (FIXES)": {
-                "MÉNAGE ET URSSAF": ["Lina"],
-                "INVESTISSEMENT IMMO": ["SCI Lille"],
-                "ÉNERGIE": ["EAU", "GAZ", "ELECTRICITE"],
-                "TÉLÉCOM": ["SFR, Emile", "Free, Internet", "TV, Disney Plus", "TV, Netflix", "TV, Deezer", "SFR, Fabien perso", "SFR, Fabien pro", "Free, Mobile Marina"],
-                "ASSURANCES": ["Juridique", "Maison / Auto", "Prévoyance", "Mutuelle"],
-                "IMPÔTS": ["Fonciers", "Revenus"],
-                "MAISON": ["Emprunt principal"],
-                "CRÉDIT AUTO": ["5008"],
-                "LOA": ["EC3"]
+                "MÉNAGE ET URSSAF": ["Lina", "Remboursement"],
+                "INVESTISSEMENT IMMO": ["SCI Lille", "Remboursement"],
+                "ÉNERGIE": ["EAU", "GAZ", "ELECTRICITE", "Remboursement"],
+                "TÉLÉCOM": ["SFR, Emile", "Free, Internet", "TV, Disney Plus", "TV, Netflix", "TV, Deezer", "SFR, Fabien perso", "SFR, Fabien pro", "Free, Mobile Marina", "Remboursement"],
+                "ASSURANCES": ["Juridique", "Maison / Auto", "Prévoyance", "Mutuelle", "Remboursement"],
+                "IMPÔTS": ["Fonciers", "Revenus", "Remboursement"],
+                "MAISON": ["Emprunt principal", "Remboursement"],
+                "CRÉDIT AUTO": ["5008", "Remboursement"],
+                "LOA": ["EC3", "Remboursement"]
             },
             "ÉPARGNE": {
-                "ÉPARGNE": ["Épargne, Ménage", "Épargne, Leonie", "Épargne, Emile"]
+                "ÉPARGNE": ["Épargne, Ménage", "Épargne, Leonie", "Épargne, Emile", "Remboursement"]
             },
             "DÉPENSES QUOTIDIENNES": {
-                "ALIMENTATION": ["Courses alimentaires"],
-                "VOITURE": ["FRAIS", "Carburant et parking"],
-                "SANTÉ": ["Spécialistes", "Médecin", "Pharmacie", "Labo"],
-                "CADEAUX": ["Événements / Fêtes"],
-                "SHOPPING": ["Amazon divers", "Vêtements", "MAISON et AUTRE", "Fournitures, Boulot"],
-                "LOISIRS": ["SORTIES"],
-                "CHÈQUES": ["Suivi chèques émis"]
+                "ALIMENTATION": ["Courses alimentaires", "Remboursement"],
+                "VOITURE": ["FRAIS", "Carburant et parking", "Remboursement"],
+                "SANTÉ": ["Spécialistes", "Médecin", "Pharmacie", "Labo", "Remboursement"],
+                "CADEAUX": ["Événements / Fêtes", "Remboursement"],
+                "SHOPPING": ["Amazon divers", "Vêtements", "MAISON et AUTRE", "Fournitures, Boulot", "Remboursement"],
+                "LOISIRS": ["SORTIES", "Remboursement"],
+                "CHÈQUES": ["Suivi chèques émis", "Remboursement"]
             },
             "PATIN": {
-                "STAGE": ["Stage"],
-                "DÉPLACEMENT": ["Déplacement"],
-                "CAFÉTÉRIA": ["Cafétéria"],
-                "ÉQUIPEMENTS": ["Équipements"],
-                "COTISATION": ["Cotisation"]
+                "STAGE": ["Stage", "Remboursement"],
+                "DÉPLACEMENT": ["Déplacement", "Remboursement"],
+                "CAFÉTÉRIA": ["Cafétéria", "Remboursement"],
+                "ÉQUIPEMENTS": ["Équipements", "Remboursement"],
+                "COTISATION": ["Cotisation", "Remboursement"]
             }
         };
 
@@ -287,7 +311,6 @@
         let csvHeaders = [];
         let csvRows = [];
         
-        // États d'expansion pour le double drill-down
         let expandedCategories = {};
         let expandedPostes = {}; 
 
@@ -337,10 +360,24 @@
             } catch (err) { console.error(err); }
         }
 
-        // Fonction d'aide pour tronquer les chaînes à 8 caractères maximum
         function shortStr(str, limit = 8) {
             if(!str) return '';
             return str.length > limit ? str.substring(0, limit) + '…' : str;
+        }
+
+        // Calcule le mois YYYY-MM par défaut lié à une date
+        function getYearMonthString(dateStr) { 
+            if(!dateStr || !dateStr.includes('-')) return ''; 
+            const p = dateStr.split('-'); 
+            return `${p[0]}-${p[1].padStart(2, '0')}`; 
+        }
+
+        // Remplit automatiquement le champ Mois Dashboard selon la date choisie
+        function syncDefaultAffectationMonth() {
+            const dateVal = document.getElementById('form-date').value;
+            if(dateVal) {
+                document.getElementById('form-affectation').value = getYearMonthString(dateVal);
+            }
         }
 
         function renderResponsiveTransactions() {
@@ -349,7 +386,6 @@
             const emptyState = document.getElementById('empty-state');
 
             pcTbody.innerHTML = ''; mobileContainer.innerHTML = '';
-
             if (transactions.length === 0) { emptyState.classList.remove('hidden'); return; }
             emptyState.classList.add('hidden');
 
@@ -359,13 +395,17 @@
                 const isPositive = cleanCat === "ENTRÉES";
                 const mColor = isPositive ? "text-emerald-600 font-medium" : "text-slate-700 font-medium";
                 const mText = (isPositive ? "+" : "-") + Math.abs(t.montant).toFixed(2) + " €";
+                
+                // Si aucun mois d'affectation précis en BDD, on se replie sur le mois de la date
+                const finalAffectation = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
 
-                // Rendu PC normal
+                // Rendu PC
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50/60 transition border-b border-slate-100 cursor-pointer";
                 tr.onclick = () => openDetailsDrawer(index);
                 tr.innerHTML = `
                     <td class="p-3.5 font-mono text-[11px] text-slate-400">${formatDateFr(t.date)}</td>
+                    <td class="p-3.5 font-mono text-[11px] text-slate-500 font-medium">${formatMonthFr(finalAffectation)}</td>
                     <td class="p-3.5"><span class="text-[10px] font-semibold text-slate-600 tracking-tight">${cleanCat}</span></td>
                     <td class="p-3.5 text-slate-800 font-medium">${cleanPoste}</td>
                     <td class="p-3.5 text-slate-500">${t.description || '-'}</td>
@@ -378,7 +418,7 @@
                 `;
                 pcTbody.appendChild(tr);
 
-                // Rendu Mobile épuré (Maximum 8 caractères affichés pour Catégories et Postes)
+                // Rendu Mobile épuré
                 const card = document.createElement('div');
                 card.className = "p-3.5 active:bg-slate-50 transition flex justify-between items-center cursor-pointer";
                 card.onclick = () => openDetailsDrawer(index);
@@ -407,8 +447,10 @@
             const t = transactions[index];
             const cleanCat = (t.categorie || '').toUpperCase().trim();
             const isPositive = cleanCat === "ENTRÉES";
+            const finalAffectation = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
             
             document.getElementById('drawer-date').innerText = formatDateFr(t.date);
+            document.getElementById('drawer-affectation').innerText = formatMonthFr(finalAffectation);
             document.getElementById('drawer-categorie').innerText = cleanCat;
             document.getElementById('drawer-poste').innerText = (t.poste || '').toUpperCase().trim();
             document.getElementById('drawer-description').innerText = t.description || '-';
@@ -426,7 +468,17 @@
         }
 
         function closeDetailsDrawer() { document.getElementById('details-drawer-modal').classList.add('hidden'); }
-        function getYearMonthString(dateStr) { if(!dateStr || !dateStr.includes('-')) return ''; const p = dateStr.split('-'); return `${p[0]}-${p[1].padStart(2, '0')}`; }
+
+        // Navigation pas à pas via les flèches gauches/droites du sélecteur
+        function navigateMonth(direction) {
+            const select = document.getElementById('dashboard-month-select');
+            if (select.options.length === 0) return;
+            let newIndex = select.selectedIndex + direction;
+            if (newIndex >= 0 && newIndex < select.options.length) {
+                select.selectedIndex = newIndex;
+                calculateDashboardMetrics();
+            }
+        }
 
         function buildMonthDropdown() {
             const select = document.getElementById('dashboard-month-select');
@@ -436,21 +488,31 @@
             const currentPeriodStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
             monthsMap[currentPeriodStr] = true;
 
-            transactions.forEach(t => { const p = getYearMonthString(t.date); if(p) monthsMap[p] = true; });
+            // Analyse sur base du mois d'affectation pour alimenter le sélecteur
+            transactions.forEach(t => { 
+                const p = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
+                if(p) monthsMap[p] = true; 
+            });
             const sortedPeriods = Object.keys(monthsMap).sort((a,b) => b.localeCompare(a));
-            const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
 
             sortedPeriods.forEach(p => {
-                const [year, month] = p.split('-');
-                const opt = document.createElement('option'); opt.value = p; opt.innerText = `${monthNames[parseInt(month) - 1]} ${year}`;
+                const opt = document.createElement('option'); 
+                opt.value = p; 
+                opt.innerText = formatMonthFr(p);
                 select.appendChild(opt);
             });
             select.value = (previousValue && sortedPeriods.includes(previousValue)) ? previousValue : currentPeriodStr;
             calculateDashboardMetrics();
         }
 
+        function formatMonthFr(periodStr) {
+            if(!periodStr || !periodStr.includes('-')) return periodStr;
+            const [year, month] = periodStr.split('-');
+            const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+            return `${monthNames[parseInt(month) - 1]} ${year}`;
+        }
+
         function toggleCategoryDrillDown(catName) { expandedCategories[catName] = !expandedCategories[catName]; calculateDashboardMetrics(); }
-        // Inverse l'état d'expansion d'un sous-poste (clé combinée cat_poste pour éviter les conflits si même poste dans 2 cat)
         function togglePosteDrillDownCombo(keyCombo) { expandedPostes[keyCombo] = !expandedPostes[keyCombo]; calculateDashboardMetrics(); }
 
         function calculateDashboardMetrics() {
@@ -465,7 +527,11 @@
                 drillDownTree[c] = {};
             });
 
-            const filtered = transactions.filter(t => getYearMonthString(t.date) === targetPeriod);
+            // IMPORTANT : Le filtrage du Dashboard se base en priorité absolue sur le mois d'affectation choisi
+            const filtered = transactions.filter(t => {
+                const finalAffectation = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
+                return finalAffectation === targetPeriod;
+            });
 
             filtered.forEach(t => {
                 const val = Math.abs(t.montant) || 0;
@@ -493,7 +559,7 @@
             document.getElementById('kpi-depenses').innerText = totalDepenses.toFixed(2) + " €";
             document.getElementById('kpi-reste').innerText = (totalEntrees - totalDepenses).toFixed(2) + " €";
 
-            // MODULE 1 : DOUBLE DRILL DOWN (Catégories -> Postes -> Descriptions)
+            // MODULE 1 : DOUBLE DRILL DOWN
             const catContainer = document.getElementById('categories-chart-container');
             catContainer.innerHTML = '';
             const maxCatValue = Math.max(...Object.values(catTotals), 1);
@@ -537,7 +603,6 @@
                                 </div>
                             `;
 
-                            // Niveau 3 : Descriptions du poste cliqué
                             if(isPosteExpanded) {
                                 const descBlock = document.createElement('div');
                                 descBlock.className = "ml-4 pl-2 border-l border-slate-300 space-y-0.5 pt-1 text-[10px] text-slate-500 font-normal";
@@ -558,7 +623,7 @@
                 catContainer.appendChild(div);
             });
 
-            // MODULE 2 : LISTE COMPLÉMENTAIRE LINÉAIRE DES POSTES
+            // MODULE 2 : LISTE COMPLÉMENTAIRE
             const pContainer = document.getElementById('postes-chart-container'); pContainer.innerHTML = '';
             const sortedPostes = Object.keys(posteTotals).sort((a,b) => posteTotals[b] - posteTotals[a]);
 
@@ -588,6 +653,7 @@
             
             const txData = {
                 date: document.getElementById('form-date').value,
+                mois_affectation: document.getElementById('form-affectation').value, // Sauvegarde de l'affectation personnalisée
                 categorie: document.getElementById('form-categorie').value.toUpperCase().trim(),
                 poste: document.getElementById('form-poste').value.toUpperCase().trim(),
                 description: document.getElementById('form-description').value,
@@ -676,9 +742,11 @@
                 rowsToProcess.forEach((row, i) => {
                     const aiMatch = aiMatches.find(m => m.id === i) || { categorie: 'DÉPENSES QUOTICIENNES', poste: 'SHOPPING', description: 'MAISON et AUTRE' };
                     let cleanMontant = parseFloat((row[idxMontant]||'0').replace(/[^0-9.,-]/g, '').replace(',', '.'));
+                    const finalTargetDate = cleanCsvDate(row[idxDate] || '');
 
                     const txObj = {
-                        date: cleanCsvDate(row[idxDate] || ''),
+                        date: finalTargetDate,
+                        mois_affectation: getYearMonthString(finalTargetDate), // Affectation par défaut sur import
                         categorie: aiMatch.categorie.toUpperCase().trim(),
                         poste: aiMatch.poste.toUpperCase().trim(),
                         description: aiMatch.description,
@@ -729,6 +797,10 @@
                 const t = transactions[editIdx];
                 document.getElementById('edit-db-id').value = t.id;
                 document.getElementById('form-date').value = t.date ? t.date.split('T')[0] : '';
+                
+                // Charger le mois d'affectation ou appliquer celui de la date par défaut
+                document.getElementById('form-affectation').value = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
+                
                 document.getElementById('form-categorie').value = (t.categorie || '').toUpperCase().trim();
                 updatePosteDropdown();
                 document.getElementById('form-poste').value = (t.poste || '').toUpperCase().trim();
@@ -739,7 +811,9 @@
             } else {
                 document.getElementById('modal-title').innerText = "Ajouter une opération";
                 document.getElementById('edit-index').value = ""; document.getElementById('edit-db-id').value = "";
-                document.getElementById('form-date').value = new Date().toISOString().split('T')[0];
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('form-date').value = today;
+                document.getElementById('form-affectation').value = getYearMonthString(today);
                 if(document.getElementById('form-categorie').options.length > 0) {
                     document.getElementById('form-categorie').selectedIndex = 0; updatePosteDropdown();
                 }
