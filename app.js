@@ -52,22 +52,6 @@ let isHidePointedActive = false;
 // Instance Chart.js globale
 let trendChartInstance = null;
 
-// Variables pour suivre l'état du Drill-down (Accordéon)
-let expandedCategory = null;
-let expandedPoste = null;
-
-function toggleCategoryDrilldown(cat) {
-    expandedCategory = (expandedCategory === cat) ? null : cat;
-    expandedPoste = null; // Réinitialise le sous-poste
-    calculateDashboardMetrics();
-}
-
-function togglePosteDrilldown(poste, event) {
-    if (event) event.stopPropagation(); // Évite la fermeture de la catégorie
-    expandedPoste = (expandedPoste === poste) ? null : poste;
-    calculateDashboardMetrics();
-}
-
 // Couleurs (Badges et Barres)
 const categoryColorMap = {
     "ENTRÉES": "bg-emerald-50 text-emerald-700 border-emerald-200/80",
@@ -178,7 +162,7 @@ function renderResponsiveTransactions() {
 
     const searchQuery = document.getElementById('search-input') ? document.getElementById('search-input').value.toLowerCase().trim() : '';
     const catFilter = document.getElementById('filter-categorie') ? document.getElementById('filter-categorie').value : '';
-    const posteFilter = document.getElementById('filter-poste') ? document.getElementById('filter-poste').value : '';
+    const pointageFilter = document.getElementById('filter-pointage') ? document.getElementById('filter-pointage').value : '';
 
     const filteredTransactions = transactions.filter(t => {
         if (isHidePointedActive && t.pointe) return false;
@@ -188,9 +172,12 @@ function renderResponsiveTransactions() {
         
         const matchesSearch = !searchQuery || cleanPoste.toLowerCase().includes(searchQuery) || cleanDesc.includes(searchQuery);
         const matchesCat = !catFilter || cleanCat === catFilter.toUpperCase().trim();
-        const matchesPoste = !posteFilter || cleanPoste === posteFilter.toUpperCase().trim();
+        
+        let matchesPointage = true;
+        if (pointageFilter === 'pointe') matchesPointage = t.pointe === true;
+        if (pointageFilter === 'non-pointe') matchesPointage = t.pointe === false;
 
-        return matchesSearch && matchesCat && matchesPoste;
+        return matchesSearch && matchesCat && matchesPointage;
     });
 
     if (filteredTransactions.length === 0) { emptyState.classList.remove('hidden'); return; }
@@ -255,43 +242,6 @@ function populateFilterCategorieDropdown() {
     const filterCat = document.getElementById('filter-categorie');
     if(!filterCat) return; filterCat.innerHTML = '<option value="">📁 Toutes catégories</option>';
     Object.keys(budgetStructure).forEach(cat => { filterCat.appendChild(new Option(cat, cat)); });
-    updateFilterPosteDropdown();
-}
-
-function updateFilterPosteDropdown() {
-    const filterCatVal = document.getElementById('filter-categorie').value;
-    const filterPoste = document.getElementById('filter-poste');
-    if(!filterPoste) return;
-    
-    // Garde en mémoire la sélection courante si on change de catégorie
-    const currentSelectedPoste = filterPoste.value;
-    
-    filterPoste.innerHTML = '<option value="">📋 Tous les postes</option>';
-    let availablePostes = [];
-
-    if(filterCatVal && budgetStructure[filterCatVal]) {
-        // Liste uniquement les postes de la catégorie sélectionnée
-        availablePostes = Object.keys(budgetStructure[filterCatVal]);
-    } else {
-        // Aucune catégorie sélectionnée = tous les postes existants
-        const tousLesPostes = new Set();
-        Object.values(budgetStructure).forEach(postesObj => {
-            Object.keys(postesObj).forEach(poste => tousLesPostes.add(poste));
-        });
-        availablePostes = Array.from(tousLesPostes).sort();
-    }
-
-    // Ajout des options au menu
-    availablePostes.forEach(poste => {
-        filterPoste.appendChild(new Option(poste, poste));
-    });
-    
-    // Tente de restaurer la sélection si elle est encore pertinente
-    if (availablePostes.includes(currentSelectedPoste)) {
-        filterPoste.value = currentSelectedPoste;
-    }
-
-    renderResponsiveTransactions();
 }
 
 function updatePosteDropdown() {
@@ -329,13 +279,11 @@ function openTransactionModal(index = null) {
         document.getElementById('form-description').value = t.description || '';
         document.getElementById('form-details').value = t.details || '';
         document.getElementById('form-montant').value = t.montant || '';
-        document.getElementById('form-exclure-dashboard').checked = t.exclure_dashboard || false;
     } else {
         document.getElementById('modal-title').textContent = "Nouvelle écriture";
         document.getElementById('edit-index').value = '';
         document.getElementById('edit-db-id').value = '';
         document.getElementById('form-date').value = new Date().toISOString().split('T')[0];
-        document.getElementById('form-exclure-dashboard').checked = false;
         syncDefaultAffectationMonth();
     }
     modal.classList.remove('hidden');
@@ -355,7 +303,6 @@ async function saveTransaction(e) {
         description: document.getElementById('form-description').value,
         details: document.getElementById('form-details').value.trim(),
         montant: parseFloat(document.getElementById('form-montant').value) || 0,
-        exclure_dashboard: document.getElementById('form-exclure-dashboard').checked,
         pointe: idx !== '' ? transactions[idx].pointe : false
     };
 
@@ -382,14 +329,6 @@ function openDetailsDrawer(index) {
     document.getElementById('drawer-date').textContent = t.date;
     document.getElementById('drawer-affectation').textContent = t.mois_affectation || getYearMonthString(t.date);
     document.getElementById('drawer-categorie').textContent = t.categorie || '-';
-    
-    // Affichage du statut d'exclusion pour le Dashboard
-    const drawerExclure = document.getElementById('drawer-exclure-status');
-    if (drawerExclure) {
-        drawerExclure.className = t.exclure_dashboard ? "text-rose-600 font-semibold" : "text-emerald-600 font-semibold";
-        drawerExclure.textContent = t.exclure_dashboard ? "❌ Exclue" : "✅ Incluse";
-    }
-
     document.getElementById('drawer-poste').textContent = t.poste || '-';
     document.getElementById('drawer-description').textContent = t.description || '-';
     document.getElementById('drawer-montant').textContent = t.montant + " €";
@@ -432,8 +371,6 @@ function updateTrendChart() {
     const monthlyData = {};
 
     transactions.forEach(t => {
-        if (t.exclure_dashboard) return; // Ignorer la transaction si exclue
-        
         const m = t.mois_affectation || getYearMonthString(t.date);
         if (!m) return;
         if (!monthlyData[m]) monthlyData[m] = { entrees: 0, depenses: 0 };
@@ -506,185 +443,59 @@ function updateTrendChart() {
 }
 
 // ----------------------------------------------------------------------
-// LES JAUGES (BARRES DE PROGRESSION AVEC ACCORDÉON)
+// LES JAUGES (BARRES DE PROGRESSION)
 // ----------------------------------------------------------------------
 function calculateDashboardMetrics() {
     const select = document.getElementById('dashboard-month-select');
-    let activeMonth = select ? select.value : '';
+    const activeMonth = select ? select.value : '';
+    const catTotals = {}; const posteTotals = {};
 
-    // Sécurité pour forcer le premier mois si vide lors de l'initialisation
-    if (!activeMonth && select && select.options.length > 0) {
-        activeMonth = select.options[0].value;
-        select.value = activeMonth;
-    }
-
-    const catTotals = {}; 
-    const posteTotals = {}; 
-    const drillDownPosteTotals = {}; 
-    const drillDownDescTotals = {};  
-
-    // 1. Agrégation des données
     transactions.forEach(t => {
-        if (t.exclure_dashboard) return; // Ignorer les transactions marquées
-
-        const m = (t.mois_affectation || getYearMonthString(t.date) || '').trim();
+        const m = t.mois_affectation || getYearMonthString(t.date);
         if(m === activeMonth) {
             const amt = parseFloat(t.montant) || 0;
-            
-            let c = (t.categorie || 'NON CLASSÉ').trim().toUpperCase();
-            let p = (t.poste || 'AUTRE').trim().toUpperCase();
-            let d = (t.description || 'AUTRE').trim();
-
-            // Rapprochement rigoureux avec la config
-            let matchedCat = c;
-            for (const catKey of Object.keys(budgetStructure)) {
-                if (catKey.trim().toUpperCase() === c) {
-                    matchedCat = catKey; break;
-                }
-            }
-            c = matchedCat;
-
-            let matchedPoste = p;
-            if (budgetStructure[c]) {
-                for (const posteKey of Object.keys(budgetStructure[c])) {
-                    if (posteKey.trim().toUpperCase() === p) {
-                        matchedPoste = posteKey; break;
-                    }
-                }
-            }
-            p = matchedPoste;
-
+            const c = (t.categorie || 'NON CLASSÉ').toUpperCase();
             catTotals[c] = (catTotals[c] || 0) + amt;
+            const p = (t.poste || 'AUTRE').toUpperCase();
             posteTotals[p] = (posteTotals[p] || 0) + amt;
-            
-            const pKey = `${c}|${p}`;
-            drillDownPosteTotals[pKey] = (drillDownPosteTotals[pKey] || 0) + amt;
-            
-            const dKey = `${c}|${p}|${d}`;
-            drillDownDescTotals[dKey] = (drillDownDescTotals[dKey] || 0) + amt;
         }
     });
 
-    // 2. Rendu des Catégories (Avec l'arborescence dynamique)
     const chartContainer = document.getElementById('categories-chart-container');
     if(chartContainer) {
         chartContainer.innerHTML = '';
         const maxCatVal = Math.max(...Object.values(catTotals).map(v => Math.abs(v)), 1);
-        
         Object.keys(budgetStructure).forEach(cat => {
             const totalVal = catTotals[cat] || 0;
             const percentage = (Math.abs(totalVal) / maxCatVal) * 100;
             const colorClasses = categoryColorMap[cat] || "bg-slate-100 text-slate-700";
             const barColor = barColorMap[cat] || "bg-slate-400";
-            const isExpanded = expandedCategory === cat;
             
             const item = document.createElement('div');
-            item.className = "space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs cursor-pointer hover:bg-slate-100/60 transition select-none shadow-2xs";
-            
+            item.className = "space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs";
             item.innerHTML = `
-                <div class="flex items-center justify-between mb-1">
-                    <div class="flex items-center gap-2">
-                        <span class="text-[9px] text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-90 text-slate-600' : ''}">▶</span>
-                        <span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${colorClasses}">${cat}</span>
-                    </div>
-                    <b class="font-mono text-slate-700">${totalVal.toFixed(2)} €</b>
-                </div>
-                <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                    <div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
-                </div>
+                <div class="flex items-center justify-between mb-1"><span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${colorClasses}">${cat}</span><b class="font-mono text-slate-700">${totalVal.toFixed(2)} €</b></div>
+                <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden"><div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${percentage}%"></div></div>
             `;
-            
-            item.addEventListener('click', () => toggleCategoryDrilldown(cat));
-            
-            if (isExpanded) {
-                const postesContainer = document.createElement('div');
-                postesContainer.className = "mt-3 pl-3 border-l-2 border-slate-200 space-y-2 pt-1";
-                postesContainer.addEventListener('click', (e) => e.stopPropagation());
-                
-                const categoryPostes = budgetStructure[cat] ? Object.keys(budgetStructure[cat]) : [];
-                const posteValues = categoryPostes.map(p => Math.abs(drillDownPosteTotals[`${cat}|${p}`] || 0));
-                const maxPosteVal = Math.max(...posteValues, 1);
-                
-                categoryPostes.forEach(p => {
-                    const pKey = `${cat}|${p}`;
-                    const pTotal = drillDownPosteTotals[pKey] || 0;
-                    const pPercentage = (Math.abs(pTotal) / maxPosteVal) * 100;
-                    const isPosteExpanded = expandedPoste === p;
-                    
-                    const pItem = document.createElement('div');
-                    pItem.className = "p-2 bg-white rounded-lg border border-slate-100 shadow-3xs cursor-pointer hover:bg-slate-50 transition space-y-1";
-                    
-                    pItem.innerHTML = `
-                        <div class="flex items-center justify-between text-[11px]">
-                            <div class="flex items-center gap-1.5">
-                                <span class="text-[8px] text-slate-400 transition-transform duration-200 ${isPosteExpanded ? 'rotate-90 text-slate-600' : ''}">▶</span>
-                                <span class="font-semibold text-slate-600 uppercase">${p}</span>
-                            </div>
-                            <span class="font-mono text-slate-500 font-medium">${pTotal.toFixed(2)} €</span>
-                        </div>
-                        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                            <div class="${barColor} h-full rounded-full opacity-85" style="width: ${pPercentage}%"></div>
-                        </div>
-                    `;
-                    
-                    pItem.addEventListener('click', (e) => togglePosteDrilldown(p, e));
-                    
-                    if (isPosteExpanded) {
-                        const descContainer = document.createElement('div');
-                        descContainer.className = "mt-2 pl-3 border-l border-dashed border-slate-300 space-y-1.5 pt-1";
-                        descContainer.addEventListener('click', (e) => e.stopPropagation());
-                        
-                        const posteDescs = budgetStructure[cat][p] || [];
-                        const descValues = posteDescs.map(d => Math.abs(drillDownDescTotals[`${cat}|${p}|${d}`] || 0));
-                        const maxDescVal = Math.max(...descValues, 1);
-                        
-                        posteDescs.forEach(d => {
-                            const dKey = `${cat}|${p}|${d}`;
-                            const dTotal = drillDownDescTotals[dKey] || 0;
-                            const dPercentage = (Math.abs(dTotal) / maxDescVal) * 100;
-                            
-                            const dItem = document.createElement('div');
-                            dItem.className = "text-[10px] space-y-0.5 py-0.5";
-                            dItem.innerHTML = `
-                                <div class="flex items-center justify-between text-slate-500">
-                                    <span class="italic truncate pr-2">${d}</span>
-                                    <span class="font-mono text-slate-400 shrink-0">${dTotal.toFixed(2)} €</span>
-                                </div>
-                                <div class="w-full bg-slate-50 h-1 rounded-full overflow-hidden">
-                                    <div class="${barColor} h-full rounded-full opacity-40" style="width: ${dPercentage}%"></div>
-                                </div>
-                            `;
-                            descContainer.appendChild(dItem);
-                        });
-                        pItem.appendChild(descContainer);
-                    }
-                    postesContainer.appendChild(pItem);
-                });
-                item.appendChild(postesContainer);
-            }
             chartContainer.appendChild(item);
         });
     }
 
-    // 3. PANNEAU LATÉRAL : VOLUME PAR POSTE
     const postesContainer = document.getElementById('postes-chart-container');
     if(postesContainer) {
         postesContainer.innerHTML = '';
         const sortedPostes = Object.keys(posteTotals).sort((a,b) => Math.abs(posteTotals[b]) - Math.abs(posteTotals[a]));
         const maxPosteVal = Math.max(...Object.values(posteTotals).map(v => Math.abs(v)), 1);
 
-        if (sortedPostes.length === 0) { 
-            postesContainer.innerHTML = '<div class="text-xs text-slate-400 italic text-center py-4">Aucune opération détectée.</div>'; 
-        } else {
+        if (sortedPostes.length === 0) { postesContainer.innerHTML = '<div class="text-xs text-slate-400 italic text-center py-4">Aucune opération détectée.</div>'; } 
+        else {
             sortedPostes.forEach(p => {
                 const totalVal = posteTotals[p] || 0;
                 const percentage = (Math.abs(totalVal) / maxPosteVal) * 100;
                 
                 let parentCat = "DÉPENSES QUOTIDIENNES";
                 for (const [catName, postesObj] of Object.entries(budgetStructure)) {
-                    if (postesObj[p] || Object.keys(postesObj).some(k => k.trim().toUpperCase() === p.trim().toUpperCase())) { 
-                        parentCat = catName; break; 
-                    }
+                    if (postesObj[p]) { parentCat = catName; break; }
                 }
                 const barColor = barColorMap[parentCat] || "bg-slate-400";
 
