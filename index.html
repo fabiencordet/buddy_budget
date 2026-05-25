@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Buddy Budget</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <style>
@@ -48,8 +49,8 @@
             
             <section id="tab-dashboard" class="tabs-content active space-y-4">
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
-                    <div class="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-200/60 shadow-2xs h-12">
+                <div class="flex flex-col md:flex-row gap-4 items-stretch">
+                    <div class="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-200/60 shadow-2xs h-12 md:w-64 shrink-0">
                         <button onclick="navigateMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600 transition font-bold text-sm">&lt;</button>
                         <div class="relative flex-grow mx-2 text-center">
                             <select id="dashboard-month-select" onchange="calculateDashboardMetrics()" class="select-clean w-full bg-transparent text-center text-xs font-semibold text-slate-700 outline-none cursor-pointer"></select>
@@ -57,18 +58,9 @@
                         <button onclick="navigateMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600 transition font-bold text-sm">&gt;</button>
                     </div>
 
-                    <div class="grid grid-cols-3 gap-2 h-12">
-                        <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/60 shadow-2xs flex flex-col justify-center">
-                            <span class="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Entrées (Flux +)</span>
-                            <div id="kpi-entrises" class="text-xs font-semibold text-emerald-600 truncate">0.00 €</div>
-                        </div>
-                        <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/60 shadow-2xs flex flex-col justify-center">
-                            <span class="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Dépenses (Flux -)</span>
-                            <div id="kpi-depenses" class="text-xs font-semibold text-rose-600 truncate">0.00 €</div>
-                        </div>
-                        <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/60 shadow-2xs flex flex-col justify-center">
-                            <span class="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Solde Période</span>
-                            <div id="kpi-reste" class="text-xs font-semibold text-slate-900 truncate">0.00 €</div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-2xs flex-grow">
+                        <div class="relative h-64 w-full">
+                            <canvas id="mainBudgetChart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -76,15 +68,14 @@
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs lg:col-span-2 space-y-3">
                         <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100 flex justify-between">
-                            <span>📁 Volume des Catégories (Respect strict de vos saisies)</span>
-                            <span class="text-[10px] font-normal italic text-slate-400">Cliquez pour explorer</span>
+                            <span>📁 Volume des Catégories (Mois sélectionné)</span>
                         </h3>
                         <div id="categories-chart-container" class="space-y-3 pt-1"></div>
                     </div>
 
                     <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs space-y-3">
                         <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100">
-                            <span>📋 Volume par Poste</span>
+                            <span>📋 Volume par Poste (Mois sélectionné)</span>
                         </h3>
                         <div id="postes-chart-container" class="space-y-3 max-h-[400px] overflow-y-auto pr-1"></div>
                     </div>
@@ -113,27 +104,24 @@
                 </div>
 
                 <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200/60 shadow-2xs">
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-grow">
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 flex-grow">
                         <div>
-                            <input type="text" id="search-input" oninput="renderResponsiveTransactions()" placeholder="🔍 Rechercher poste, description, note..." class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:bg-white transition">
+                            <input type="text" id="search-input" oninput="renderResponsiveTransactions()" placeholder="🔍 Rechercher description, note..." class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:bg-white transition">
                         </div>
                         <div>
-                            <select id="filter-categorie" onchange="renderResponsiveTransactions()" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none bg-white font-medium text-slate-600"></select>
+                            <select id="filter-categorie" onchange="populateFilterPostes(); renderResponsiveTransactions()" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none bg-white font-medium text-slate-600"></select>
                         </div>
                         <div>
-                            <select id="filter-pointage" onchange="renderResponsiveTransactions()" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none bg-white font-medium text-slate-600">
-                                <option value="">🎯 Tout le pointage</option>
-                                <option value="pointe">🟢 Vérifiées (Pointées)</option>
-                                <option value="non-pointe">⚪ En attente (Non pointées)</option>
+                            <select id="filter-poste" onchange="renderResponsiveTransactions()" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none bg-white font-medium text-slate-600">
+                                <option value="">🏷️ Tous les postes</option>
                             </select>
                         </div>
-                    </div>
-                    
-                    <div class="flex items-center justify-between lg:justify-end gap-3 px-1 border-t lg:border-t-0 pt-2 lg:pt-0 border-slate-100 shrink-0">
-                        <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Masquer pointées</span>
-                        <button onclick="toggleHidePointedFilter()" id="toggle-filter-pointed" class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full bg-slate-200 transition-colors duration-200 ease-in-out focus:outline-none">
-                            <span id="toggle-filter-circle" class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out translate-x-1 mt-1"></span>
-                        </button>
+                        <div class="flex items-center justify-between px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer select-none" onclick="toggleHidePointedFilter()">
+                            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Masquer pointées</span>
+                            <button id="toggle-filter-pointed" type="button" class="relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full bg-slate-200 transition-colors duration-200 ease-in-out focus:outline-none">
+                                <span id="toggle-filter-circle" class="pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out translate-x-1 mt-1"></span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -336,7 +324,7 @@
                 "ALIMENTATION": ["Courses alimentaires", "Snacking", "Remboursement"],
                 "ANIMAUX": ["Nourriture", "Vétérinaire", "Remboursement"],
                 "CADEAUX": ["Événements / Fêtes", "Remboursement"],
-                "CHÈQUES": ["Suivi chèques émis", "Remboursement"]
+                "CHÈQUES": ["Suivi chèques émis", "Remboursement"],
                 "LOISIRS": ["SORTIES", "Remboursement"],
                 "SANTÉ": ["Médecin", "Pharmacie", "Labo", "Remboursement"],
                 "SHOPPING": ["Amazon divers", "Vêtements", "Maison", "Fournitures Boulot", "Remboursement"],
@@ -361,14 +349,15 @@
 
         // Variable globale pour gérer le filtrage par bouton toggle
         let isHidePointedActive = false;
+        let budgetChartInstance = null;
 
-        // Dictionnaire de mapping pour attribuer des couleurs précises aux catégories
+        // Dictionnaire de couleurs enrichi et modernisé pour les transactions (Badges vifs)
         const categoryColorMap = {
-            "ENTRÉES": "bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-semibold",
-            "PRÉLEVÈMENTS (FIXES)": "bg-rose-50 text-rose-700 border border-rose-200/80 font-semibold",
-            "ÉPARGNE": "bg-amber-50 text-amber-700 border border-amber-200/80 font-semibold",
-            "DÉPENSES QUOTIDIENNES": "bg-sky-50 text-sky-700 border border-sky-200/80 font-semibold",
-            "PATIN": "bg-indigo-50 text-indigo-700 border border-indigo-200/80 font-semibold"
+            "ENTRÉES": "bg-emerald-500 text-white font-bold px-2.5 py-0.5 rounded shadow-2xs text-[10px]",
+            "PRÉLEVÈMENTS (FIXES)": "bg-rose-500 text-white font-bold px-2.5 py-0.5 rounded shadow-2xs text-[10px]",
+            "ÉPARGNE": "bg-amber-500 text-white font-bold px-2.5 py-0.5 rounded shadow-2xs text-[10px]",
+            "DÉPENSES QUOTIDIENNES": "bg-sky-500 text-white font-bold px-2.5 py-0.5 rounded shadow-2xs text-[10px]",
+            "PATIN": "bg-indigo-500 text-white font-bold px-2.5 py-0.5 rounded shadow-2xs text-[10px]"
         };
 
         function checkPassword() {
@@ -395,13 +384,17 @@
             });
             document.getElementById(tabId).classList.add('active');
             document.getElementById('btn-' + tabId).classList.add('bg-white', 'text-slate-900', 'shadow-xs');
-            if(tabId === 'tab-dashboard') buildMonthDropdown();
+            if(tabId === 'tab-dashboard') {
+                buildMonthDropdown();
+                renderMainBudgetChart();
+            }
         }
 
         function initApp() {
             fetchTransactionsFromCloud();
             populateCategorieDropdown();
             populateFilterCategorieDropdown();
+            populateFilterPostes();
             document.getElementById('api-key-input').value = localStorage.getItem('gemini_api_key') || '';
         }
 
@@ -420,6 +413,7 @@
                 transactions = data || [];
                 renderResponsiveTransactions();
                 buildMonthDropdown();
+                renderMainBudgetChart();
             } catch (err) { console.error(err); }
         }
 
@@ -436,18 +430,18 @@
             }
         }
 
-        // Actionneur pour le bouton Toggle de filtrage rapide
+        // Actionneur de filtrage via bouton Toggle Switch (Masquer pointées)
         function toggleHidePointedFilter() {
             isHidePointedActive = !isHidePointedActive;
             const btn = document.getElementById('toggle-filter-pointed');
             const circle = document.getElementById('toggle-filter-circle');
             
             if (isHidePointedActive) {
-                btn.classList.replace('bg-slate-200', 'bg-indigo-600');
-                circle.classList.replace('translate-x-1', 'translate-x-6');
+                btn.classList.replace('bg-slate-200', 'bg-emerald-500');
+                circle.classList.replace('translate-x-1', 'translate-x-5');
             } else {
-                btn.classList.replace('bg-indigo-600', 'bg-slate-200');
-                circle.classList.replace('translate-x-6', 'translate-x-1');
+                btn.classList.replace('bg-emerald-500', 'bg-slate-200');
+                circle.classList.replace('translate-x-5', 'translate-x-1');
             }
             renderResponsiveTransactions();
         }
@@ -462,12 +456,87 @@
                 if(error) throw error;
                 t.pointe = nouveauStatut;
                 renderResponsiveTransactions();
+                renderMainBudgetChart();
             } catch(err) {
                 alert("Erreur lors de la mise à jour du pointage.");
             }
         }
 
-        // FONCTION DE RENDU RE-STRUCTUREE AVEC DES DESIGN-PATTERNS VISUELS MODERNES
+        // GENERATION DU GRAPHIQUE MENSUEL DEMANDE (Entrées / Dépenses / Courbe de Solde)
+        function renderMainBudgetChart() {
+            const ctx = document.getElementById('mainBudgetChart');
+            if (!ctx) return;
+
+            const monthlyData = {};
+            transactions.forEach(t => {
+                const m = t.mois_affectation || getYearMonthString(t.date);
+                if (!m) return;
+                if (!monthlyData[m]) {
+                    monthlyData[m] = { entrees: 0, depenses: 0 };
+                }
+                const amt = parseFloat(t.montant) || 0;
+                if (amt > 0) {
+                    monthlyData[m].entrees += amt;
+                } else {
+                    monthlyData[m].depenses += Math.abs(amt);
+                }
+            });
+
+            // Tri par ordre chronologique
+            const sortedMonths = Object.keys(monthlyData).sort();
+            const entreesData = sortedMonths.map(m => monthlyData[m].entrees);
+            const depensesData = sortedMonths.map(m => monthlyData[m].depenses);
+            const soldeData = sortedMonths.map(m => monthlyData[m].entrees - monthlyData[m].depenses);
+
+            if (budgetChartInstance) {
+                budgetChartInstance.destroy();
+            }
+
+            budgetChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedMonths,
+                    datasets: [
+                        {
+                            label: 'Solde Période',
+                            type: 'line',
+                            data: soldeData,
+                            borderColor: '#0f172a', // slate-900
+                            backgroundColor: '#0f172a',
+                            borderWidth: 2.5,
+                            tension: 0.3,
+                            fill: false,
+                            pointRadius: 3
+                        },
+                        {
+                            label: 'Entrées',
+                            data: entreesData,
+                            backgroundColor: '#10b981', // emerald-500
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Dépenses',
+                            data: depensesData,
+                            backgroundColor: '#ef4444', // red-500
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { font: { size: 10 } } }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { font: { size: 9 } } },
+                        x: { ticks: { font: { size: 9 } } }
+                    }
+                }
+            });
+        }
+
+        // RENDU DE L'ONGLET TRANSACTION AVEC LES AMÉLIORATIONS VISUELLES
         function renderResponsiveTransactions() {
             const pcTbody = document.getElementById('pc-table-body');
             const mobileContainer = document.getElementById('mobile-cards-container');
@@ -477,10 +546,9 @@
 
             const searchQuery = document.getElementById('search-input') ? document.getElementById('search-input').value.toLowerCase().trim() : '';
             const catFilter = document.getElementById('filter-categorie') ? document.getElementById('filter-categorie').value : '';
-            const pointageFilter = document.getElementById('filter-pointage') ? document.getElementById('filter-pointage').value : '';
+            const posteFilter = document.getElementById('filter-poste') ? document.getElementById('filter-poste').value : '';
 
             const filteredTransactions = transactions.filter(t => {
-                // Application du filtre Toggle d'exclusion globale
                 if (isHidePointedActive && t.pointe) return false;
 
                 const cleanCat = (t.categorie || '').toUpperCase().trim();
@@ -494,12 +562,9 @@
                     cleanDetails.includes(searchQuery);
                 
                 const matchesCat = !catFilter || cleanCat === catFilter.toUpperCase().trim();
-                
-                let matchesPointage = true;
-                if (pointageFilter === 'pointe') matchesPointage = t.pointe === true;
-                if (pointageFilter === 'non-pointe') matchesPointage = t.pointe === false;
+                const matchesPoste = !posteFilter || cleanPoste === posteFilter.toUpperCase().trim();
 
-                return matchesSearch && matchesCat && matchesPointage;
+                return matchesSearch && matchesCat && matchesPoste;
             });
 
             if (filteredTransactions.length === 0) { 
@@ -511,34 +576,33 @@
             filteredTransactions.forEach((t) => {
                 const index = transactions.indexOf(t); 
                 const cleanCat = (t.categorie || '').toUpperCase().trim();
-                const currentBadgeStyle = categoryColorMap[cleanCat] || "bg-slate-100 text-slate-700 border border-slate-200 text-xs";
+                const currentBadgeStyle = categoryColorMap[cleanCat] || "bg-slate-400 text-white font-bold px-2 py-0.5 rounded text-[10px]";
                 
                 const rawMontant = parseFloat(t.montant) || 0;
-                const mColor = rawMontant > 0 ? "text-emerald-600 font-semibold" : "text-slate-800 font-medium";
+                const mColor = rawMontant > 0 ? "text-emerald-600 font-bold" : "text-slate-800 font-semibold";
                 const mText = (rawMontant > 0 ? "+" : "") + rawMontant.toFixed(2) + " €";
                 
                 const finalAffectation = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
-                const rowBgClass = t.pointe ? "bg-white text-slate-500 opacity-85 hover:opacity-100" : "bg-white text-slate-900 font-medium";
+                const rowBgClass = t.pointe ? "bg-slate-50/70 text-slate-400 opacity-75 hover:opacity-100" : "bg-white text-slate-900 font-medium";
 
-                // Construction HTML du nouveau bouton de pointage ultra-visuel (SVG natif)
+                // Nouveau bouton de pointage amélioré visuellement (Checkbox pilule moderne)
                 const pointageButtonHTML = `
-                    <button onclick="togglePointage(${index}, event)" class="group inline-flex items-center justify-center p-1.5 rounded-full transition focus:outline-none" title="${t.pointe ? 'Marquer en attente' : 'Marquer comme validée'}">
-                        ${t.pointe ? 
-                            `<svg class="w-5 h-5 text-emerald-500 scale-110 transition-transform group-hover:scale-125" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l5-5z" clip-rule="evenodd"></path></svg>` : 
-                            `<svg class="w-5 h-5 text-slate-300 transition-colors group-hover:text-slate-400 group-hover:scale-105" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle></svg>`
-                        }
+                    <button onclick="togglePointage(${index}, event)" class="group flex items-center justify-center w-7 h-7 rounded-lg border-2 transition-all duration-200 ${t.pointe ? 'bg-emerald-500 border-emerald-500 text-white shadow-xs' : 'bg-white border-slate-200 hover:border-emerald-400 text-transparent hover:text-slate-300'}" title="${t.pointe ? 'Dé-pointer' : 'Pointer'}">
+                        <svg class="w-4 h-4 stroke-current" fill="none" stroke-width="3.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+                        </svg>
                     </button>
                 `;
 
                 // 1. Rendu Desktop
                 const tr = document.createElement('tr');
-                tr.className = `${rowBgClass} transition-colors border-b border-slate-100 hover:bg-slate-50/60 cursor-pointer`;
+                tr.className = `${rowBgClass} transition-colors border-b border-slate-100 hover:bg-slate-50/50 cursor-pointer`;
                 tr.onclick = () => openDetailsDrawer(index);
                 tr.innerHTML = `
-                    <td class="p-3 text-center">${pointageButtonHTML}</td>
+                    <td class="p-3 text-center flex justify-center items-center h-full mt-1">${pointageButtonHTML}</td>
                     <td class="p-3 whitespace-nowrap font-mono text-[11px] text-slate-400">${t.date}</td>
                     <td class="p-3 whitespace-nowrap font-medium text-slate-400">${finalAffectation}</td>
-                    <td class="p-3 whitespace-nowrap"><span class="px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wide ${currentBadgeStyle}">${t.categorie || 'SANS CAT'}</span></td>
+                    <td class="p-3 whitespace-nowrap"><span class="${currentBadgeStyle}">${t.categorie || 'SANS CAT'}</span></td>
                     <td class="p-3 font-semibold uppercase tracking-tight text-[11px] text-slate-700">${t.poste || ''}</td>
                     <td class="p-3 truncate max-w-[140px] ${t.pointe ? 'line-through text-slate-400' : ''}">${t.description || ''}</td>
                     <td class="p-3 truncate max-w-[120px] text-slate-400 italic text-[11px]">${t.details || ''}</td>
@@ -560,7 +624,7 @@
                         <div class="min-w-0 space-y-1">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <span class="text-[10px] font-mono text-slate-400">${t.date}</span>
-                                <span class="px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider ${currentBadgeStyle}">${t.categorie || 'SANS'}</span>
+                                <span class="${currentBadgeStyle}">${t.categorie || 'SANS'}</span>
                             </div>
                             <h4 class="text-xs font-bold text-slate-800 uppercase tracking-tight truncate">${t.poste || ''} : <span class="font-normal normal-case text-slate-600 ${t.pointe ? 'line-through text-slate-400' : ''}">${t.description || ''}</span></h4>
                             ${t.details ? `<p class="text-[10px] text-slate-400 italic truncate">${t.details}</p>` : ''}
@@ -575,7 +639,7 @@
             });
         }
 
-        // ENSEMBLE DES ACTIONS MODALES ET HELPERS COMPLEMENTAIRES
+        // ENSEMBLE DES ACTIONS FILTRES ET ENRICHISEMENT DES SELECTS
         function populateCategorieDropdown() {
             const formCat = document.getElementById('form-categorie');
             if(!formCat) return;
@@ -597,6 +661,32 @@
                 opt.value = cat; opt.textContent = cat;
                 filterCat.appendChild(opt);
             });
+        }
+
+        function populateFilterPostes() {
+            const catFilter = document.getElementById('filter-categorie').value;
+            const posteFilter = document.getElementById('filter-poste');
+            if (!posteFilter) return;
+
+            posteFilter.innerHTML = '<option value="">🏷️ Tous les postes</option>';
+            
+            if (catFilter && budgetStructure[catFilter]) {
+                Object.keys(budgetStructure[catFilter]).forEach(poste => {
+                    const opt = document.createElement('option');
+                    opt.value = poste; opt.textContent = poste;
+                    posteFilter.appendChild(opt);
+                });
+            } else {
+                const allPostes = new Set();
+                Object.values(budgetStructure).forEach(catObj => {
+                    Object.keys(catObj).forEach(p => allPostes.add(p));
+                });
+                [...allPostes].sort().forEach(poste => {
+                    const opt = document.createElement('option');
+                    opt.value = poste; opt.textContent = poste;
+                    posteFilter.appendChild(opt);
+                });
+            }
         }
 
         function updatePosteDropdown() {
@@ -737,7 +827,7 @@
             select.innerHTML = '';
             months.forEach(m => {
                 const opt = document.createElement('option');
-                opt.value = m; opt.textContent = "PÉRIODE BUDGÉTAIRE : " + m;
+                opt.value = m; opt.textContent = "FILTRER DÉTAILS : " + m;
                 select.appendChild(opt);
             });
             calculateDashboardMetrics();
@@ -757,7 +847,6 @@
             const select = document.getElementById('dashboard-month-select');
             const activeMonth = select ? select.value : '';
             
-            let totalIn = 0, totalOut = 0;
             const catTotals = {};
             const posteTotals = {};
 
@@ -765,8 +854,6 @@
                 const m = t.mois_affectation || getYearMonthString(t.date);
                 if(m === activeMonth) {
                     const amt = parseFloat(t.montant) || 0;
-                    if(amt > 0) totalIn += amt; else totalOut += Math.abs(amt);
-
                     const c = (t.categorie || 'NON CLASSÉ').toUpperCase();
                     catTotals[c] = (catTotals[c] || 0) + amt;
 
@@ -775,30 +862,39 @@
                 }
             });
 
-            if(document.getElementById('kpi-entrises')) document.getElementById('kpi-entrises').textContent = totalIn.toFixed(2) + " €";
-            if(document.getElementById('kpi-depenses')) document.getElementById('kpi-depenses').textContent = totalOut.toFixed(2) + " €";
-            if(document.getElementById('kpi-reste')) {
-                const totalDiff = totalIn - totalOut;
-                document.getElementById('kpi-reste').className = totalDiff >= 0 ? "text-xs font-semibold text-emerald-600 truncate" : "text-xs font-semibold text-rose-600 truncate";
-                document.getElementById('kpi-reste').textContent = totalDiff.toFixed(2) + " €";
-            }
-
-            // Génération de la mini UI graphique des catégories
+            // Rendu visuel de la structure des catégories
             const chartContainer = document.getElementById('categories-chart-container');
             if(chartContainer) {
                 chartContainer.innerHTML = '';
                 Object.keys(budgetStructure).forEach(cat => {
                     const totalVal = catTotals[cat] || 0;
-                    const colorClasses = categoryColorMap[cat] || "bg-slate-100 text-slate-700";
+                    const colorClasses = categoryColorMap[cat] || "bg-slate-500 text-white font-bold px-2 py-0.5 rounded";
                     const item = document.createElement('div');
                     item.className = "flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 text-xs";
-                    item.innerHTML = `<span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold ${colorClasses}">${cat}</span><b>${totalVal.toFixed(2)} €</b>`;
+                    item.innerHTML = `<span class="${colorClasses}">${cat}</span><b>${totalVal.toFixed(2)} €</b>`;
                     chartContainer.appendChild(item);
+                });
+            }
+
+            // Rendu visuel des postes
+            const posteContainer = document.getElementById('postes-chart-container');
+            if(posteContainer) {
+                posteContainer.innerHTML = '';
+                const sortedPostes = Object.keys(posteTotals).sort((a,b) => Math.abs(posteTotals[b]) - Math.abs(posteTotals[a]));
+                if(sortedPostes.length === 0) {
+                    posteContainer.innerHTML = '<p class="text-xs text-slate-400 italic">Aucune donnée pour ce mois.</p>';
+                    return;
+                }
+                sortedPostes.forEach(poste => {
+                    const totalVal = posteTotals[poste];
+                    const item = document.createElement('div');
+                    item.className = "flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 text-xs";
+                    item.innerHTML = `<span class="font-semibold text-slate-600 uppercase tracking-tight text-[11px]">${poste}</span><b>${totalVal.toFixed(2)} €</b>`;
+                    posteContainer.appendChild(item);
                 });
             }
         }
 
-        // Placeholders structurels requis pour isoler les liaisons CSV et Gemini
         function parseCSV() { console.log("Analyse CSV lancée..."); }
         function processCSVLines() { console.log("Traitement IA lancé..."); }
         function saveImportedTransactions() { console.log("Sauvegarde Cloud lancée..."); }
