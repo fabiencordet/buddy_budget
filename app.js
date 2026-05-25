@@ -1,61 +1,70 @@
+// Initialisation globale
 let _supabase = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 let transactions = [];
-let selectedCategory = null;
-let selectedPoste = null;
+let selectedCategory = null; 
 
-const budgetStructure = {
-    "ENTRÉES": {}, "PRÉLEVÈMENTS (FIXES)": {}, "ÉPARGNE": {}, "DÉPENSES QUOTIDIENNES": {}
-};
-
-// ... (Gardez ici vos fonctions d'initialisation, fetchTransactionsFromCloud, etc.)
+// Initialisation des données
+async function initDashboard() {
+    const { data } = await _supabase.from('transactions').select('*');
+    transactions = data || [];
+    buildMonthDropdown();
+}
 
 function calculateDashboardMetrics() {
-    const select = document.getElementById('dashboard-month-select');
-    const activeMonth = select ? select.value : '';
-    const catTotals = {}; const posteTotals = {};
+    const activeMonth = document.getElementById('dashboard-month-select').value;
+    const catTotals = {}; 
+    const posteTotals = {};
 
+    // Calcul des totaux par mois
     transactions.forEach(t => {
-        const m = t.mois_affectation || getYearMonthString(t.date);
+        const m = t.mois_affectation || (t.date ? t.date.substring(0, 7) : '');
         if(m === activeMonth) {
-            const c = (t.categorie || 'SANS').toUpperCase();
-            catTotals[c] = (catTotals[c] || 0) + parseFloat(t.montant || 0);
-            if (!selectedCategory || selectedCategory === c) {
-                const p = (t.poste || 'AUTRE').toUpperCase();
-                posteTotals[p] = (posteTotals[p] || 0) + parseFloat(t.montant || 0);
+            const cat = (t.categorie || 'SANS').toUpperCase();
+            const poste = (t.poste || 'AUTRE').toUpperCase();
+            const amt = parseFloat(t.montant || 0);
+
+            catTotals[cat] = (catTotals[cat] || 0) + amt;
+            
+            // On n'ajoute au poste que si la catégorie est sélectionnée ou aucune catégorie n'est sélectionnée
+            if (!selectedCategory || selectedCategory === cat) {
+                posteTotals[poste] = (posteTotals[poste] || 0) + amt;
             }
         }
     });
 
-    // Rendu Catégories
-    const chartContainer = document.getElementById('categories-chart-container');
-    chartContainer.innerHTML = '';
+    // Rendu UI Catégories (Interactif)
+    const catContainer = document.getElementById('categories-chart-container');
+    catContainer.innerHTML = '';
     Object.keys(budgetStructure).forEach(cat => {
-        const item = document.createElement('div');
-        item.className = `cursor-pointer p-2 rounded-lg border transition text-xs flex justify-between ${selectedCategory === cat ? 'bg-indigo-50 border-indigo-400' : 'bg-slate-50 border-slate-100'}`;
-        item.onclick = () => { selectedCategory = (selectedCategory === cat) ? null : cat; selectedPoste = null; calculateDashboardMetrics(); };
-        item.innerHTML = `<span>${cat}</span><b>${(catTotals[cat]||0).toFixed(2)} €</b>`;
-        chartContainer.appendChild(item);
+        const btn = document.createElement('div');
+        btn.className = `p-3 rounded-lg border cursor-pointer transition ${selectedCategory === cat ? 'bg-indigo-600 text-white' : 'bg-white border-slate-200 hover:border-indigo-300'}`;
+        btn.onclick = () => { 
+            selectedCategory = (selectedCategory === cat) ? null : cat; 
+            calculateDashboardMetrics(); 
+        };
+        btn.innerHTML = `<div class="text-[10px] uppercase font-bold">${cat}</div><div class="font-mono text-sm">${(catTotals[cat]||0).toFixed(2)} €</div>`;
+        catContainer.appendChild(btn);
     });
 
-    // Rendu Postes
-    const postesContainer = document.getElementById('postes-chart-container');
-    postesContainer.innerHTML = '';
+    // Rendu UI Postes (Interactif)
+    const posteContainer = document.getElementById('postes-chart-container');
+    posteContainer.innerHTML = '';
     Object.keys(posteTotals).sort().forEach(p => {
-        const item = document.createElement('div');
-        item.className = "cursor-pointer hover:bg-slate-50 p-2 rounded border border-slate-100 text-xs flex justify-between";
-        item.onclick = () => showPosteDetails(p, activeMonth);
-        item.innerHTML = `<span>${p}</span><span class="font-mono">${(posteTotals[p]).toFixed(2)} €</span>`;
-        postesContainer.appendChild(item);
+        const row = document.createElement('div');
+        row.className = "flex justify-between items-center p-2 bg-white border border-slate-100 rounded text-xs cursor-pointer hover:bg-slate-50";
+        row.onclick = () => showPosteDetails(p, activeMonth);
+        row.innerHTML = `<span class="uppercase">${p}</span><span class="font-mono font-bold">${posteTotals[p].toFixed(2)} €</span>`;
+        posteContainer.appendChild(row);
     });
 }
 
 function showPosteDetails(poste, month) {
-    const filtered = transactions.filter(t => t.poste === poste && (t.mois_affectation || getYearMonthString(t.date)) === month);
+    const details = transactions.filter(t => t.poste.toUpperCase() === poste && (t.mois_affectation || t.date.substring(0,7)) === month);
     const content = document.getElementById('drawer-content');
-    content.innerHTML = filtered.map(t => `
-        <div class="py-2 border-b text-xs flex justify-between">
+    content.innerHTML = details.map(t => `
+        <div class="flex justify-between py-2 border-b text-xs">
             <span>${t.description}</span>
-            <b class="${t.montant > 0 ? 'text-emerald-600' : 'text-slate-900'}">${t.montant} €</b>
+            <span class="font-bold">${t.montant} €</span>
         </div>
     `).join('');
     document.getElementById('details-drawer-modal').classList.remove('hidden');
@@ -63,4 +72,5 @@ function showPosteDetails(poste, month) {
 
 function closeDetailsDrawer() { document.getElementById('details-drawer-modal').classList.add('hidden'); }
 
-// ... (Gardez le reste de vos fonctions comme updateTrendChart, etc.)
+// Lancement
+initDashboard();
