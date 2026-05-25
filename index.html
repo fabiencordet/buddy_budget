@@ -11,231 +11,44 @@
     <style>
         .tabs-content { display: none; }
         .tabs-content.active { display: block; }
-        .select-clean {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-        }
+        .select-clean { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans antialiased">
-
-    <div id="login-page" class="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center z-50">
-        <div class="bg-white p-8 rounded-2xl shadow-sm max-w-sm w-full mx-4 border border-slate-100">
-            <h1 class="text-xl font-semibold mb-6 text-center tracking-tight text-slate-800">My Buddy Budget</h1>
-            <input type="password" id="password-input" placeholder="Mot de passe" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4 focus:outline-none focus:ring-1 focus:ring-slate-400 text-sm">
-            <button onclick="checkPassword()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 px-4 rounded-xl transition text-sm">Se connecter</button>
-            <p id="login-error" class="text-red-500 text-xs mt-3 hidden text-center">Mot de passe incorrect.</p>
-        </div>
-    </div>
-
-    <div id="app-content" class="hidden min-h-screen flex flex-col">
-        <header class="bg-white border-b border-slate-200/80 sticky top-0 z-30">
-            <div class="max-w-5xl mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
-                <div class="flex items-center gap-2">
-                    <span class="text-base font-semibold tracking-tight text-slate-900">My Buddy Budget</span>
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                </div>
-                <nav class="flex space-x-1 bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
-                    <button onclick="switchTab('tab-dashboard')" id="btn-tab-dashboard" class="tab-btn flex-1 sm:flex-none px-5 py-1.5 rounded-lg text-xs font-medium bg-white text-slate-900 shadow-xs transition">Dashboard</button>
-                    <button onclick="switchTab('tab-transactions')" id="btn-tab-transactions" class="tab-btn flex-1 sm:flex-none px-5 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-900 transition">Transactions</button>
-                </nav>
-            </div>
-        </header>
-
+    <div id="app-content" class="min-h-screen flex flex-col">
         <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-6">
-            
             <section id="tab-dashboard" class="tabs-content active space-y-4">
-                
-                <div class="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-200/60 shadow-2xs h-12 w-full md:w-1/2">
-                    <button onclick="navigateMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600 transition font-bold text-sm">&lt;</button>
-                    <div class="relative flex-grow mx-2 text-center">
-                        <select id="dashboard-month-select" onchange="calculateDashboardMetrics()" class="select-clean w-full bg-transparent text-center text-xs font-semibold text-slate-700 outline-none cursor-pointer"></select>
-                    </div>
-                    <button onclick="navigateMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600 transition font-bold text-sm">&gt;</button>
+                <div class="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-2xs h-12">
+                    <button onclick="navigateMonth(1)" class="text-sm font-bold">&lt;</button>
+                    <select id="dashboard-month-select" onchange="calculateDashboardMetrics()" class="select-clean bg-transparent text-center text-xs font-semibold cursor-pointer w-full"></select>
+                    <button onclick="navigateMonth(-1)" class="text-sm font-bold">&gt;</button>
                 </div>
 
-                <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">📈 Évolution Historique</h3>
-                    <div class="relative w-full h-[300px]">
-                        <canvas id="dashboard-trend-chart"></canvas>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs lg:col-span-2 space-y-3">
-                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100">
-                            <span>📁 Volume des Catégories (Mensuel)</span>
-                        </h3>
-                        <div id="categories-chart-container" class="space-y-3 pt-1"></div>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs space-y-3">
-                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100">
-                            <span>📋 Volume par Poste (Mensuel)</span>
-                        </h3>
-                        <div id="postes-chart-container" class="space-y-3 max-h-[400px] overflow-y-auto pr-1"></div>
-                    </div>
-                </div>
-
-                <div class="bg-slate-100 rounded-xl p-3 border border-slate-200/40 mt-4">
-                    <button onclick="document.getElementById('collapsed-config-panel').classList.toggle('hidden')" class="w-full flex justify-between items-center text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                        <span>⚙️ Configuration clé IA</span>
-                        <span>🛡️</span>
-                    </button>
-                    <div id="collapsed-config-panel" class="hidden mt-3 pt-3 border-t border-slate-200 flex flex-col sm:flex-row gap-2">
-                        <input type="password" id="api-key-input" placeholder="Clé Gemini API" class="flex-grow p-2 bg-white border border-slate-200 rounded-lg text-xs outline-none">
-                        <button onclick="saveApiKey()" class="bg-slate-900 text-white font-medium py-1.5 px-4 rounded-lg text-xs transition">Sauvegarder</button>
-                    </div>
-                </div>
-            </section>
-
-            <section id="tab-transactions" class="tabs-content space-y-4">
-                <div class="flex gap-2 w-full">
-                    <button onclick="toggleImportZone()" class="flex-1 bg-white border border-slate-200 text-slate-700 font-medium py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-2xs hover:bg-slate-50 transition">
-                        🤖 Importer CSV
-                    </button>
-                    <button onclick="openTransactionModal()" class="flex-1 bg-slate-900 text-white font-medium py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-2xs hover:bg-slate-800 transition">
-                        ➕ Ajouter une écriture
-                    </button>
-                </div>
-
-                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200/60 shadow-2xs">
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-grow">
-                        <div><input type="text" id="search-input" oninput="renderResponsiveTransactions()" placeholder="🔍 Rechercher poste, description, note..." class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:bg-white transition"></div>
-                        <div><select id="filter-categorie" onchange="renderResponsiveTransactions()" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none bg-white font-medium text-slate-600"></select></div>
-                        <div>
-                            <select id="filter-pointage" onchange="renderResponsiveTransactions()" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none bg-white font-medium text-slate-600">
-                                <option value="">🎯 Tout le pointage</option>
-                                <option value="pointe">🟢 Vérifiées (Pointées)</option>
-                                <option value="non-pointe">⚪ En attente (Non pointées)</option>
-                            </select>
-                        </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <h3 class="text-xs font-semibold text-slate-400 uppercase">1. Cliquez sur une catégorie</h3>
+                        <div id="categories-chart-container" class="grid grid-cols-1 gap-2"></div>
                     </div>
                     
-                    <div class="flex items-center justify-between lg:justify-end gap-3 px-1 border-t lg:border-t-0 pt-2 lg:pt-0 border-slate-100 shrink-0">
-                        <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Masquer pointées</span>
-                        <button onclick="toggleHidePointedFilter()" id="toggle-filter-pointed" class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full bg-slate-200 transition-colors duration-200 ease-in-out focus:outline-none">
-                            <span id="toggle-filter-circle" class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out translate-x-1 mt-1"></span>
-                        </button>
+                    <div class="space-y-2">
+                        <h3 class="text-xs font-semibold text-slate-400 uppercase">2. Cliquez sur un poste pour voir les détails</h3>
+                        <div id="postes-chart-container" class="space-y-1"></div>
                     </div>
-                </div>
-
-                <div id="integrated-import-zone" class="hidden bg-white p-4 rounded-xl border border-slate-200 shadow-inner space-y-3">
-                    <div class="flex justify-between items-center border-b border-slate-100 pb-2">
-                        <h3 class="text-xs font-semibold text-slate-700 uppercase tracking-wider">Module d'importation assisté</h3>
-                        <button onclick="toggleImportZone()" class="text-slate-400 hover:text-slate-600 text-sm font-bold">&times;</button>
-                    </div>
-                    <div class="flex flex-col sm:flex-row gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                        <input type="file" id="csv-file-input" accept=".csv" class="text-xs text-slate-600 flex-grow file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[11px] file:font-semibold file:bg-slate-200 file:text-slate-700 hover:file:bg-slate-300">
-                        <button onclick="parseCSV()" class="bg-slate-900 text-white font-medium py-1.5 px-3 rounded-md text-xs transition">Analyseur</button>
-                    </div>
-                    <div id="csv-mapping-container" class="hidden p-3 border border-slate-200 bg-slate-50 rounded-lg space-y-3">
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div><label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Date</label><select id="map-date" class="w-full p-2 bg-white border border-slate-200 rounded-md text-xs"></select></div>
-                            <div><label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Libellé</label><select id="map-details" class="w-full p-2 bg-white border border-slate-200 rounded-md text-xs"></select></div>
-                            <div><label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Montant</label><select id="map-montant" class="w-full p-2 bg-white border border-slate-200 rounded-md text-xs"></select></div>
-                        </div>
-                        <button onclick="processCSVLines()" class="w-full bg-slate-800 text-white font-medium py-2 rounded-md text-xs transition">🤖 Classer via Gemini</button>
-                    </div>
-                    <div id="csv-preview-container" class="hidden space-y-2">
-                        <div class="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
-                            <span class="text-slate-600 text-xs font-medium">Prévisualisation avant envoi :</span>
-                            <button onclick="saveImportedTransactions()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1 px-3 rounded-md text-xs transition">💾 Envoyer au Cloud</button>
-                        </div>
-                        <div class="overflow-x-auto border border-slate-100 rounded-lg max-h-60">
-                            <table class="w-full text-left text-[11px] bg-white">
-                                <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-100">
-                                    <tr><th class="p-2">Date</th><th class="p-2">Libellé</th><th class="p-2">Poste</th><th class="p-2 text-right">Montant</th></tr>
-                                </thead>
-                                <tbody id="csv-preview-tbody" class="divide-y divide-slate-100"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-xl border border-slate-200/60 shadow-2xs overflow-hidden">
-                    <div class="hidden md:block overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-slate-50/70 border-b border-slate-200/80 text-slate-400 text-[11px] uppercase tracking-wider font-semibold">
-                                    <th class="p-3.5 text-center w-14">Pointé</th>
-                                    <th class="p-3.5">Date</th>
-                                    <th class="p-3.5">Affectation</th>
-                                    <th class="p-3.5">Catégorie</th>
-                                    <th class="p-3.5">Poste</th>
-                                    <th class="p-3.5">Description</th>
-                                    <th class="p-3.5">Notes</th>
-                                    <th class="p-3.5 text-right">Montant</th>
-                                    <th class="p-3.5 text-center">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="pc-table-body" class="divide-y divide-slate-100 text-xs text-slate-700"></tbody>
-                        </table>
-                    </div>
-                    <div class="block md:hidden">
-                        <div id="mobile-cards-container" class="divide-y divide-slate-100 bg-white"></div>
-                    </div>
-                    <div id="empty-state" class="p-8 text-center text-slate-400 italic text-xs hidden">Aucune opération détectée.</div>
                 </div>
             </section>
         </main>
     </div>
 
-    <div id="details-drawer-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-40 hidden" onclick="closeDetailsDrawer()">
-        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 overflow-hidden border border-slate-100" onclick="event.stopPropagation()">
-            <div class="bg-slate-900 text-white px-4 py-3 flex justify-between items-center">
-                <h3 class="font-medium text-xs tracking-tight">Détails de la transaction</h3>
-                <button onclick="closeDetailsDrawer()" class="text-white/80 hover:text-white text-lg font-bold">&times;</button>
+    <div id="details-drawer-modal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center z-50" onclick="closeDetailsDrawer()">
+        <div class="bg-white w-full max-w-sm rounded-xl p-4 shadow-2xl m-4" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4">
+                <h4 class="font-bold text-sm">Détails des transactions</h4>
+                <button onclick="closeDetailsDrawer()" class="text-slate-400 hover:text-slate-600">✕</button>
             </div>
-            <div class="p-4 space-y-3 text-xs text-slate-700">
-                <div class="flex justify-between border-b border-slate-100 pb-1.5"><span class="text-slate-400">Statut</span><span id="drawer-pointage-status" class="font-semibold"></span></div>
-                <div class="flex justify-between border-b border-slate-100 pb-1.5"><span class="text-slate-400">Date</span><span id="drawer-date" class="font-mono"></span></div>
-                <div class="flex justify-between border-b border-slate-100 pb-1.5"><span class="text-slate-400">Mois</span><span id="drawer-affectation" class="text-slate-800"></span></div>
-                <div class="flex justify-between border-b border-slate-100 pb-1.5"><span class="text-slate-400">Catégorie</span><span id="drawer-categorie" class="font-semibold"></span></div>
-                <div class="flex justify-between border-b border-slate-100 pb-1.5"><span class="text-slate-400">Poste</span><span id="drawer-poste" class="font-semibold"></span></div>
-                <div class="flex justify-between border-b border-slate-100 pb-1.5"><span class="text-slate-400">Description</span><span class="font-medium" id="drawer-description"></span></div>
-                <div class="space-y-1"><span class="text-slate-400">Notes</span><div id="drawer-details" class="bg-slate-50 border border-slate-200 p-2 rounded-lg text-[11px] text-slate-500 italic whitespace-normal break-words"></div></div>
-                <div class="flex justify-between items-center pt-1"><span class="text-slate-400">Montant</span><span id="drawer-montant" class="text-base font-semibold"></span></div>
-                <div class="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100" id="drawer-actions-container"></div>
-            </div>
+            <div id="drawer-content" class="max-h-60 overflow-y-auto"></div>
         </div>
     </div>
-
-    <div id="transaction-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 overflow-hidden border border-slate-100">
-            <div class="bg-slate-900 text-white px-4 py-3 flex justify-between items-center">
-                <h3 id="modal-title" class="font-medium text-xs uppercase tracking-wider">Éditer</h3>
-                <button onclick="closeTransactionModal()" class="text-white/70 hover:text-white text-lg font-bold">&times;</button>
-            </div>
-            <form id="transaction-form" onsubmit="saveTransaction(event)" class="p-4 space-y-3">
-                <input type="hidden" id="edit-index">
-                <input type="hidden" id="edit-db-id">
-                
-                <div class="grid grid-cols-2 gap-2">
-                    <div><label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Date</label><input type="date" id="form-date" onchange="syncDefaultAffectationMonth()" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none"></div>
-                    <div><label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Mois Dashboard</label><input type="month" id="form-affectation" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none"></div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2">
-                    <div><label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Catégorie</label><select id="form-categorie" onchange="updatePosteDropdown()" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs bg-white outline-none"></select></div>
-                    <div><label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Poste</label><select id="form-poste" onchange="updateDescriptionDropdown()" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs bg-white outline-none"></select></div>
-                </div>
-                <div><label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Description</label><select id="form-description" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs bg-white outline-none"></select></div>
-                <div><label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Notes / Détails</label><input type="text" id="form-details" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none"></div>
-                <div>
-                    <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Montant (€)</label>
-                    <div class="relative">
-                        <input type="number" step="0.01" id="form-montant" placeholder="0.00" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none font-medium">
-                    </div>
-                </div>
-                <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100">
-                    <button type="button" onclick="closeTransactionModal()" class="px-3 py-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 text-xs transition">Annuler</button>
-                    <button type="submit" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs transition">Sauvegarder</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
+    
     <script src="app.js"></script>
 </body>
 </html>
