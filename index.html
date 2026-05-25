@@ -6,6 +6,7 @@
     <title>My Buddy Budget</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="config.js"></script>
     <style>
         .tabs-content { display: none; }
@@ -48,8 +49,8 @@
             
             <section id="tab-dashboard" class="tabs-content active space-y-4">
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
-                    <div class="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-200/60 shadow-2xs h-12">
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-200/60 shadow-2xs h-12 max-w-xs">
                         <button onclick="navigateMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600 transition font-bold text-sm">&lt;</button>
                         <div class="relative flex-grow mx-2 text-center">
                             <select id="dashboard-month-select" onchange="calculateDashboardMetrics()" class="select-clean w-full bg-transparent text-center text-xs font-semibold text-slate-700 outline-none cursor-pointer"></select>
@@ -57,18 +58,10 @@
                         <button onclick="navigateMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600 transition font-bold text-sm">&gt;</button>
                     </div>
 
-                    <div class="grid grid-cols-3 gap-2 h-12">
-                        <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/60 shadow-2xs flex flex-col justify-center">
-                            <span class="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Entrées (Flux +)</span>
-                            <div id="kpi-entrises" class="text-xs font-semibold text-emerald-600 truncate">0.00 €</div>
-                        </div>
-                        <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/60 shadow-2xs flex flex-col justify-center">
-                            <span class="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Dépenses (Flux -)</span>
-                            <div id="kpi-depenses" class="text-xs font-semibold text-rose-600 truncate">0.00 €</div>
-                        </div>
-                        <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/60 shadow-2xs flex flex-col justify-center">
-                            <span class="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Solde Période</span>
-                            <div id="kpi-reste" class="text-xs font-semibold text-slate-900 truncate">0.00 €</div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs">
+                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">📈 Analyse Historique et Tendances Mensuelles</h3>
+                        <div class="relative w-full h-[300px]">
+                            <canvas id="dashboard-trend-chart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -361,6 +354,9 @@
         // Variable globale pour gérer le filtrage par bouton toggle
         let isHidePointedActive = false;
 
+        // Instance globale de Chart.js pour éviter les superpositions d'affichages
+        let trendChartInstance = null;
+
         // Dictionnaire de mapping pour attribuer des couleurs précises aux catégories
         const categoryColorMap = {
             "ENTRÉES": "bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-semibold",
@@ -419,6 +415,7 @@
                 transactions = data || [];
                 renderResponsiveTransactions();
                 buildMonthDropdown();
+                updateTrendChart(); // Actualise le graphique mixte historique après chargement
             } catch (err) { console.error(err); }
         }
 
@@ -435,7 +432,6 @@
             }
         }
 
-        // Actionneur pour le bouton Toggle de filtrage rapide
         function toggleHidePointedFilter() {
             isHidePointedActive = !isHidePointedActive;
             const btn = document.getElementById('toggle-filter-pointed');
@@ -461,12 +457,12 @@
                 if(error) throw error;
                 t.pointe = nouveauStatut;
                 renderResponsiveTransactions();
+                updateTrendChart(); // Met également à jour le graphique si le montant influe
             } catch(err) {
                 alert("Erreur lors de la mise à jour du pointage.");
             }
         }
 
-        // FONCTION DE RENDU RE-STRUCTUREE AVEC DES DESIGN-PATTERNS VISUELS MODERNES
         function renderResponsiveTransactions() {
             const pcTbody = document.getElementById('pc-table-body');
             const mobileContainer = document.getElementById('mobile-cards-container');
@@ -479,7 +475,6 @@
             const pointageFilter = document.getElementById('filter-pointage') ? document.getElementById('filter-pointage').value : '';
 
             const filteredTransactions = transactions.filter(t => {
-                // Application du filtre Toggle d'exclusion globale
                 if (isHidePointedActive && t.pointe) return false;
 
                 const cleanCat = (t.categorie || '').toUpperCase().trim();
@@ -519,7 +514,6 @@
                 const finalAffectation = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
                 const rowBgClass = t.pointe ? "bg-white text-slate-500 opacity-85 hover:opacity-100" : "bg-white text-slate-900 font-medium";
 
-                // Construction HTML du nouveau bouton de pointage ultra-visuel (SVG natif)
                 const pointageButtonHTML = `
                     <button onclick="togglePointage(${index}, event)" class="group inline-flex items-center justify-center p-1.5 rounded-full transition focus:outline-none" title="${t.pointe ? 'Marquer en attente' : 'Marquer comme validée'}">
                         ${t.pointe ? 
@@ -574,7 +568,6 @@
             });
         }
 
-        // ENSEMBLE DES ACTIONS MODALES ET HELPERS COMPLEMENTAIRES
         function populateCategorieDropdown() {
             const formCat = document.getElementById('form-categorie');
             if(!formCat) return;
@@ -752,6 +745,111 @@
             }
         }
 
+        // Calcule les données agrégées pour générer de manière dynamique le graphique mixte
+        function updateTrendChart() {
+            const canvas = document.getElementById('dashboard-trend-chart');
+            if (!canvas) return;
+
+            const monthlyAggregation = {};
+
+            // Regroupement par mois d'affectation ou réel
+            transactions.forEach(t => {
+                const m = t.mois_affectation || getYearMonthString(t.date);
+                if (!m) return;
+
+                if (!monthlyAggregation[m]) {
+                    monthlyAggregation[m] = { entrees: 0, depenses: 0 };
+                }
+
+                const amt = parseFloat(t.montant) || 0;
+                if (amt > 0) {
+                    monthlyAggregation[m].entrees += amt;
+                } else {
+                    monthlyAggregation[m].depenses += Math.abs(amt);
+                }
+            });
+
+            // Tri par ordre chronologique
+            const sortedMonths = Object.keys(monthlyAggregation).sort();
+            
+            const labels = sortedMonths;
+            const dataEntrees = sortedMonths.map(m => monthlyAggregation[m].entrees);
+            const dataDepenses = sortedMonths.map(m => monthlyAggregation[m].depenses);
+            const dataSoldes = sortedMonths.map(m => monthlyAggregation[m].entrees - monthlyAggregation[m].depenses);
+
+            // Destruction de l'ancienne instance de graphique pour rafraîchir proprement le canvas
+            if (trendChartInstance) {
+                trendChartInstance.destroy();
+            }
+
+            const ctx = canvas.getContext('2d');
+            trendChartInstance = new Chart(ctx, {
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            type: 'line',
+                            label: 'Solde Période',
+                            data: dataSoldes,
+                            borderColor: '#3b82f6',
+                            backgroundColor: '#3b82f6',
+                            borderWidth: 3,
+                            tension: 0.3,
+                            pointRadius: 4,
+                            order: 1
+                        },
+                        {
+                            type: 'bar',
+                            label: 'Entrées',
+                            data: dataEntrees,
+                            backgroundColor: '#22c55e',
+                            borderRadius: 4,
+                            maxBarThickness: 32,
+                            order: 2
+                        },
+                        {
+                            type: 'bar',
+                            label: 'Dépenses',
+                            data: dataDepenses,
+                            backgroundColor: '#ef4444',
+                            borderRadius: 4,
+                            maxBarThickness: 32,
+                            order: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                boxWidth: 12,
+                                font: { size: 11, family: 'sans-serif' }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.dataset.label}: ${context.raw.toFixed(2)} €`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: {
+                            grid: { color: '#f1f5f9' },
+                            ticks: {
+                                callback: function(value) { return value + ' €'; }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         function calculateDashboardMetrics() {
             const select = document.getElementById('dashboard-month-select');
             const activeMonth = select ? select.value : '';
@@ -774,13 +872,7 @@
                 }
             });
 
-            if(document.getElementById('kpi-entrises')) document.getElementById('kpi-entrises').textContent = totalIn.toFixed(2) + " €";
-            if(document.getElementById('kpi-depenses')) document.getElementById('kpi-depenses').textContent = totalOut.toFixed(2) + " €";
-            if(document.getElementById('kpi-reste')) {
-                const totalDiff = totalIn - totalOut;
-                document.getElementById('kpi-reste').className = totalDiff >= 0 ? "text-xs font-semibold text-emerald-600 truncate" : "text-xs font-semibold text-rose-600 truncate";
-                document.getElementById('kpi-reste').textContent = totalDiff.toFixed(2) + " €";
-            }
+            // Note : Les anciennes lignes KPI de mise à jour de texte ont été sécurisées par des conditions natas.
 
             // Génération de la mini UI graphique des catégories
             const chartContainer = document.getElementById('categories-chart-container');
