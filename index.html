@@ -289,7 +289,17 @@
     </div>
 
     <script>
-        const _supabase = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+        let _supabase;
+        // Protection et initialisation sécurisée pour isoler les pannes de config.js
+        try {
+            if (typeof CONFIG !== 'undefined') {
+                _supabase = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+            } else {
+                console.error("⚠️ Alerte : Le fichier 'config.js' est introuvable ou illisible.");
+            }
+        } catch (err) {
+            console.error("⚠️ Échec d'initialisation Supabase :", err);
+        }
 
         // Arbre structurel mis à jour (REVENUS FABIEN + REVENUS MARINA)
         const budgetStructure = {
@@ -321,4 +331,678 @@
                 "CADEAUX": ["Événements / Fêtes", "Remboursement"],
                 "SHOPPING": ["Amazon divers", "Vêtements", "MAISON et AUTRE", "Fournitures, Boulot", "Remboursement"],
                 "LOISIRS": ["SORTIES", "Remboursement"],
-                "CHÈQUES":
+                "CHÈQUES": ["Suivi chèques émis", "Remboursement"]
+            },
+            "PATIN": {
+                "STAGE": ["Stage", "Remboursement"],
+                "DÉPLACEMENT": ["Déplacement", "Remboursement"],
+                "CAFÉTÉRIA": ["Cafétéria", "Remboursement"],
+                "ÉQUIPEMENTS": ["Équipements", "Remboursement"],
+                "COTISATION": ["Cotisation", "Remboursement"]
+            }
+        };
+
+        let transactions = [];
+        let tempImportedTransactions = [];
+        let csvHeaders = [];
+        let csvRows = [];
+        
+        let expandedCategories = {};
+        let expandedPostes = {}; 
+
+        function checkPassword() {
+            if (typeof CONFIG === 'undefined') {
+                alert("❌ Erreur : Le fichier 'config.js' est manquant, mal nommé ou contient une erreur de syntaxe. Impossible de vérifier le mot de passe.");
+                return;
+            }
+            if (document.getElementById('password-input').value === CONFIG.SECRET_PASSWORD) {
+                document.getElementById('login-page').classList.add('hidden');
+                document.getElementById('app-content').classList.remove('hidden');
+                initApp();
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        }
+
+        document.getElementById('password-input').addEventListener('keypress', function(e) { if (e.key === 'Enter') checkPassword(); });
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tabs-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('bg-white', 'text-slate-900', 'shadow-xs');
+                el.classList.add('text-slate-500', 'hover:text-slate-900');
+            });
+            document.getElementById(tabId).classList.add('active');
+            document.getElementById('btn-' + tabId).classList.add('bg-white', 'text-slate-900', 'shadow-xs');
+            if(tabId === 'tab-dashboard') buildMonthDropdown();
+        }
+
+        function initApp() {
+            fetchTransactionsFromCloud();
+            populateCategorieDropdown();
+            populateFilterCategorieDropdown();
+            document.getElementById('api-key-input').value = localStorage.getItem('gemini_api_key') || '';
+        }
+
+        function saveApiKey() {
+            localStorage.setItem('gemini_api_key', document.getElementById('api-key-input').value.trim());
+            alert("Clé mémorisée.");
+        }
+
+        function toggleImportZone() { document.getElementById('integrated-import-zone').classList.toggle('hidden'); }
+
+        async function fetchTransactionsFromCloud() {
+            if (!_supabase) {
+                console.error("Base cloud non connectée.");
+                return;
+            }
+            try {
+                const { data, error } = await _supabase.from('transactions').select('*').order('date', { ascending: false });
+                if (error) throw error;
+                transactions = data || [];
+                renderResponsiveTransactions();
+                buildMonthDropdown();
+            } catch (err) { console.error(err); }
+        }
+
+        function shortStr(str, limit = 8) {
+            if(!str) return '';
+            return str.length > limit ? str.substring(0, limit) + '…' : str;
+        }
+
+        function getYearMonthString(dateStr) { 
+            if(!dateStr || !dateStr.includes('-')) return ''; 
+            const p = dateStr.split('-'); 
+            return `${p[0]}-${p[1].padStart(2, '0')}`; 
+        }
+
+        function syncDefaultAffectationMonth() {
+            const dateVal = document.getElementById('form-date').value;
+            if(dateVal) {
+                document.getElementById('form-affectation').value = getYearMonthString(dateVal);
+            }
+        }
+
+        async function togglePointage(index, event) {
+            if(event) event.stopPropagation(); 
+            const t = transactions[index];
+            const nouveauStatut = !t.pointe;
+            
+            try {
+                const { error } = await _supabase.from('transactions').update({ pointe: nouveauStatut }).eq('id', t.id);
+                if(error) throw error;
+                t.pointe = nouveauStatut;
+                renderResponsiveTransactions();
+            } catch(err) {
+                alert("Erreur lors de la mise à jour du pointage.");
+            }
+        }
+
+        function renderResponsiveTransactions() {
+            const pcTbody = document.getElementById('pc-table-body');
+            const mobileContainer = document.getElementById('mobile-cards-container');
+            const emptyState = document.getElementById('empty-state');
+
+            pcTbody.innerHTML = ''; mobileContainer.innerHTML = '';
+
+            const searchQuery = document.getElementById('search-input') ? document.getElementById('search-input').value.toLowerCase().trim() : '';
+            const catFilter = document.getElementById('filter-categorie') ? document.getElementById('filter-categorie').value : '';
+            const pointageFilter = document.getElementById('filter-pointage') ? document.getElementById('filter-pointage').value : '';
+
+            const filteredTransactions = transactions.filter(t => {
+                const cleanCat = (t.categorie || '').toUpperCase().trim();
+                const cleanPoste = (t.poste || '').toUpperCase().trim();
+                const cleanDesc = (t.description || '').toLowerCase();
+                const cleanDetails = (t.details || '').toLowerCase();
+
+                const matchesSearch = !searchQuery || 
+                    cleanPoste.toLowerCase().includes(searchQuery) || 
+                    cleanDesc.includes(searchQuery) || 
+                    cleanDetails.includes(searchQuery);
+                
+                const matchesCat = !catFilter || cleanCat === catFilter.toUpperCase().trim();
+                
+                let matchesPointage = true;
+                if (pointageFilter === 'pointe') matchesPointage = t.pointe === true;
+                if (pointageFilter === 'non-pointe') matchesPointage = t.pointe === false;
+
+                return matchesSearch && matchesCat && matchesPointage;
+            });
+
+            if (filteredTransactions.length === 0) { emptyState.classList.remove('hidden'); return; }
+            emptyState.classList.add('hidden');
+
+            filteredTransactions.forEach((t) => {
+                const index = transactions.indexOf(t); 
+                const cleanCat = (t.categorie || '').toUpperCase().trim();
+                const cleanPoste = (t.poste || '').toUpperCase().trim();
+                
+                const rawMontant = parseFloat(t.montant) || 0;
+                const mColor = "text-slate-800 font-medium";
+                const mText = rawMontant.toFixed(2) + " €";
+                
+                const finalAffectation = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
+                const rowBgClass = t.pointe ? "bg-white text-slate-700" : "bg-amber-50/40 text-slate-900 font-medium";
+                const checkIcon = t.pointe ? "🟢" : "⚪";
+                const checkTitle = t.pointe ? "Transaction vérifiée (Pointée)" : "En attente de vérification (Non pointées)";
+
+                // PC
+                const tr = document.createElement('tr');
+                tr.className = `${rowBgClass} hover:bg-slate-50/80 transition border-b border-slate-100 cursor-pointer`;
+                tr.onclick = () => openDetailsDrawer(index);
+                tr.innerHTML = `
+                    <td class="p-3.5 text-center text-sm" onclick="togglePointage(${index}, event)" title="${checkTitle}">
+                        <button class="hover:scale-125 transition duration-150">${checkIcon}</button>
+                    </td>
+                    <td class="p-3.5 font-mono text-[11px] text-slate-400">${formatDateFr(t.date)}</td>
+                    <td class="p-3.5 font-mono text-[11px] text-slate-500">${formatMonthFr(finalAffectation)}</td>
+                    <td class="p-3.5"><span class="text-[10px] font-semibold text-slate-600 tracking-tight">${cleanCat}</span></td>
+                    <td class="p-3.5 text-slate-800">${cleanPoste}</td>
+                    <td class="p-3.5 text-slate-500">${t.description || '-'}</td>
+                    <td class="p-3.5 text-slate-400 italic max-w-xs truncate">${t.details || '-'}</td>
+                    <td class="p-3.5 text-right ${mColor}">${mText}</td>
+                    <td class="p-3.5 text-center space-x-2" onclick="event.stopPropagation()">
+                        <button onclick="editTransaction(${index})" class="text-slate-500 hover:text-slate-900 transition">Modifier</button>
+                        <button onclick="deleteTransaction(${index})" class="text-rose-500 hover:text-rose-700 transition">Supprimer</button>
+                    </td>
+                `;
+                pcTbody.appendChild(tr);
+
+                // Mobile
+                const card = document.createElement('div');
+                card.className = `${rowBgClass} p-3.5 active:bg-slate-100 transition flex justify-between items-center cursor-pointer`;
+                card.onclick = () => openDetailsDrawer(index);
+                card.innerHTML = `
+                    <div class="flex items-center gap-2.5 min-w-0 flex-grow">
+                        <div onclick="togglePointage(${index}, event)" class="text-sm p-1 hover:scale-110 transition shrink-0" title="${checkTitle}">
+                            ${checkIcon}
+                        </div>
+                        <div class="min-w-0 flex-grow space-y-0.5">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="text-[10px] font-mono text-slate-400">${formatDateFr(t.date).substring(0,5)}</span>
+                                <span class="text-[10px] bg-slate-100/80 text-slate-700 px-1 py-0.2 rounded font-medium uppercase tracking-tight">
+                                    ${shortStr(cleanCat, 8)}
+                                </span>
+                                <span class="text-[10px] bg-slate-100/80 text-slate-600 px-1 py-0.2 rounded font-medium uppercase tracking-tight">
+                                    ${shortStr(cleanPoste, 8)}
+                                </span>
+                            </div>
+                            <div class="text-xs text-slate-500 truncate pl-0.5">${t.description || '-'}</div>
+                        </div>
+                    </div>
+                    <div class="text-right flex-shrink-0 pl-2">
+                        <span class="${mColor} text-xs">${mText}</span>
+                    </div>
+                `;
+                mobileContainer.appendChild(card);
+            });
+        }
+
+        function openDetailsDrawer(index) {
+            const t = transactions[index];
+            const cleanCat = (t.categorie || '').toUpperCase().trim();
+            const rawMontant = parseFloat(t.montant) || 0;
+            const finalAffectation = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
+            
+            document.getElementById('drawer-date').innerText = formatDateFr(t.date);
+            document.getElementById('drawer-affectation').innerText = formatMonthFr(finalAffectation);
+            document.getElementById('drawer-categorie').innerText = cleanCat;
+            document.getElementById('drawer-poste').innerText = (t.poste || '').toUpperCase().trim();
+            document.getElementById('drawer-description').innerText = t.description || '-';
+            document.getElementById('drawer-details').innerText = t.details || 'Aucune note ajoutée.';
+            
+            const pStatus = document.getElementById('drawer-pointage-status');
+            pStatus.innerText = t.pointe ? "✅ Vérifiée / Pointée" : "⏳ En attente de vérification";
+            pStatus.className = t.pointe ? "font-semibold text-emerald-600" : "font-semibold text-amber-600";
+
+            const mEl = document.getElementById('drawer-montant');
+            mEl.innerText = rawMontant.toFixed(2) + " €";
+            mEl.className = "text-sm font-semibold text-slate-900";
+
+            document.getElementById('drawer-actions-container').innerHTML = `
+                <button onclick="closeDetailsDrawer(); editTransaction(${index})" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 rounded-xl transition">Modifier</button>
+                <button onclick="closeDetailsDrawer(); deleteTransaction(${index})" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-medium py-2 rounded-xl transition">Supprimer</button>
+            `;
+            document.getElementById('details-drawer-modal').classList.remove('hidden');
+        }
+
+        function closeDetailsDrawer() { document.getElementById('details-drawer-modal').classList.add('hidden'); }
+
+        function navigateMonth(direction) {
+            const select = document.getElementById('dashboard-month-select');
+            if (select.options.length === 0) return;
+            let newIndex = select.selectedIndex + direction;
+            if (newIndex >= 0 && newIndex < select.options.length) {
+                select.selectedIndex = newIndex;
+                calculateDashboardMetrics();
+            }
+        }
+
+        function buildMonthDropdown() {
+            const select = document.getElementById('dashboard-month-select');
+            const previousValue = select.value; select.innerHTML = '';
+            const monthsMap = {};
+            const now = new Date();
+            const currentPeriodStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            monthsMap[currentPeriodStr] = true;
+
+            transactions.forEach(t => { 
+                const p = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
+                if(p) monthsMap[p] = true; 
+            });
+            const sortedPeriods = Object.keys(monthsMap).sort((a,b) => b.localeCompare(a));
+
+            sortedPeriods.forEach(p => {
+                const opt = document.createElement('option'); 
+                opt.value = p; 
+                opt.innerText = formatMonthFr(p);
+                select.appendChild(opt);
+            });
+            select.value = (previousValue && sortedPeriods.includes(previousValue)) ? previousValue : currentPeriodStr;
+            calculateDashboardMetrics();
+        }
+
+        function formatMonthFr(periodStr) {
+            if(!periodStr || !periodStr.includes('-')) return periodStr;
+            const [year, month] = periodStr.split('-');
+            const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+            return `${monthNames[parseInt(month) - 1]} ${year}`;
+        }
+
+        function toggleCategoryDrillDown(catName) { expandedCategories[catName] = !expandedCategories[catName]; calculateDashboardMetrics(); }
+        function togglePosteDrillDownCombo(keyCombo) { expandedPostes[keyCombo] = !expandedPostes[keyCombo]; calculateDashboardMetrics(); }
+
+        function calculateDashboardMetrics() {
+            const targetPeriod = document.getElementById('dashboard-month-select').value;
+            if(!targetPeriod) return;
+
+            let totalEntrees = 0, totalDepenses = 0;
+            const catTotals = {}, posteTotals = {}, drillDownTree = {};
+
+            Object.keys(budgetStructure).forEach(c => {
+                catTotals[c] = 0;
+                drillDownTree[c] = {};
+            });
+
+            const filtered = transactions.filter(t => {
+                const finalAffectation = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
+                return finalAffectation === targetPeriod;
+            });
+
+            filtered.forEach(t => {
+                const val = parseFloat(t.montant) || 0;
+                const catClean = (t.categorie || '').toUpperCase().trim();
+                const posteClean = (t.poste || '').toUpperCase().trim();
+                const descClean = t.description || 'Autre / Inconnu';
+
+                if(catClean === "ENTRÉES") {
+                    totalEntrees += val;
+                } else {
+                    totalDepenses += val;
+                }
+
+                if(catTotals[catClean] !== undefined) {
+                    catTotals[catClean] += val;
+                } else {
+                    catTotals[catClean] = val;
+                }
+
+                if(catClean !== "ENTRÉES") {
+                    posteTotals[posteClean] = (posteTotals[posteClean] || 0) + val;
+                }
+
+                if(!drillDownTree[catClean]) drillDownTree[catClean] = {};
+                if(!drillDownTree[catClean][posteClean]) drillDownTree[catClean][posteClean] = { _sum: 0, descs: {} };
+                
+                drillDownTree[catClean][posteClean]._sum += val;
+                drillDownTree[catClean][posteClean].descs[descClean] = (drillDownTree[catClean][posteClean].descs[descClean] || 0) + val;
+            });
+
+            document.getElementById('kpi-entrises').innerText = totalEntrees.toFixed(2) + " €";
+            document.getElementById('kpi-depenses').innerText = totalDepenses.toFixed(2) + " €";
+            document.getElementById('kpi-reste').innerText = (totalEntrees - totalDepenses).toFixed(2) + " €";
+
+            const catContainer = document.getElementById('categories-chart-container');
+            catContainer.innerHTML = '';
+            
+            const maxCatValue = Math.max(...Object.values(catTotals), 1);
+
+            Object.keys(catTotals).forEach(cat => {
+                const sumNet = catTotals[cat] || 0;
+                const pct = (sumNet / maxCatValue) * 100;
+                const isCatExpanded = !!expandedCategories[cat];
+
+                const div = document.createElement('div');
+                div.className = "bg-white p-2.5 rounded-xl border border-slate-100 space-y-1.5 shadow-2xs";
+                div.innerHTML = `
+                    <div class="flex justify-between items-center text-xs font-semibold text-slate-800 cursor-pointer hover:text-slate-500" onclick="toggleCategoryDrillDown('${cat}')">
+                        <span class="flex items-center gap-1">${isCatExpanded ? '▼' : '▶'} ${cat}</span>
+                        <span class="font-mono text-slate-800">${sumNet.toFixed(2)} €</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden" onclick="toggleCategoryDrillDown('${cat}')">
+                        <div class="bg-slate-800 h-1.5 rounded-full transition-all duration-300" style="width: ${pct}%"></div>
+                    </div>
+                `;
+
+                if(isCatExpanded) {
+                    const subBlock = document.createElement('div');
+                    subBlock.className = "ml-3 pl-2 border-l border-slate-200 space-y-2 pt-1.5 text-[11px]";
+                    const subPostes = drillDownTree[cat] || {};
+                    
+                    if(Object.keys(subPostes).length === 0) {
+                        subBlock.innerHTML = `<div class="text-slate-400 italic text-[10px]">Aucune écriture.</div>`;
+                    } else {
+                        Object.keys(subPostes).sort((a,b) => subPostes[b]._sum - subPostes[a]._sum).forEach(subP => {
+                            const pData = subPostes[subP];
+                            const comboKey = `${cat}_${subP}`;
+                            const isPosteExpanded = !!expandedPostes[comboKey];
+
+                            const posteWrapper = document.createElement('div');
+                            posteWrapper.className = "space-y-1 bg-slate-50/50 p-1.5 rounded-md";
+                            posteWrapper.innerHTML = `
+                                <div class="flex justify-between text-slate-700 cursor-pointer hover:text-slate-900 font-medium" onclick="event.stopPropagation(); togglePosteDrillDownCombo('${comboKey}')">
+                                    <span class="flex items-center gap-1">${isPosteExpanded ? '▼' : '▶'} 📋 ${subP}</span>
+                                    <span class="font-bold font-mono text-slate-800">${pData._sum.toFixed(2)} €</span>
+                                </div>
+                            `;
+
+                            if(isPosteExpanded) {
+                                const descBlock = document.createElement('div');
+                                descBlock.className = "ml-4 pl-2 border-l border-slate-300 space-y-0.5 pt-1 text-[10px] text-slate-500 font-normal";
+                                Object.keys(pData.descs).sort((a,b) => pData.descs[b] - pData.descs[a]).forEach(desc => {
+                                    const dVol = pData.descs[desc];
+                                    descBlock.innerHTML += `
+                                        <div class="flex justify-between py-0.5 border-b border-slate-100/50 last:border-0">
+                                            <span>🔹 ${desc}</span>
+                                            <span class="font-medium font-mono text-slate-700">${dVol.toFixed(2)} €</span>
+                                        </div>`;
+                                });
+                                posteWrapper.appendChild(descBlock);
+                            }
+                            subBlock.appendChild(posteWrapper);
+                        });
+                    }
+                    div.appendChild(subBlock);
+                }
+                catContainer.appendChild(div);
+            });
+
+            const pContainer = document.getElementById('postes-chart-container'); pContainer.innerHTML = '';
+            const sortedPostes = Object.keys(posteTotals).sort((a,b) => posteTotals[b] - posteTotals[a]);
+
+            if(sortedPostes.length === 0) {
+                pContainer.innerHTML = `<p class="text-center text-slate-400 italic text-[11px] py-4">Aucune donnée.</p>`;
+                return;
+            }
+
+            const maxPosteValue = Math.max(...Object.values(posteTotals), 1);
+            sortedPostes.forEach(p => {
+                const sumNet = posteTotals[p] || 0;
+                const pct = (sumNet / maxPosteValue) * 100;
+                const d = document.createElement('div');
+                d.className = "space-y-1 text-[11px]";
+                d.innerHTML = `
+                    <div class="flex justify-between text-slate-700 font-medium">
+                        <span class="truncate max-w-[140px]">📋 ${p}</span>
+                        <span class="font-semibold font-mono text-slate-900">${sumNet.toFixed(2)} €</span>
+                    </div>
+                    <div class="w-full bg-slate-100 h-1 rounded-full">
+                        <div class="bg-slate-400 h-1 rounded-full" style="width: ${pct}%"></div>
+                    </div>
+                `;
+                pContainer.appendChild(d);
+            });
+        }
+
+        async function saveTransaction(e) {
+            e.preventDefault();
+            const idx = document.getElementById('edit-index').value;
+            const dbId = document.getElementById('edit-db-id').value;
+            
+            const txData = {
+                date: document.getElementById('form-date').value,
+                mois_affectation: document.getElementById('form-affectation').value,
+                categorie: document.getElementById('form-categorie').value.toUpperCase().trim(),
+                poste: document.getElementById('form-poste').value.toUpperCase().trim(),
+                description: document.getElementById('form-description').value,
+                details: document.getElementById('form-details').value,
+                montant: parseFloat(document.getElementById('form-montant').value) 
+            };
+
+            try {
+                if (idx === "") { 
+                    txData.pointe = false; 
+                    await _supabase.from('transactions').insert([txData]); 
+                } else { 
+                    await _supabase.from('transactions').update(txData).eq('id', dbId); 
+                }
+                closeTransactionModal(); fetchTransactionsFromCloud();
+            } catch (err) { alert("Erreur de sauvegarde."); }
+        }
+
+        async function deleteTransaction(idx) {
+            if (confirm("Supprimer définitivement cette écriture ?")) {
+                try {
+                    await _supabase.from('transactions').delete().eq('id', transactions[idx].id);
+                    fetchTransactionsFromCloud();
+                } catch (err) { alert("Erreur."); }
+            }
+        }
+
+        function editTransaction(idx) { openTransactionModal(idx); }
+
+        function parseCSV() {
+            const fileInput = document.getElementById('csv-file-input');
+            if (fileInput.files.length === 0) return;
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
+                let sep = lines[0].includes(";") ? ";" : ",";
+                csvHeaders = lines[0].split(sep).map(h => h.replace(/["']/g, "").trim());
+                csvRows = lines.slice(1).map(line => line.split(sep).map(v => v.replace(/["']/g, "").trim()));
+                populateMappingDropdowns(csvHeaders);
+                document.getElementById('csv-mapping-container').classList.remove('hidden');
+            };
+            reader.readAsText(file, 'ISO-8859-1');
+        }
+
+        function populateMappingDropdowns(headers) {
+            ['map-date', 'map-details', 'map-montant'].forEach(id => {
+                const s = document.getElementById(id); s.innerHTML = '<option value="">-- Aligner --</option>';
+                headers.forEach((h, i) => {
+                    const opt = document.createElement('option'); opt.value = i; opt.innerText = h;
+                    const l = h.toLowerCase();
+                    if(id === 'map-date' && (l.includes('date') || l.includes('opér'))) opt.selected = true;
+                    if(id === 'map-details' && (l.includes('libell') || l.includes('texte') || l.includes('motif'))) opt.selected = true;
+                    if(id === 'map-montant' && (l.includes('montant') || l.includes('valeur') || l.includes('debit'))) opt.selected = true;
+                    s.appendChild(opt);
+                });
+            });
+        }
+
+        async function processCSVLines() {
+            const apiKey = localStorage.getItem('gemini_api_key');
+            if(!apiKey) { alert("Ajoutez votre clé Gemini."); return; }
+
+            const idxDate = document.getElementById('map-date').value;
+            const idxDetails = document.getElementById('map-details').value;
+            const idxMontant = document.getElementById('map-montant').value;
+
+            tempImportedTransactions = [];
+            const tbody = document.getElementById('csv-preview-tbody'); 
+            tbody.innerHTML = '';
+            document.getElementById('csv-preview-container').classList.remove('hidden');
+
+            const chunkSize = 100;
+            const totalRows = csvRows.length;
+            
+            tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center font-medium text-slate-500 animate-pulse">Début de l'analyse de ${totalRows} transactions...</td></tr>`;
+
+            for (let i = 0; i < totalRows; i += chunkSize) {
+                const currentChunk = csvRows.slice(i, i + chunkSize);
+                const currentBatchNumber = Math.floor(i / chunkSize) + 1;
+                const totalBatches = Math.ceil(totalRows / chunkSize);
+                
+                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center font-medium text-amber-600 animate-pulse">🤖 Classification du lot ${currentBatchNumber}/${totalBatches} en cours...</td></tr>`;
+
+                const cleanLinesForAI = currentChunk.map((row, indexInChunk) => ({
+                    id: indexInChunk,
+                    libelle: row[idxDetails] || '',
+                    montant: row[idxMontant] || ''
+                }));
+
+                try {
+                    const promptSystem = `Tu es un automate de traitement financier. Renvoie EXCLUSIVEMENT un tableau JSON structuré calqué exactement sur cet arbre budgétaire : ${JSON.stringify(budgetStructure)}. Format de retour strict requis : [ {"id":0, "categorie":"...", "poste":"...", "description":"..."} ]`;
+                    
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ 
+                            contents: [{ parts: [{ text: promptSystem + "\n\n" + JSON.stringify(cleanLinesForAI) }] }], 
+                            generationConfig: { responseMimeType: "application/json" } 
+                        })
+                    });
+
+                    if (!response.ok) throw new Error("Erreur API");
+
+                    const data = await response.json();
+                    let aiTextResponse = data.candidates[0].content.parts[0].text.replace(/```json/g, "").replace(/```/g, "").trim();
+                    const aiMatches = JSON.parse(aiTextResponse);
+
+                    currentChunk.forEach((row, indexInChunk) => {
+                        const aiMatch = aiMatches.find(m => m.id === indexInChunk) || { categorie: 'DÉPENSES QUOTIDIENNES', poste: 'SHOPPING', description: 'MAISON et AUTRE' };
+                        
+                        let rawTextVal = (row[idxMontant]||'0').replace(/[^0-9.,-]/g, '').replace(',', '.');
+                        let cleanMontant = parseFloat(rawTextVal);
+
+                        const finalTargetDate = cleanCsvDate(row[idxDate] || '');
+
+                        const txObj = {
+                            date: finalTargetDate,
+                            mois_affectation: getYearMonthString(finalTargetDate),
+                            categorie: aiMatch.categorie.toUpperCase().trim(),
+                            poste: aiMatch.poste.toUpperCase().trim(),
+                            description: aiMatch.description,
+                            details: row[idxDetails] || '',
+                            montant: cleanMontant, 
+                            pointe: false 
+                        };
+
+                        tempImportedTransactions.push(txObj);
+                    });
+
+                } catch (err) {
+                    console.error(`Erreur lors du traitement du lot ${currentBatchNumber}`, err);
+                    currentChunk.forEach((row) => {
+                        let rawTextVal = (row[idxMontant]||'0').replace(/[^0-9.,-]/g, '').replace(',', '.');
+                        let cleanMontant = parseFloat(rawTextVal);
+                        const finalTargetDate = cleanCsvDate(row[idxDate] || '');
+                        tempImportedTransactions.push({
+                            date: finalTargetDate,
+                            mois_affectation: getYearMonthString(finalTargetDate),
+                            categorie: 'DÉPENSES QUOTIDIENNES',
+                            poste: 'SHOPPING',
+                            description: 'MAISON et AUTRE',
+                            details: row[idxDetails] || '',
+                            montant: cleanMontant,
+                            pointe: false
+                        });
+                    });
+                }
+            }
+
+            tbody.innerHTML = '';
+            tempImportedTransactions.forEach((txObj) => {
+                const tr = document.createElement('tr'); 
+                tr.className = "text-[11px] border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="p-2 font-mono text-slate-400">${formatDateFr(txObj.date)}</td>
+                    <td class="p-2 truncate max-w-[120px]">${txObj.details}</td>
+                    <td class="p-2 font-semibold text-slate-700">${txObj.poste}</td>
+                    <td class="p-2 text-right font-mono text-slate-700">${txObj.montant.toFixed(2)} €</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function saveImportedTransactions() {
+            if(tempImportedTransactions.length === 0) return;
+            try {
+                await _supabase.from('transactions').insert(tempImportedTransactions);
+                alert(`${tempImportedTransactions.length} écritures importées !`);
+                tempImportedTransactions = []; toggleImportZone(); fetchTransactionsFromCloud();
+            } catch (err) { alert("Erreur."); }
+        }
+
+        function cleanCsvDate(dateStr) {
+            const parts = dateStr.match(/(\d+)/g);
+            if (parts && parts.length >= 3) {
+                let d = parts[0].padStart(2, '0'), m = parts[1].padStart(2, '0'), y = parts[2];
+                if (y.length === 2) y = "20" + y; return `${y}-${m}-${d}`;
+            }
+            return new Date().toISOString().split('T')[0];
+        }
+
+        function formatDateFr(dateStr) { 
+            if (!dateStr) return ''; const cleanD = dateStr.split('T')[0]; const d = cleanD.split('-'); 
+            if(d.length < 3) return dateStr; return `${d[2]}/${d[1]}/${d[0]}`; 
+        }
+
+        function openTransactionModal(editIdx = null) {
+            const modal = document.getElementById('transaction-modal');
+            document.getElementById('transaction-form').reset();
+            
+            if (editIdx !== null) {
+                document.getElementById('modal-title').innerText = "Modifier l'écriture";
+                document.getElementById('edit-index').value = editIdx;
+                const t = transactions[editIdx];
+                document.getElementById('edit-db-id').value = t.id;
+                document.getElementById('form-date').value = t.date ? t.date.split('T')[0] : '';
+                document.getElementById('form-affectation').value = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
+                document.getElementById('form-categorie').value = (t.categorie || '').toUpperCase().trim();
+                updatePosteDropdown();
+                document.getElementById('form-poste').value = (t.poste || '').toUpperCase().trim();
+                updateDescriptionDropdown();
+                document.getElementById('form-description').value = t.description;
+                document.getElementById('form-details').value = t.details || '';
+                document.getElementById('form-montant').value = parseFloat(t.montant);
+            } else {
+                document.getElementById('modal-title').innerText = "Ajouter une opération";
+                document.getElementById('edit-index').value = ""; document.getElementById('edit-db-id').value = "";
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('form-date').value = today;
+                document.getElementById('form-affectation').value = getYearMonthString(today);
+                if(document.getElementById('form-categorie').options.length > 0) {
+                    document.getElementById('form-categorie').selectedIndex = 0; updatePosteDropdown();
+                }
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeTransactionModal() { document.getElementById('transaction-modal').classList.add('hidden'); }
+        
+        function populateCategorieDropdown() {
+            const s = document.getElementById('form-categorie'); s.innerHTML = '';
+            Object.keys(budgetStructure).forEach(c => { const o = document.createElement('option'); o.value = c; o.innerText = c; s.appendChild(o); });
+        }
+        
+        function populateFilterCategorieDropdown() {
+            const s = document.getElementById('filter-categorie'); if(!s) return;
+            s.innerHTML = '<option value="">⚡ Toutes les catégories</option>';
+            Object.keys(budgetStructure).forEach(c => { const o = document.createElement('option'); o.value = c; o.innerText = c; s.appendChild(o); });
+        }
+
+        function updatePosteDropdown() {
+            const c = document.getElementById('form-categorie').value, s = document.getElementById('form-poste'); s.innerHTML = '';
+            if (budgetStructure[c]) Object.keys(budgetStructure[c]).forEach(p => { const o = document.createElement('option'); o.value = p; o.innerText = p; s.appendChild(o); });
+            updateDescriptionDropdown();
+        }
+        function updateDescriptionDropdown() {
+            const c = document.getElementById('form-categorie').value, p = document.getElementById('form-poste').value, s = document.getElementById('form-description'); s.innerHTML = '';
+            if (budgetStructure[c] && budgetStructure[c][p]) budgetStructure[c][p].forEach(d => { const o = document.createElement('option'); o.value = d; o.innerText = d; s.appendChild(o); });
+        }
+    </script>
+</body>
+</html>
