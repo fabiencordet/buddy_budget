@@ -52,10 +52,6 @@ let isHidePointedActive = false;
 // Instance Chart.js globale
 let trendChartInstance = null;
 
-// État global du Drill-Down (Accordéon Dashboard)
-let expandedCategory = null;
-let expandedPoste = null;
-
 // Couleurs (Badges et Barres)
 const categoryColorMap = {
     "ENTRÉES": "bg-emerald-50 text-emerald-700 border-emerald-200/80",
@@ -69,18 +65,6 @@ const barColorMap = {
     "ÉPARGNE": "bg-amber-500",
     "DÉPENSES QUOTIDIENNES": "bg-sky-500"
 };
-
-function toggleCategoryDrilldown(cat) {
-    expandedCategory = (expandedCategory === cat) ? null : cat;
-    expandedPoste = null; // Réinitialise le sous-poste si on change ou ferme la catégorie
-    calculateDashboardMetrics();
-}
-
-function togglePosteDrilldown(poste, event) {
-    if (event) event.stopPropagation(); // Empêche de déclencher la fermeture de la catégorie parente
-    expandedPoste = (expandedPoste === poste) ? null : poste;
-    calculateDashboardMetrics();
-}
 
 function checkPassword() {
     if (typeof CONFIG === 'undefined') { alert("❌ Fichier config manquant."); return; }
@@ -357,9 +341,19 @@ function closeDetailsDrawer() { document.getElementById('details-drawer-modal').
 function buildMonthDropdown() {
     const select = document.getElementById('dashboard-month-select');
     if(!select) return;
-    const months = [...new Set(transactions.map(t => t.mois_affectation || getYearMonthString(t.date)))].sort().reverse();
+    const previousSelection = select.value;
+    const months = [...new Set(transactions.map(t => t.mois_affectation || getYearMonthString(t.date)))].filter(m => m && m.includes('-')).sort().reverse();
+    
     select.innerHTML = '';
     months.forEach(m => { select.appendChild(new Option("PÉRIODE : " + m, m)); });
+    
+    if (months.length > 0) {
+        if (previousSelection && months.includes(previousSelection)) {
+            select.value = previousSelection;
+        } else {
+            select.value = months[0];
+        }
+    }
     calculateDashboardMetrics();
 }
 
@@ -459,158 +453,78 @@ function updateTrendChart() {
 }
 
 // ----------------------------------------------------------------------
-// LES JAUGES ET ACCORDÉONS (DRILL-DOWN PROGRESSIF COMPLET)
+// LES JAUGES (BARRES DE PROGRESSION)
 // ----------------------------------------------------------------------
 function calculateDashboardMetrics() {
     const select = document.getElementById('dashboard-month-select');
     const activeMonth = select ? select.value : '';
-    
-    const catTotals = {}; 
-    const posteTotals = {}; // Pour le panneau latéral droit (inchangé)
-    const drillDownPosteTotals = {}; // Clé: "CATÉGORIE|POSTE"
-    const drillDownDescTotals = {};  // Clé: "CATÉGORIE|POSTE|DESCRIPTION"
+    const catTotals = {}; const posteTotals = {};
+
+    // Initialisation de toutes les catégories à 0 pour s'assurer qu'elles s'affichent toujours
+    Object.keys(budgetStructure).forEach(cat => {
+        catTotals[cat.toUpperCase().trim()] = 0;
+    });
 
     transactions.forEach(t => {
         const m = t.mois_affectation || getYearMonthString(t.date);
         if(m === activeMonth) {
             const amt = parseFloat(t.montant) || 0;
             const c = (t.categorie || 'NON CLASSÉ').toUpperCase().trim();
-            const p = (t.poste || 'AUTRE').toUpperCase().trim();
-            const d = (t.description || 'AUTRE').trim();
+            
+            let matchedCat = c;
+            for (const catKey of Object.keys(budgetStructure)) {
+                if (catKey.toUpperCase().trim() === c) {
+                    matchedCat = catKey.toUpperCase().trim();
+                    break;
+                }
+            }
+            catTotals[matchedCat] = (catTotals[matchedCat] || 0) + amt;
 
-            catTotals[c] = (catTotals[c] || 0) + amt;
+            const p = (t.poste || 'AUTRE').toUpperCase().trim();
             posteTotals[p] = (posteTotals[p] || 0) + amt;
-            
-            const pKey = `${c}|${p}`;
-            drillDownPosteTotals[pKey] = (drillDownPosteTotals[pKey] || 0) + amt;
-            
-            const dKey = `${c}|${p}|${d}`;
-            drillDownDescTotals[dKey] = (drillDownDescTotals[dKey] || 0) + amt;
         }
     });
 
-    // RENDU DES CATÉGORIES (AVEC MENU ACCORDÉON DYNAMIQUE EXTENSIBLE)
     const chartContainer = document.getElementById('categories-chart-container');
     if(chartContainer) {
         chartContainer.innerHTML = '';
         const maxCatVal = Math.max(...Object.values(catTotals).map(v => Math.abs(v)), 1);
-        
         Object.keys(budgetStructure).forEach(cat => {
-            const totalVal = catTotals[cat] || 0;
+            const normalizedCatKey = cat.toUpperCase().trim();
+            const totalVal = catTotals[normalizedCatKey] || 0;
             const percentage = (Math.abs(totalVal) / maxCatVal) * 100;
             const colorClasses = categoryColorMap[cat] || "bg-slate-100 text-slate-700";
             const barColor = barColorMap[cat] || "bg-slate-400";
-            const isExpanded = expandedCategory === cat;
             
             const item = document.createElement('div');
-            item.className = "space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs cursor-pointer hover:bg-slate-100/60 transition select-none shadow-2xs";
-            
+            item.className = "space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs";
             item.innerHTML = `
-                <div class="flex items-center justify-between mb-1">
-                    <div class="flex items-center gap-2">
-                        <span class="text-[9px] text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-90 text-slate-600' : ''}">▶</span>
-                        <span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${colorClasses}">${cat}</span>
-                    </div>
-                    <b class="font-mono text-slate-700">${totalVal.toFixed(2)} €</b>
-                </div>
-                <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                    <div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
-                </div>
+                <div class="flex items-center justify-between mb-1"><span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${colorClasses}">${cat}</span><b class="font-mono text-slate-700">${totalVal.toFixed(2)} €</b></div>
+                <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden"><div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${percentage}%"></div></div>
             `;
-            
-            // Écouteur de clic pour déployer la Catégorie
-            item.addEventListener('click', () => toggleCategoryDrilldown(cat));
-            
-            // NIVEAU 2 : Sous-Postes de la Catégorie active
-            if (isExpanded) {
-                const postesContainer = document.createElement('div');
-                postesContainer.className = "mt-3 pl-3 border-l-2 border-slate-200 space-y-2 pt-1";
-                postesContainer.addEventListener('click', (e) => e.stopPropagation()); // Stoppe la propagation vers le parent
-                
-                const categoryPostes = budgetStructure[cat] ? Object.keys(budgetStructure[cat]) : [];
-                const posteValues = categoryPostes.map(p => Math.abs(drillDownPosteTotals[`${cat}|${p}`] || 0));
-                const maxPosteVal = Math.max(...posteValues, 1);
-                
-                categoryPostes.forEach(p => {
-                    const pKey = `${cat}|${p}`;
-                    const pTotal = drillDownPosteTotals[pKey] || 0;
-                    const pPercentage = (Math.abs(pTotal) / maxPosteVal) * 100;
-                    const isPosteExpanded = expandedPoste === p;
-                    
-                    const pItem = document.createElement('div');
-                    pItem.className = "p-2 bg-white rounded-lg border border-slate-100 shadow-3xs cursor-pointer hover:bg-slate-50 transition space-y-1";
-                    
-                    pItem.innerHTML = `
-                        <div class="flex items-center justify-between text-[11px]">
-                            <div class="flex items-center gap-1.5">
-                                <span class="text-[8px] text-slate-400 transition-transform duration-200 ${isPosteExpanded ? 'rotate-90 text-slate-600' : ''}">▶</span>
-                                <span class="font-semibold text-slate-600 uppercase">${p}</span>
-                            </div>
-                            <span class="font-mono text-slate-500 font-medium">${pTotal.toFixed(2)} €</span>
-                        </div>
-                        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                            <div class="${barColor} h-full rounded-full opacity-85" style="width: ${pPercentage}%"></div>
-                        </div>
-                    `;
-                    
-                    // Écouteur de clic pour déployer le Poste
-                    pItem.addEventListener('click', (e) => togglePosteDrilldown(p, e));
-                    
-                    // NIVEAU 3 : Détail des Descriptions du Poste actif
-                    if (isPosteExpanded) {
-                        const descContainer = document.createElement('div');
-                        descContainer.className = "mt-2 pl-3 border-l border-dashed border-slate-300 space-y-1.5 pt-1";
-                        descContainer.addEventListener('click', (e) => e.stopPropagation());
-                        
-                        const posteDescs = budgetStructure[cat][p] || [];
-                        const descValues = posteDescs.map(d => Math.abs(drillDownDescTotals[`${cat}|${p}|${d}`] || 0));
-                        const maxDescVal = Math.max(...descValues, 1);
-                        
-                        posteDescs.forEach(d => {
-                            const dKey = `${cat}|${p}|${d}`;
-                            const dTotal = drillDownDescTotals[dKey] || 0;
-                            const dPercentage = (Math.abs(dTotal) / maxDescVal) * 100;
-                            
-                            const dItem = document.createElement('div');
-                            dItem.className = "text-[10px] space-y-0.5 py-0.5";
-                            dItem.innerHTML = `
-                                <div class="flex items-center justify-between text-slate-500">
-                                    <span class="italic truncate pr-2">${d}</span>
-                                    <span class="font-mono text-slate-400 shrink-0">${dTotal.toFixed(2)} €</span>
-                                </div>
-                                <div class="w-full bg-slate-50 h-1 rounded-full overflow-hidden">
-                                    <div class="${barColor} h-full rounded-full opacity-40" style="width: ${dPercentage}%"></div>
-                                </div>
-                            `;
-                            descContainer.appendChild(dItem);
-                        });
-                        pItem.appendChild(descContainer);
-                    }
-                    postesContainer.appendChild(pItem);
-                });
-                item.appendChild(postesContainer);
-            }
             chartContainer.appendChild(item);
         });
     }
 
-    // PANNEAU LATÉRAL : VOLUME PAR POSTE (RESTE INCHANGÉ)
     const postesContainer = document.getElementById('postes-chart-container');
     if(postesContainer) {
         postesContainer.innerHTML = '';
         const sortedPostes = Object.keys(posteTotals).sort((a,b) => Math.abs(posteTotals[b]) - Math.abs(posteTotals[a]));
         const maxPosteVal = Math.max(...Object.values(posteTotals).map(v => Math.abs(v)), 1);
 
-        if (sortedPostes.length === 0) { 
-            postesContainer.innerHTML = '<div class="text-xs text-slate-400 italic text-center py-4">Aucune opération détectée.</div>'; 
-        } else {
+        if (sortedPostes.length === 0) { postesContainer.innerHTML = '<div class="text-xs text-slate-400 italic text-center py-4">Aucune opération détectée.</div>'; } 
+        else {
             sortedPostes.forEach(p => {
                 const totalVal = posteTotals[p] || 0;
                 const percentage = (Math.abs(totalVal) / maxPosteVal) * 100;
                 
                 let parentCat = "DÉPENSES QUOTIDIENNES";
                 for (const [catName, postesObj] of Object.entries(budgetStructure)) {
-                    if (postesObj[p]) { parentCat = catName; break; }
+                    const normalizedPostesKeys = Object.keys(postesObj).map(k => k.toUpperCase().trim());
+                    if (normalizedPostesKeys.includes(p)) { 
+                        parentCat = catName; 
+                        break; 
+                    }
                 }
                 const barColor = barColorMap[parentCat] || "bg-slate-400";
 
@@ -618,7 +532,7 @@ function calculateDashboardMetrics() {
                 item.className = "space-y-1 py-1.5";
                 item.innerHTML = `
                     <div class="flex items-center justify-between text-[11px]"><span class="font-semibold text-slate-600 uppercase truncate max-w-[70%]">${p}</span><span class="font-mono text-slate-500">${totalVal.toFixed(2)} €</span></div>
-                    <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden"><div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${percentage}%\"></div></div>
+                    <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden"><div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${percentage}%"></div></div>
                 `;
                 postesContainer.appendChild(item);
             });
