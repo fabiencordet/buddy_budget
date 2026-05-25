@@ -341,19 +341,9 @@ function closeDetailsDrawer() { document.getElementById('details-drawer-modal').
 function buildMonthDropdown() {
     const select = document.getElementById('dashboard-month-select');
     if(!select) return;
-    const previousSelection = select.value;
-    const months = [...new Set(transactions.map(t => t.mois_affectation || getYearMonthString(t.date)))].filter(m => m && m.includes('-')).sort().reverse();
-    
+    const months = [...new Set(transactions.map(t => t.mois_affectation || getYearMonthString(t.date)))].sort().reverse();
     select.innerHTML = '';
     months.forEach(m => { select.appendChild(new Option("PÉRIODE : " + m, m)); });
-    
-    if (months.length > 0) {
-        if (previousSelection && months.includes(previousSelection)) {
-            select.value = previousSelection;
-        } else {
-            select.value = months[0];
-        }
-    }
     calculateDashboardMetrics();
 }
 
@@ -460,27 +450,13 @@ function calculateDashboardMetrics() {
     const activeMonth = select ? select.value : '';
     const catTotals = {}; const posteTotals = {};
 
-    // Initialisation de toutes les catégories à 0 pour s'assurer qu'elles s'affichent toujours
-    Object.keys(budgetStructure).forEach(cat => {
-        catTotals[cat.toUpperCase().trim()] = 0;
-    });
-
     transactions.forEach(t => {
         const m = t.mois_affectation || getYearMonthString(t.date);
         if(m === activeMonth) {
             const amt = parseFloat(t.montant) || 0;
-            const c = (t.categorie || 'NON CLASSÉ').toUpperCase().trim();
-            
-            let matchedCat = c;
-            for (const catKey of Object.keys(budgetStructure)) {
-                if (catKey.toUpperCase().trim() === c) {
-                    matchedCat = catKey.toUpperCase().trim();
-                    break;
-                }
-            }
-            catTotals[matchedCat] = (catTotals[matchedCat] || 0) + amt;
-
-            const p = (t.poste || 'AUTRE').toUpperCase().trim();
+            const c = (t.categorie || 'NON CLASSÉ').toUpperCase();
+            catTotals[c] = (catTotals[c] || 0) + amt;
+            const p = (t.poste || 'AUTRE').toUpperCase();
             posteTotals[p] = (posteTotals[p] || 0) + amt;
         }
     });
@@ -490,8 +466,7 @@ function calculateDashboardMetrics() {
         chartContainer.innerHTML = '';
         const maxCatVal = Math.max(...Object.values(catTotals).map(v => Math.abs(v)), 1);
         Object.keys(budgetStructure).forEach(cat => {
-            const normalizedCatKey = cat.toUpperCase().trim();
-            const totalVal = catTotals[normalizedCatKey] || 0;
+            const totalVal = catTotals[cat] || 0;
             const percentage = (Math.abs(totalVal) / maxCatVal) * 100;
             const colorClasses = categoryColorMap[cat] || "bg-slate-100 text-slate-700";
             const barColor = barColorMap[cat] || "bg-slate-400";
@@ -520,11 +495,7 @@ function calculateDashboardMetrics() {
                 
                 let parentCat = "DÉPENSES QUOTIDIENNES";
                 for (const [catName, postesObj] of Object.entries(budgetStructure)) {
-                    const normalizedPostesKeys = Object.keys(postesObj).map(k => k.toUpperCase().trim());
-                    if (normalizedPostesKeys.includes(p)) { 
-                        parentCat = catName; 
-                        break; 
-                    }
+                    if (postesObj[p]) { parentCat = catName; break; }
                 }
                 const barColor = barColorMap[parentCat] || "bg-slate-400";
 
