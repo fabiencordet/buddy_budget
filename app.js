@@ -9,7 +9,7 @@ try {
     console.error("⚠️ Échec d'initialisation Supabase :", err);
 }
 
-// Structure budgétaire strictement limitée à vos 4 catégories principales
+// RESTRICTION STRICTE AUX 4 CATÉGORIES
 const budgetStructure = {
     "ENTRÉES": {
         "REVENUS FABIEN": ["Revenu principal", "chômage", "frais km", "Remboursement"],
@@ -47,26 +47,27 @@ let transactions = [];
 let tempImportedTransactions = [];
 let csvHeaders = [];
 let csvRows = [];
-
-let expandedCategories = {};
-let expandedPostes = {}; 
-
-// Variable globale pour gérer le filtrage par bouton toggle
 let isHidePointedActive = false;
 
-// Dictionnaire de mapping pour attribuer des couleurs précises aux 4 catégories réglementaires
+// Instance Chart.js globale
+let trendChartInstance = null;
+
+// Couleurs (Badges et Barres)
 const categoryColorMap = {
-    "ENTRÉES": "bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-semibold",
-    "PRÉLEVÈMENTS (FIXES)": "bg-rose-50 text-rose-700 border border-rose-200/80 font-semibold",
-    "ÉPARGNE": "bg-amber-50 text-amber-700 border border-amber-200/80 font-semibold",
-    "DÉPENSES QUOTIDIENNES": "bg-sky-50 text-sky-700 border border-sky-200/80 font-semibold"
+    "ENTRÉES": "bg-emerald-50 text-emerald-700 border-emerald-200/80",
+    "PRÉLEVÈMENTS (FIXES)": "bg-rose-50 text-rose-700 border-rose-200/80",
+    "ÉPARGNE": "bg-amber-50 text-amber-700 border-amber-200/80",
+    "DÉPENSES QUOTIDIENNES": "bg-sky-50 text-sky-700 border-sky-200/80"
+};
+const barColorMap = {
+    "ENTRÉES": "bg-emerald-500",
+    "PRÉLEVÈMENTS (FIXES)": "bg-rose-500",
+    "ÉPARGNE": "bg-amber-500",
+    "DÉPENSES QUOTIDIENNES": "bg-sky-500"
 };
 
 function checkPassword() {
-    if (typeof CONFIG === 'undefined') {
-        alert("❌ Erreur : Le fichier 'config.js' est manquant ou invalide.");
-        return;
-    }
+    if (typeof CONFIG === 'undefined') { alert("❌ Fichier config manquant."); return; }
     if (document.getElementById('password-input').value === CONFIG.SECRET_PASSWORD) {
         document.getElementById('login-page').classList.add('hidden');
         document.getElementById('app-content').classList.remove('hidden');
@@ -75,8 +76,6 @@ function checkPassword() {
         document.getElementById('login-error').classList.remove('hidden');
     }
 }
-
-document.getElementById('password-input').addEventListener('keypress', function(e) { if (e.key === 'Enter') checkPassword(); });
 
 function switchTab(tabId) {
     document.querySelectorAll('.tabs-content').forEach(el => el.classList.remove('active'));
@@ -111,6 +110,7 @@ async function fetchTransactionsFromCloud() {
         transactions = data || [];
         renderResponsiveTransactions();
         buildMonthDropdown();
+        updateTrendChart(); // INITIALISE LE GRAPHIQUE
     } catch (err) { console.error(err); }
 }
 
@@ -122,9 +122,7 @@ function getYearMonthString(dateStr) {
 
 function syncDefaultAffectationMonth() {
     const dateVal = document.getElementById('form-date').value;
-    if(dateVal) {
-        document.getElementById('form-affectation').value = getYearMonthString(dateVal);
-    }
+    if(dateVal) document.getElementById('form-affectation').value = getYearMonthString(dateVal);
 }
 
 function toggleHidePointedFilter() {
@@ -146,15 +144,13 @@ async function togglePointage(index, event) {
     if(event) event.stopPropagation(); 
     const t = transactions[index];
     const nouveauStatut = !t.pointe;
-    
     try {
         const { error } = await _supabase.from('transactions').update({ pointe: nouveauStatut }).eq('id', t.id);
         if(error) throw error;
         t.pointe = nouveauStatut;
         renderResponsiveTransactions();
-    } catch(err) {
-        alert("Erreur lors de la mise à jour du pointage.");
-    }
+        updateTrendChart();
+    } catch(err) { alert("Erreur de mise à jour."); }
 }
 
 function renderResponsiveTransactions() {
@@ -170,17 +166,11 @@ function renderResponsiveTransactions() {
 
     const filteredTransactions = transactions.filter(t => {
         if (isHidePointedActive && t.pointe) return false;
-
         const cleanCat = (t.categorie || '').toUpperCase().trim();
         const cleanPoste = (t.poste || '').toUpperCase().trim();
         const cleanDesc = (t.description || '').toLowerCase();
-        const cleanDetails = (t.details || '').toLowerCase();
-
-        const matchesSearch = !searchQuery || 
-            cleanPoste.toLowerCase().includes(searchQuery) || 
-            cleanDesc.includes(searchQuery) || 
-            cleanDetails.includes(searchQuery);
         
+        const matchesSearch = !searchQuery || cleanPoste.toLowerCase().includes(searchQuery) || cleanDesc.includes(searchQuery);
         const matchesCat = !catFilter || cleanCat === catFilter.toUpperCase().trim();
         
         let matchesPointage = true;
@@ -190,73 +180,52 @@ function renderResponsiveTransactions() {
         return matchesSearch && matchesCat && matchesPointage;
     });
 
-    if (filteredTransactions.length === 0) { 
-        emptyState.classList.remove('hidden'); 
-        return; 
-    }
+    if (filteredTransactions.length === 0) { emptyState.classList.remove('hidden'); return; }
     emptyState.classList.add('hidden');
 
     filteredTransactions.forEach((t) => {
         const index = transactions.indexOf(t); 
         const cleanCat = (t.categorie || '').toUpperCase().trim();
-        const currentBadgeStyle = categoryColorMap[cleanCat] || "bg-slate-100 text-slate-700 border border-slate-200 text-xs";
+        const currentBadgeStyle = categoryColorMap[cleanCat] || "bg-slate-100 text-slate-700";
         
         const rawMontant = parseFloat(t.montant) || 0;
         const mColor = rawMontant > 0 ? "text-emerald-600 font-semibold" : "text-slate-800 font-medium";
         const mText = (rawMontant > 0 ? "+" : "") + rawMontant.toFixed(2) + " €";
-        
-        const finalAffectation = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
+        const finalAffectation = t.mois_affectation || getYearMonthString(t.date);
         const rowBgClass = t.pointe ? "bg-white text-slate-500 opacity-85 hover:opacity-100" : "bg-white text-slate-900 font-medium";
 
-        const pointageButtonHTML = `
-            <button onclick="togglePointage(${index}, event)" class="group inline-flex items-center justify-center p-1.5 rounded-full transition focus:outline-none" title="${t.pointe ? 'Marquer en attente' : 'Marquer comme validée'}">
-                ${t.pointe ? 
-                    `<svg class="w-5 h-5 text-emerald-500 scale-110 transition-transform group-hover:scale-125" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l5-5z" clip-rule="evenodd"></path></svg>` : 
-                    `<svg class="w-5 h-5 text-slate-300 transition-colors group-hover:text-slate-400 group-hover:scale-105" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle></svg>`
-                }
-            </button>
-        `;
+        const pointageButtonHTML = `<button onclick="togglePointage(${index}, event)" class="group inline-flex items-center justify-center p-1.5 rounded-full transition focus:outline-none" title="${t.pointe ? 'En attente' : 'Valider'}">${t.pointe ? `<svg class="w-5 h-5 text-emerald-500 scale-110 transition-transform group-hover:scale-125" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l5-5z" clip-rule="evenodd"></path></svg>` : `<svg class="w-5 h-5 text-slate-300 transition-colors group-hover:text-slate-400 group-hover:scale-105" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle></svg>`}</button>`;
 
-        // 1. Rendu Desktop
+        // Desktop
         const tr = document.createElement('tr');
         tr.className = `${rowBgClass} transition-colors border-b border-slate-100 hover:bg-slate-50/60 cursor-pointer`;
         tr.onclick = () => openDetailsDrawer(index);
         tr.innerHTML = `
             <td class="p-3 text-center">${pointageButtonHTML}</td>
-            <td class="p-3 whitespace-nowrap font-mono text-[11px] text-slate-400">${t.date}</td>
-            <td class="p-3 whitespace-nowrap font-medium text-slate-400">${finalAffectation}</td>
-            <td class="p-3 whitespace-nowrap"><span class="px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wide ${currentBadgeStyle}">${t.categorie || 'SANS CAT'}</span></td>
-            <td class="p-3 font-semibold uppercase tracking-tight text-[11px] text-slate-700">${t.poste || ''}</td>
-            <td class="p-3 truncate max-w-[140px] ${t.pointe ? 'line-through text-slate-400' : ''}">${t.description || ''}</td>
+            <td class="p-3 font-mono text-[11px] text-slate-400">${t.date}</td>
+            <td class="p-3 font-medium text-slate-400">${finalAffectation}</td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${currentBadgeStyle}">${t.categorie || 'SANS'}</span></td>
+            <td class="p-3 font-semibold uppercase text-[11px]">${t.poste || ''}</td>
+            <td class="p-3 truncate max-w-[140px] ${t.pointe ? 'line-through' : ''}">${t.description || ''}</td>
             <td class="p-3 truncate max-w-[120px] text-slate-400 italic text-[11px]">${t.details || ''}</td>
-            <td class="p-3 text-right whitespace-nowrap ${mColor}">${mText}</td>
-            <td class="p-3 text-center">
-                <button onclick="event.stopPropagation(); openTransactionModal(${index})" class="text-indigo-600 hover:text-indigo-900 font-medium text-[11px] mr-2">Éditer</button>
-                <button onclick="event.stopPropagation(); deleteTransaction(${index})" class="text-rose-600 hover:text-rose-900 font-medium text-[11px]">Suppr.</button>
-            </td>
+            <td class="p-3 text-right ${mColor}">${mText}</td>
+            <td class="p-3 text-center"><button onclick="event.stopPropagation(); openTransactionModal(${index})" class="text-indigo-600 font-medium text-[11px] mr-2">Éditer</button><button onclick="event.stopPropagation(); deleteTransaction(${index})" class="text-rose-600 font-medium text-[11px]">Suppr.</button></td>
         `;
         pcTbody.appendChild(tr);
 
-        // 2. Rendu Mobile (Cards)
+        // Mobile
         const card = document.createElement('div');
-        card.className = `p-4 flex items-center justify-between gap-3 ${t.pointe ? 'bg-slate-50/50' : 'bg-white'} hover:bg-slate-50 transition-colors cursor-pointer`;
+        card.className = `p-4 flex items-center justify-between gap-3 ${t.pointe ? 'bg-slate-50/50' : 'bg-white'} hover:bg-slate-50 cursor-pointer`;
         card.onclick = () => openDetailsDrawer(index);
         card.innerHTML = `
             <div class="flex items-center gap-3 min-w-0">
                 <div class="shrink-0">${pointageButtonHTML}</div>
                 <div class="min-w-0 space-y-1">
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <span class="text-[10px] font-mono text-slate-400">${t.date}</span>
-                        <span class="px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider ${currentBadgeStyle}">${t.categorie || 'SANS'}</span>
-                    </div>
-                    <h4 class="text-xs font-bold text-slate-800 uppercase tracking-tight truncate">${t.poste || ''} : <span class="font-normal normal-case text-slate-600 ${t.pointe ? 'line-through text-slate-400' : ''}">${t.description || ''}</span></h4>
-                    ${t.details ? `<p class="text-[10px] text-slate-400 italic truncate">${t.details}</p>` : ''}
+                    <div class="flex items-center gap-2 flex-wrap"><span class="text-[10px] font-mono text-slate-400">${t.date}</span><span class="px-1.5 py-0.5 rounded text-[9px] uppercase border ${currentBadgeStyle}">${t.categorie || 'SANS'}</span></div>
+                    <h4 class="text-xs font-bold uppercase truncate">${t.poste || ''} : <span class="font-normal normal-case text-slate-600 ${t.pointe ? 'line-through' : ''}">${t.description || ''}</span></h4>
                 </div>
             </div>
-            <div class="text-right shrink-0">
-                <div class="text-xs font-bold ${mColor}">${mText}</div>
-                <span class="text-[9px] font-medium text-slate-400">${finalAffectation}</span>
-            </div>
+            <div class="text-right shrink-0"><div class="text-xs font-bold ${mColor}">${mText}</div><span class="text-[9px] font-medium text-slate-400">${finalAffectation}</span></div>
         `;
         mobileContainer.appendChild(card);
     });
@@ -264,37 +233,22 @@ function renderResponsiveTransactions() {
 
 function populateCategorieDropdown() {
     const formCat = document.getElementById('form-categorie');
-    if(!formCat) return;
-    formCat.innerHTML = '';
-    Object.keys(budgetStructure).forEach(cat => {
-        const opt = document.createElement('option');
-        opt.value = cat; opt.textContent = cat;
-        formCat.appendChild(opt);
-    });
+    if(!formCat) return; formCat.innerHTML = '';
+    Object.keys(budgetStructure).forEach(cat => { formCat.appendChild(new Option(cat, cat)); });
     updatePosteDropdown();
 }
 
 function populateFilterCategorieDropdown() {
     const filterCat = document.getElementById('filter-categorie');
-    if(!filterCat) return;
-    filterCat.innerHTML = '<option value="">📁 Toutes les catégories</option>';
-    Object.keys(budgetStructure).forEach(cat => {
-        const opt = document.createElement('option');
-        opt.value = cat; opt.textContent = cat;
-        filterCat.appendChild(opt);
-    });
+    if(!filterCat) return; filterCat.innerHTML = '<option value="">📁 Toutes catégories</option>';
+    Object.keys(budgetStructure).forEach(cat => { filterCat.appendChild(new Option(cat, cat)); });
 }
 
 function updatePosteDropdown() {
     const cat = document.getElementById('form-categorie').value;
     const formPoste = document.getElementById('form-poste');
-    if(!formPoste || !cat || !budgetStructure[cat]) return;
-    formPoste.innerHTML = '';
-    Object.keys(budgetStructure[cat]).forEach(poste => {
-        const opt = document.createElement('option');
-        opt.value = poste; opt.textContent = poste;
-        formPoste.appendChild(opt);
-    });
+    if(!formPoste || !cat || !budgetStructure[cat]) return; formPoste.innerHTML = '';
+    Object.keys(budgetStructure[cat]).forEach(poste => { formPoste.appendChild(new Option(poste, poste)); });
     updateDescriptionDropdown();
 }
 
@@ -302,20 +256,14 @@ function updateDescriptionDropdown() {
     const cat = document.getElementById('form-categorie').value;
     const poste = document.getElementById('form-poste').value;
     const formDesc = document.getElementById('form-description');
-    if(!formDesc || !cat || !poste || !budgetStructure[cat][poste]) return;
-    formDesc.innerHTML = '';
-    budgetStructure[cat][poste].forEach(desc => {
-        const opt = document.createElement('option');
-        opt.value = desc; opt.textContent = desc;
-        formDesc.appendChild(opt);
-    });
+    if(!formDesc || !cat || !poste || !budgetStructure[cat][poste]) return; formDesc.innerHTML = '';
+    budgetStructure[cat][poste].forEach(desc => { formDesc.appendChild(new Option(desc, desc)); });
 }
 
 function openTransactionModal(index = null) {
     populateCategorieDropdown();
     const modal = document.getElementById('transaction-modal');
-    const form = document.getElementById('transaction-form');
-    form.reset();
+    document.getElementById('transaction-form').reset();
     
     if(index !== null) {
         const t = transactions[index];
@@ -341,15 +289,12 @@ function openTransactionModal(index = null) {
     modal.classList.remove('hidden');
 }
 
-function closeTransactionModal() {
-    document.getElementById('transaction-modal').classList.add('hidden');
-}
+function closeTransactionModal() { document.getElementById('transaction-modal').classList.add('hidden'); }
 
 async function saveTransaction(e) {
     e.preventDefault();
     const idx = document.getElementById('edit-index').value;
     const dbId = document.getElementById('edit-db-id').value;
-    
     const payload = {
         date: document.getElementById('form-date').value,
         mois_affectation: document.getElementById('form-affectation').value,
@@ -362,70 +307,43 @@ async function saveTransaction(e) {
     };
 
     try {
-        if(dbId) {
-            const { error } = await _supabase.from('transactions').update(payload).eq('id', dbId);
-            if(error) throw error;
-        } else {
-            const { error } = await _supabase.from('transactions').insert([payload]);
-            if(error) throw error;
-        }
+        if(dbId) await _supabase.from('transactions').update(payload).eq('id', dbId);
+        else await _supabase.from('transactions').insert([payload]);
         closeTransactionModal();
         fetchTransactionsFromCloud();
-    } catch(err) {
-        alert("Erreur de synchronisation avec la base de données.");
-    }
+    } catch(err) { alert("Erreur BDD."); }
 }
 
 async function deleteTransaction(index) {
-    if(!confirm("Supprimer définitivement cette transaction ?")) return;
-    const t = transactions[index];
+    if(!confirm("Supprimer définitivement ?")) return;
     try {
-        const { error } = await _supabase.from('transactions').delete().eq('id', t.id);
-        if(error) throw error;
+        await _supabase.from('transactions').delete().eq('id', transactions[index].id);
         fetchTransactionsFromCloud();
-    } catch(err) {
-        alert("Erreur lors de la suppression.");
-    }
+    } catch(err) { alert("Erreur."); }
 }
 
 function openDetailsDrawer(index) {
     const t = transactions[index];
     document.getElementById('drawer-pointage-status').className = t.pointe ? "text-emerald-600 font-semibold" : "text-amber-600 font-semibold";
-    document.getElementById('drawer-pointage-status').textContent = t.pointe ? "🟢 Vérifiée et pointée" : "⚪ En attente de validation";
+    document.getElementById('drawer-pointage-status').textContent = t.pointe ? "🟢 Vérifiée" : "⚪ En attente";
     document.getElementById('drawer-date').textContent = t.date;
     document.getElementById('drawer-affectation').textContent = t.mois_affectation || getYearMonthString(t.date);
     document.getElementById('drawer-categorie').textContent = t.categorie || '-';
     document.getElementById('drawer-poste').textContent = t.poste || '-';
     document.getElementById('drawer-description').textContent = t.description || '-';
-    document.getElementById('drawer-details').textContent = t.details || 'Aucune note bancaire rattachée.';
-    
-    const rawM = parseFloat(t.montant) || 0;
-    const mText = (rawM > 0 ? "+" : "") + rawM.toFixed(2) + " €";
-    document.getElementById('drawer-montant').className = rawM > 0 ? "text-emerald-600 font-bold text-lg" : "text-slate-900 font-bold text-lg";
-    document.getElementById('drawer-montant').textContent = mText;
-
-    const actionsContainer = document.getElementById('drawer-actions-container');
-    actionsContainer.innerHTML = `
-        <button onclick="closeDetailsDrawer(); openTransactionModal(${index})" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg text-center transition">Modifier</button>
-        <button onclick="closeDetailsDrawer(); deleteTransaction(${index})" class="py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-medium rounded-lg text-center transition">Supprimer</button>
-    `;
+    document.getElementById('drawer-montant').textContent = t.montant + " €";
+    document.getElementById('drawer-actions-container').innerHTML = `<button onclick="closeDetailsDrawer(); openTransactionModal(${index})" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition">Modifier</button><button onclick="closeDetailsDrawer(); deleteTransaction(${index})" class="py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-medium rounded-lg transition">Supprimer</button>`;
     document.getElementById('details-drawer-modal').classList.remove('hidden');
 }
 
-function closeDetailsDrawer() {
-    document.getElementById('details-drawer-modal').classList.add('hidden');
-}
+function closeDetailsDrawer() { document.getElementById('details-drawer-modal').classList.add('hidden'); }
 
 function buildMonthDropdown() {
     const select = document.getElementById('dashboard-month-select');
     if(!select) return;
     const months = [...new Set(transactions.map(t => t.mois_affectation || getYearMonthString(t.date)))].sort().reverse();
     select.innerHTML = '';
-    months.forEach(m => {
-        const opt = document.createElement('option');
-        opt.value = m; opt.textContent = "PÉRIODE BUDGÉTAIRE : " + m;
-        select.appendChild(opt);
-    });
+    months.forEach(m => { select.appendChild(new Option("PÉRIODE : " + m, m)); });
     calculateDashboardMetrics();
 }
 
@@ -433,112 +351,167 @@ function navigateMonth(direction) {
     const select = document.getElementById('dashboard-month-select');
     if(!select || select.options.length <= 1) return;
     let newIdx = select.selectedIndex - direction;
-    if(newIdx >= 0 && newIdx < select.options.length) {
-        select.selectedIndex = newIdx;
-        calculateDashboardMetrics();
-    }
+    if(newIdx >= 0 && newIdx < select.options.length) { select.selectedIndex = newIdx; calculateDashboardMetrics(); }
 }
 
-// Fonction Dashboard augmentée avec affichage dynamique des graphiques en barres
+// ----------------------------------------------------------------------
+// LE GRAPHIQUE PRINCIPAL DES TENDANCES (CHART.JS)
+// ----------------------------------------------------------------------
+function formatMonthFrShort(periodStr) {
+    if(!periodStr || !periodStr.includes('-')) return periodStr;
+    const [year, month] = periodStr.split('-');
+    const monthNames = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Aoû", "Sep", "Oct", "Nov", "Déc"];
+    return `${monthNames[parseInt(month) - 1]} ${year.substring(2)}`;
+}
+
+function updateTrendChart() {
+    const canvas = document.getElementById('dashboard-trend-chart');
+    if (!canvas) return;
+
+    const monthlyData = {};
+
+    transactions.forEach(t => {
+        const m = t.mois_affectation || getYearMonthString(t.date);
+        if (!m) return;
+        if (!monthlyData[m]) monthlyData[m] = { entrees: 0, depenses: 0 };
+
+        const amt = parseFloat(t.montant) || 0;
+        if (amt > 0) {
+            monthlyData[m].entrees += amt;
+        } else {
+            monthlyData[m].depenses += Math.abs(amt);
+        }
+    });
+
+    const sortedMonths = Object.keys(monthlyData).sort(); 
+    const labels = sortedMonths.map(m => formatMonthFrShort(m));
+    const dataEntrees = sortedMonths.map(m => monthlyData[m].entrees);
+    const dataDepenses = sortedMonths.map(m => monthlyData[m].depenses);
+    const dataSoldes = sortedMonths.map(m => monthlyData[m].entrees - monthlyData[m].depenses);
+
+    if (trendChartInstance) { trendChartInstance.destroy(); }
+
+    const ctx = canvas.getContext('2d');
+    trendChartInstance = new Chart(ctx, {
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    type: 'line',
+                    label: 'Solde',
+                    data: dataSoldes,
+                    borderColor: '#3b82f6',
+                    backgroundColor: '#3b82f6',
+                    borderWidth: 3,
+                    tension: 0.3,
+                    pointRadius: 4,
+                    order: 1
+                },
+                {
+                    type: 'bar',
+                    label: 'Entrées',
+                    data: dataEntrees,
+                    backgroundColor: '#10b981',
+                    borderRadius: 4,
+                    maxBarThickness: 40,
+                    order: 2
+                },
+                {
+                    type: 'bar',
+                    label: 'Dépenses',
+                    data: dataDepenses,
+                    backgroundColor: '#f43f5e',
+                    borderRadius: 4,
+                    maxBarThickness: 40,
+                    order: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11, family: 'sans-serif' } } },
+                tooltip: { callbacks: { label: function(ctx) { return ` ${ctx.dataset.label}: ${ctx.raw.toFixed(2)} €`; } } }
+            },
+            scales: {
+                x: { grid: { display: false } },
+                y: { grid: { color: '#f1f5f9' }, ticks: { callback: function(val) { return val + ' €'; } } }
+            }
+        }
+    });
+}
+
+// ----------------------------------------------------------------------
+// LES JAUGES (BARRES DE PROGRESSION)
+// ----------------------------------------------------------------------
 function calculateDashboardMetrics() {
     const select = document.getElementById('dashboard-month-select');
     const activeMonth = select ? select.value : '';
-    
-    let totalIn = 0, totalOut = 0;
-    const catTotals = {};
-    const posteTotals = {};
+    const catTotals = {}; const posteTotals = {};
 
     transactions.forEach(t => {
         const m = t.mois_affectation || getYearMonthString(t.date);
         if(m === activeMonth) {
             const amt = parseFloat(t.montant) || 0;
-            if(amt > 0) totalIn += amt; else totalOut += Math.abs(amt);
-
             const c = (t.categorie || 'NON CLASSÉ').toUpperCase();
             catTotals[c] = (catTotals[c] || 0) + amt;
-
             const p = (t.poste || 'AUTRE').toUpperCase();
             posteTotals[p] = (posteTotals[p] || 0) + amt;
         }
     });
 
-    if(document.getElementById('kpi-entrises')) document.getElementById('kpi-entrises').textContent = totalIn.toFixed(2) + " €";
-    if(document.getElementById('kpi-depenses')) document.getElementById('kpi-depenses').textContent = totalOut.toFixed(2) + " €";
-    if(document.getElementById('kpi-reste')) {
-        const totalDiff = totalIn - totalOut;
-        document.getElementById('kpi-reste').className = totalDiff >= 0 ? "text-xs font-semibold text-emerald-600 truncate" : "text-xs font-semibold text-rose-600 truncate";
-        document.getElementById('kpi-reste').textContent = totalDiff.toFixed(2) + " €";
-    }
-
-    // Calcul du maximum absolu pour calibrer l'échelle de largeur des jauges
-    const allCatVals = Object.values(catTotals).map(v => Math.abs(v));
-    const maxCatVal = allCatVals.length > 0 ? Math.max(...allCatVals, 1) : 1;
-
-    // 1. Rendu graphique visuel des Catégories (avec barres de progression horizontales)
     const chartContainer = document.getElementById('categories-chart-container');
     if(chartContainer) {
         chartContainer.innerHTML = '';
+        const maxCatVal = Math.max(...Object.values(catTotals).map(v => Math.abs(v)), 1);
         Object.keys(budgetStructure).forEach(cat => {
             const totalVal = catTotals[cat] || 0;
-            const absVal = Math.abs(totalVal);
-            const percentage = (absVal / maxCatVal) * 100;
+            const percentage = (Math.abs(totalVal) / maxCatVal) * 100;
             const colorClasses = categoryColorMap[cat] || "bg-slate-100 text-slate-700";
+            const barColor = barColorMap[cat] || "bg-slate-400";
             
-            const barColor = totalVal >= 0 ? 'bg-emerald-500' : 'bg-rose-500';
-
             const item = document.createElement('div');
-            item.className = "space-y-1.5 bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs";
+            item.className = "space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs";
             item.innerHTML = `
-                <div class="flex items-center justify-between w-full">
-                    <span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold ${colorClasses}">${cat}</span>
-                    <span class="font-bold text-slate-800">${totalVal.toFixed(2)} €</span>
-                </div>
-                <div class="w-full bg-slate-200/70 h-2 rounded-full overflow-hidden">
-                    <div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
-                </div>
+                <div class="flex items-center justify-between mb-1"><span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${colorClasses}">${cat}</span><b class="font-mono text-slate-700">${totalVal.toFixed(2)} €</b></div>
+                <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden"><div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${percentage}%"></div></div>
             `;
             chartContainer.appendChild(item);
         });
     }
 
-    // 2. Rendu graphique visuel complet par Poste de dépense
     const postesContainer = document.getElementById('postes-chart-container');
     if(postesContainer) {
         postesContainer.innerHTML = '';
-        
-        const allPosteVals = Object.values(posteTotals).map(v => Math.abs(v));
-        const maxPosteVal = allPosteVals.length > 0 ? Math.max(...allPosteVals, 1) : 1;
+        const sortedPostes = Object.keys(posteTotals).sort((a,b) => Math.abs(posteTotals[b]) - Math.abs(posteTotals[a]));
+        const maxPosteVal = Math.max(...Object.values(posteTotals).map(v => Math.abs(v)), 1);
 
-        // Tri automatique des postes du montant le plus grand au plus petit
-        const sortedPostes = Object.keys(posteTotals).sort((a, b) => Math.abs(posteTotals[b]) - Math.abs(posteTotals[a]));
+        if (sortedPostes.length === 0) { postesContainer.innerHTML = '<div class="text-xs text-slate-400 italic text-center py-4">Aucune opération détectée.</div>'; } 
+        else {
+            sortedPostes.forEach(p => {
+                const totalVal = posteTotals[p] || 0;
+                const percentage = (Math.abs(totalVal) / maxPosteVal) * 100;
+                
+                let parentCat = "DÉPENSES QUOTIDIENNES";
+                for (const [catName, postesObj] of Object.entries(budgetStructure)) {
+                    if (postesObj[p]) { parentCat = catName; break; }
+                }
+                const barColor = barColorMap[parentCat] || "bg-slate-400";
 
-        sortedPostes.forEach(poste => {
-            const totalVal = posteTotals[poste] || 0;
-            const absVal = Math.abs(totalVal);
-            const percentage = (absVal / maxPosteVal) * 100;
-            const barColor = totalVal >= 0 ? 'bg-emerald-400' : 'bg-rose-400';
-
-            const item = document.createElement('div');
-            item.className = "space-y-1 text-xs pt-1 border-b border-slate-50 pb-2";
-            item.innerHTML = `
-                <div class="flex justify-between text-[11px] items-center">
-                    <span class="font-medium text-slate-600 uppercase tracking-tight truncate max-w-[180px]">${poste}</span>
-                    <span class="font-semibold text-slate-700 font-mono">${totalVal.toFixed(2)} €</span>
-                </div>
-                <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                    <div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
-                </div>
-            `;
-            postesContainer.appendChild(item);
-        });
-
-        if(sortedPostes.length === 0) {
-            postesContainer.innerHTML = '<div class="text-slate-400 italic text-[11px] text-center pt-4">Aucune opération sur cette période.</div>';
+                const item = document.createElement('div');
+                item.className = "space-y-1 py-1.5";
+                item.innerHTML = `
+                    <div class="flex items-center justify-between text-[11px]"><span class="font-semibold text-slate-600 uppercase truncate max-w-[70%]">${p}</span><span class="font-mono text-slate-500">${totalVal.toFixed(2)} €</span></div>
+                    <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden"><div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${percentage}%"></div></div>
+                `;
+                postesContainer.appendChild(item);
+            });
         }
     }
 }
 
-// Placeholders structurels requis pour isoler les liaisons CSV et Gemini
-function parseCSV() { console.log("Analyse CSV lancée..."); }
-function processCSVLines() { console.log("Traitement IA lancé..."); }
-function saveImportedTransactions() { console.log("Sauvegarde Cloud lancée..."); }
+// Stubs CSV/IA
+function parseCSV() { console.log("Analyse CSV..."); }
+function processCSVLines() { console.log("Traitement IA..."); }
+function saveImportedTransactions() { console.log("Sauvegarde..."); }
