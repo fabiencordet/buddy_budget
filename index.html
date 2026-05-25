@@ -11,17 +11,16 @@
     <style>
         .tabs-content { display: none; }
         .tabs-content.active { display: block; }
-        /* Masquer la flèche par défaut du select pour l'UI à flèches personnalisée */
         .select-clean {
             -webkit-appearance: none;
             -moz-appearance: none;
-            -appereance: none;
             appearance: none;
         }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans antialiased">
 
+    <!-- ===================== LOGIN PAGE ===================== -->
     <div id="login-page" class="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center z-50">
         <div class="bg-white p-8 rounded-2xl shadow-sm max-w-sm w-full mx-4 border border-slate-100">
             <h1 class="text-xl font-semibold mb-6 text-center tracking-tight text-slate-800">My Buddy Budget</h1>
@@ -31,6 +30,7 @@
         </div>
     </div>
 
+    <!-- ===================== APP CONTENT ===================== -->
     <div id="app-content" class="hidden min-h-screen flex flex-col">
         <header class="bg-white border-b border-slate-200/80 sticky top-0 z-30">
             <div class="max-w-5xl mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
@@ -46,9 +46,11 @@
         </header>
 
         <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-6">
-            
+
+            <!-- =========== DASHBOARD TAB =========== -->
             <section id="tab-dashboard" class="tabs-content active space-y-4">
-                
+
+                <!-- Sélecteur de mois + Graphique principal -->
                 <div class="flex flex-col md:flex-row gap-4 items-stretch">
                     <div class="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-200/60 shadow-2xs h-12 md:w-64 shrink-0">
                         <button onclick="navigateMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600 transition font-bold text-sm">&lt;</button>
@@ -65,6 +67,35 @@
                     </div>
                 </div>
 
+                <!-- ===== NOUVEAUX FILTRES DASHBOARD ===== -->
+                <div class="bg-white p-3 rounded-xl border border-slate-200/60 shadow-2xs">
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider shrink-0">🔍 Filtrer les données :</span>
+                        <select id="dash-filter-categorie"
+                            onchange="populateDashFilterPostes(); applyDashboardFilters()"
+                            class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none font-medium text-slate-600 flex-1 min-w-[140px]">
+                            <option value="">📁 Toutes les catégories</option>
+                        </select>
+                        <select id="dash-filter-poste"
+                            onchange="populateDashFilterDescriptions(); applyDashboardFilters()"
+                            class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none font-medium text-slate-600 flex-1 min-w-[140px]">
+                            <option value="">🏷️ Tous les postes</option>
+                        </select>
+                        <select id="dash-filter-description"
+                            onchange="applyDashboardFilters()"
+                            class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none font-medium text-slate-600 flex-1 min-w-[140px]">
+                            <option value="">📝 Toutes les descriptions</option>
+                        </select>
+                        <button onclick="resetDashboardFilters()" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 rounded-lg text-xs font-semibold transition shrink-0">✕ Réinitialiser</button>
+                    </div>
+                    <!-- Indicateur de filtres actifs -->
+                    <div id="dash-active-filter-indicator" class="hidden mt-2 pt-2 border-t border-slate-100">
+                        <p id="dash-active-filter-text" class="text-[10px] text-indigo-600 font-semibold"></p>
+                    </div>
+                </div>
+                <!-- ===== FIN FILTRES DASHBOARD ===== -->
+
+                <!-- Panneaux Catégories & Postes -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs lg:col-span-2 space-y-3">
                         <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100 flex justify-between">
@@ -81,6 +112,7 @@
                     </div>
                 </div>
 
+                <!-- Config clé IA -->
                 <div class="bg-slate-100 rounded-xl p-3 border border-slate-200/40">
                     <button onclick="document.getElementById('collapsed-config-panel').classList.toggle('hidden')" class="w-full flex justify-between items-center text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
                         <span>⚙️ Configuration clé IA</span>
@@ -93,6 +125,7 @@
                 </div>
             </section>
 
+            <!-- =========== TRANSACTIONS TAB =========== -->
             <section id="tab-transactions" class="tabs-content space-y-4">
                 <div class="flex gap-2 w-full">
                     <button onclick="toggleImportZone()" class="flex-1 bg-white border border-slate-200 text-slate-700 font-medium py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-2xs hover:bg-slate-50 transition">
@@ -103,6 +136,7 @@
                     </button>
                 </div>
 
+                <!-- Barre de filtres transactions -->
                 <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200/60 shadow-2xs">
                     <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 flex-grow">
                         <div>
@@ -125,6 +159,7 @@
                     </div>
                 </div>
 
+                <!-- Zone d'import CSV -->
                 <div id="integrated-import-zone" class="hidden bg-white p-4 rounded-xl border border-slate-200 shadow-inner space-y-3">
                     <div class="flex justify-between items-center border-b border-slate-100 pb-2">
                         <h3 class="text-xs font-semibold text-slate-700 uppercase tracking-wider">Module d'importation assisté</h3>
@@ -158,6 +193,7 @@
                     </div>
                 </div>
 
+                <!-- Tableau des transactions -->
                 <div class="bg-white rounded-xl border border-slate-200/60 shadow-2xs overflow-hidden">
                     <div class="hidden md:block overflow-x-auto">
                         <table class="w-full text-left border-collapse">
@@ -181,13 +217,14 @@
                     <div class="block md:hidden">
                         <div id="mobile-cards-container" class="divide-y divide-slate-100 bg-white"></div>
                     </div>
-                    
+
                     <div id="empty-state" class="p-8 text-center text-slate-400 italic text-xs hidden">Aucune opération détectée ou correspondant aux filtres.</div>
                 </div>
             </section>
         </main>
     </div>
 
+    <!-- ===================== DRAWER DÉTAILS ===================== -->
     <div id="details-drawer-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-40 hidden" onclick="closeDetailsDrawer()">
         <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 overflow-hidden border border-slate-100" onclick="event.stopPropagation()">
             <div class="bg-slate-900 text-white px-4 py-3 flex justify-between items-center">
@@ -198,6 +235,11 @@
                 <div class="flex justify-between border-b border-slate-100 pb-1.5">
                     <span class="text-slate-400">Statut de pointage</span>
                     <span id="drawer-pointage-status" class="font-semibold"></span>
+                </div>
+                <!-- NOUVEAU : statut dashboard -->
+                <div class="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span class="text-slate-400">Statut Dashboard</span>
+                    <span id="drawer-exclu-dashboard" class="font-semibold"></span>
                 </div>
                 <div class="flex justify-between border-b border-slate-100 pb-1.5">
                     <span class="text-slate-400">Date effective</span>
@@ -232,16 +274,19 @@
         </div>
     </div>
 
+    <!-- ===================== MODAL TRANSACTION ===================== -->
     <div id="transaction-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 overflow-hidden border border-slate-100">
-            <div class="bg-slate-900 text-white px-4 py-3 flex justify-between items-center">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 overflow-hidden border border-slate-100 max-h-[95vh] overflow-y-auto">
+            <div class="bg-slate-900 text-white px-4 py-3 flex justify-between items-center sticky top-0 z-10">
                 <h3 id="modal-title" class="font-medium text-xs uppercase tracking-wider">Éditer</h3>
                 <button onclick="closeTransactionModal()" class="text-white/70 hover:text-white text-lg font-bold">&times;</button>
             </div>
             <form id="transaction-form" onsubmit="saveTransaction(event)" class="p-4 space-y-3">
                 <input type="hidden" id="edit-index">
                 <input type="hidden" id="edit-db-id">
-                
+                <!-- Champ caché pour exclu_dashboard -->
+                <input type="hidden" id="form-exclu-dashboard" value="false">
+
                 <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Date</label>
@@ -278,6 +323,19 @@
                         <span class="absolute right-3 top-2 text-[10px] text-slate-400 italic">Strictement tel quel</span>
                     </div>
                 </div>
+
+                <!-- ===== NOUVEAU : Toggle "Exclure du Dashboard" ===== -->
+                <div class="flex items-center justify-between px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer select-none" onclick="toggleExcluDashboard()">
+                    <div>
+                        <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">⊘ Exclure du Dashboard</span>
+                        <p class="text-[9px] text-slate-400 mt-0.5">Non comptabilisée dans les graphiques et totaux.</p>
+                    </div>
+                    <button id="toggle-exclu-dashboard" type="button" class="relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full bg-slate-200 transition-colors duration-200 ease-in-out focus:outline-none ml-3">
+                        <span id="toggle-exclu-dashboard-circle" class="pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out translate-x-1 mt-1"></span>
+                    </button>
+                </div>
+                <!-- ===== FIN Toggle ===== -->
+
                 <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100">
                     <button type="button" onclick="closeTransactionModal()" class="px-3 py-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 text-xs transition">Annuler</button>
                     <button type="submit" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs transition">Sauvegarder</button>
@@ -286,6 +344,7 @@
         </div>
     </div>
 
+    <!-- ===================== SCRIPT ===================== -->
     <script>
         let _supabase;
         try {
@@ -328,6 +387,7 @@
                 "LOISIRS": ["SORTIES", "Remboursement"],
                 "SANTÉ": ["Médecin", "Pharmacie", "Labo", "Remboursement"],
                 "SHOPPING": ["Amazon divers", "Vêtements", "Maison", "Fournitures Boulot", "Remboursement"],
+                "VIREMENTS INTERNES": ["Virement interne"],
                 "VOITURE": ["Carburant", "Carburant PRO", "Entretien", "Parking", "Péage", "Remboursement", "Réparation"],
             },
             "PATIN": {
@@ -343,15 +403,11 @@
         let tempImportedTransactions = [];
         let csvHeaders = [];
         let csvRows = [];
-        
         let expandedCategories = {};
-        let expandedPostes = {}; 
-
-        // Variable globale pour gérer le filtrage par bouton toggle
+        let expandedPostes = {};
         let isHidePointedActive = false;
         let budgetChartInstance = null;
 
-        // Dictionnaire de couleurs enrichi et modernisé pour les transactions (Badges vifs)
         const categoryColorMap = {
             "ENTRÉES": "bg-emerald-500 text-white font-bold px-2.5 py-0.5 rounded shadow-2xs text-[10px]",
             "PRÉLEVÈMENTS (FIXES)": "bg-rose-500 text-white font-bold px-2.5 py-0.5 rounded shadow-2xs text-[10px]",
@@ -360,6 +416,9 @@
             "PATIN": "bg-indigo-500 text-white font-bold px-2.5 py-0.5 rounded shadow-2xs text-[10px]"
         };
 
+        // ============================================================
+        // AUTH
+        // ============================================================
         function checkPassword() {
             if (typeof CONFIG === 'undefined') {
                 alert("❌ Erreur : Le fichier 'config.js' est manquant ou invalide.");
@@ -376,6 +435,9 @@
 
         document.getElementById('password-input').addEventListener('keypress', function(e) { if (e.key === 'Enter') checkPassword(); });
 
+        // ============================================================
+        // NAVIGATION / TABS
+        // ============================================================
         function switchTab(tabId) {
             document.querySelectorAll('.tabs-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => {
@@ -384,7 +446,7 @@
             });
             document.getElementById(tabId).classList.add('active');
             document.getElementById('btn-' + tabId).classList.add('bg-white', 'text-slate-900', 'shadow-xs');
-            if(tabId === 'tab-dashboard') {
+            if (tabId === 'tab-dashboard') {
                 buildMonthDropdown();
                 renderMainBudgetChart();
             }
@@ -395,6 +457,7 @@
             populateCategorieDropdown();
             populateFilterCategorieDropdown();
             populateFilterPostes();
+            populateDashFilterCategories();
             document.getElementById('api-key-input').value = localStorage.getItem('gemini_api_key') || '';
         }
 
@@ -405,6 +468,9 @@
 
         function toggleImportZone() { document.getElementById('integrated-import-zone').classList.toggle('hidden'); }
 
+        // ============================================================
+        // CLOUD DATA
+        // ============================================================
         async function fetchTransactionsFromCloud() {
             if (!_supabase) return;
             try {
@@ -417,25 +483,149 @@
             } catch (err) { console.error(err); }
         }
 
-        function getYearMonthString(dateStr) { 
-            if(!dateStr || !dateStr.includes('-')) return ''; 
-            const p = dateStr.split('-'); 
-            return `${p[0]}-${p[1].padStart(2, '0')}`; 
+        // ============================================================
+        // HELPERS
+        // ============================================================
+        function getYearMonthString(dateStr) {
+            if (!dateStr || !dateStr.includes('-')) return '';
+            const p = dateStr.split('-');
+            return `${p[0]}-${p[1].padStart(2, '0')}`;
         }
 
         function syncDefaultAffectationMonth() {
             const dateVal = document.getElementById('form-date').value;
-            if(dateVal) {
-                document.getElementById('form-affectation').value = getYearMonthString(dateVal);
+            if (dateVal) document.getElementById('form-affectation').value = getYearMonthString(dateVal);
+        }
+
+        // ============================================================
+        // DASHBOARD FILTERS (NOUVEAUX)
+        // ============================================================
+        function populateDashFilterCategories() {
+            const sel = document.getElementById('dash-filter-categorie');
+            if (!sel) return;
+            sel.innerHTML = '<option value="">📁 Toutes les catégories</option>';
+            Object.keys(budgetStructure).forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat; opt.textContent = cat;
+                sel.appendChild(opt);
+            });
+        }
+
+        function populateDashFilterPostes() {
+            const catVal = document.getElementById('dash-filter-categorie').value;
+            const postesSel = document.getElementById('dash-filter-poste');
+            const descSel = document.getElementById('dash-filter-description');
+            postesSel.innerHTML = '<option value="">🏷️ Tous les postes</option>';
+            descSel.innerHTML = '<option value="">📝 Toutes les descriptions</option>';
+
+            if (catVal && budgetStructure[catVal]) {
+                Object.keys(budgetStructure[catVal]).forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p; opt.textContent = p;
+                    postesSel.appendChild(opt);
+                });
+            } else {
+                const allPostes = new Set();
+                Object.values(budgetStructure).forEach(catObj => Object.keys(catObj).forEach(p => allPostes.add(p)));
+                [...allPostes].sort().forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p; opt.textContent = p;
+                    postesSel.appendChild(opt);
+                });
             }
         }
 
-        // Actionneur de filtrage via bouton Toggle Switch (Masquer pointées)
+        function populateDashFilterDescriptions() {
+            const catVal = document.getElementById('dash-filter-categorie').value;
+            const posteVal = document.getElementById('dash-filter-poste').value;
+            const descSel = document.getElementById('dash-filter-description');
+            descSel.innerHTML = '<option value="">📝 Toutes les descriptions</option>';
+            if (catVal && posteVal && budgetStructure[catVal] && budgetStructure[catVal][posteVal]) {
+                budgetStructure[catVal][posteVal].forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d; opt.textContent = d;
+                    descSel.appendChild(opt);
+                });
+            }
+        }
+
+        function getDashboardFilters() {
+            return {
+                cat: (document.getElementById('dash-filter-categorie')?.value || '').toUpperCase().trim(),
+                poste: (document.getElementById('dash-filter-poste')?.value || '').toUpperCase().trim(),
+                desc: document.getElementById('dash-filter-description')?.value || ''
+            };
+        }
+
+        /** Retourne true si la transaction doit apparaître dans le dashboard selon les filtres actifs */
+        function transactionPassesDashboardFilters(t) {
+            if (t.exclu_dashboard) return false;
+            const f = getDashboardFilters();
+            const cleanCat = (t.categorie || '').toUpperCase().trim();
+            const cleanPoste = (t.poste || '').toUpperCase().trim();
+            const cleanDesc = (t.description || '');
+            if (f.cat && cleanCat !== f.cat) return false;
+            if (f.poste && cleanPoste !== f.poste) return false;
+            if (f.desc && cleanDesc !== f.desc) return false;
+            return true;
+        }
+
+        function applyDashboardFilters() {
+            updateDashActiveFilterIndicator();
+            calculateDashboardMetrics();
+            renderMainBudgetChart();
+        }
+
+        function resetDashboardFilters() {
+            document.getElementById('dash-filter-categorie').value = '';
+            populateDashFilterPostes(); // resets poste + desc selects
+            applyDashboardFilters();
+        }
+
+        function updateDashActiveFilterIndicator() {
+            const f = getDashboardFilters();
+            const parts = [];
+            if (f.cat) parts.push(`Catégorie : ${f.cat}`);
+            if (f.poste) parts.push(`Poste : ${f.poste}`);
+            if (f.desc) parts.push(`Description : ${f.desc}`);
+            const indicator = document.getElementById('dash-active-filter-indicator');
+            const text = document.getElementById('dash-active-filter-text');
+            if (parts.length > 0) {
+                text.textContent = `✦ Filtres actifs → ${parts.join(' · ')}`;
+                indicator.classList.remove('hidden');
+            } else {
+                indicator.classList.add('hidden');
+            }
+        }
+
+        // ============================================================
+        // TOGGLE "EXCLURE DU DASHBOARD"
+        // ============================================================
+        function setExcluDashboardToggle(active) {
+            document.getElementById('form-exclu-dashboard').value = active ? 'true' : 'false';
+            const btn = document.getElementById('toggle-exclu-dashboard');
+            const circle = document.getElementById('toggle-exclu-dashboard-circle');
+            if (active) {
+                btn.className = 'relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full bg-rose-500 transition-colors duration-200 ease-in-out focus:outline-none ml-3';
+                circle.className = 'pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out mt-1 translate-x-5';
+            } else {
+                btn.className = 'relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full bg-slate-200 transition-colors duration-200 ease-in-out focus:outline-none ml-3';
+                circle.className = 'pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out mt-1 translate-x-1';
+            }
+        }
+
+        function toggleExcluDashboard() {
+            const current = document.getElementById('form-exclu-dashboard').value === 'true';
+            setExcluDashboardToggle(!current);
+        }
+
+        // ============================================================
+        // FILTRES TRANSACTIONS
+        // ============================================================
         function toggleHidePointedFilter() {
             isHidePointedActive = !isHidePointedActive;
             const btn = document.getElementById('toggle-filter-pointed');
             const circle = document.getElementById('toggle-filter-circle');
-            
             if (isHidePointedActive) {
                 btn.classList.replace('bg-slate-200', 'bg-emerald-500');
                 circle.classList.replace('translate-x-1', 'translate-x-5');
@@ -447,13 +637,12 @@
         }
 
         async function togglePointage(index, event) {
-            if(event) event.stopPropagation(); 
+            if (event) event.stopPropagation();
             const t = transactions[index];
             const nouveauStatut = !t.pointe;
-            
             try {
                 const { error } = await _supabase.from('transactions').update({ pointe: nouveauStatut }).eq('id', t.id);
-                if(error) throw error;
+                if (error) throw error;
                 t.pointe = nouveauStatut;
                 renderResponsiveTransactions();
                 renderMainBudgetChart();
@@ -462,18 +651,19 @@
             }
         }
 
-        // GENERATION DU GRAPHIQUE MENSUEL DEMANDE (Entrées / Dépenses / Courbe de Solde)
+        // ============================================================
+        // GRAPHIQUE PRINCIPAL (respecte les filtres dashboard)
+        // ============================================================
         function renderMainBudgetChart() {
             const ctx = document.getElementById('mainBudgetChart');
             if (!ctx) return;
 
             const monthlyData = {};
             transactions.forEach(t => {
+                if (!transactionPassesDashboardFilters(t)) return; // applique filtres + exclu_dashboard
                 const m = t.mois_affectation || getYearMonthString(t.date);
                 if (!m) return;
-                if (!monthlyData[m]) {
-                    monthlyData[m] = { entrees: 0, depenses: 0 };
-                }
+                if (!monthlyData[m]) monthlyData[m] = { entrees: 0, depenses: 0 };
                 const amt = parseFloat(t.montant) || 0;
                 if (amt > 0) {
                     monthlyData[m].entrees += amt;
@@ -482,15 +672,12 @@
                 }
             });
 
-            // Tri par ordre chronologique
             const sortedMonths = Object.keys(monthlyData).sort();
             const entreesData = sortedMonths.map(m => monthlyData[m].entrees);
             const depensesData = sortedMonths.map(m => monthlyData[m].depenses);
             const soldeData = sortedMonths.map(m => monthlyData[m].entrees - monthlyData[m].depenses);
 
-            if (budgetChartInstance) {
-                budgetChartInstance.destroy();
-            }
+            if (budgetChartInstance) budgetChartInstance.destroy();
 
             budgetChartInstance = new Chart(ctx, {
                 type: 'bar',
@@ -501,7 +688,7 @@
                             label: 'Solde Période',
                             type: 'line',
                             data: soldeData,
-                            borderColor: '#0f172a', // slate-900
+                            borderColor: '#0f172a',
                             backgroundColor: '#0f172a',
                             borderWidth: 2.5,
                             tension: 0.3,
@@ -511,13 +698,13 @@
                         {
                             label: 'Entrées',
                             data: entreesData,
-                            backgroundColor: '#10b981', // emerald-500
+                            backgroundColor: '#10b981',
                             borderRadius: 4
                         },
                         {
                             label: 'Dépenses',
                             data: depensesData,
-                            backgroundColor: '#ef4444', // red-500
+                            backgroundColor: '#ef4444',
                             borderRadius: 4
                         }
                     ]
@@ -525,9 +712,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: { labels: { font: { size: 10 } } }
-                    },
+                    plugins: { legend: { labels: { font: { size: 10 } } } },
                     scales: {
                         y: { beginAtZero: true, ticks: { font: { size: 9 } } },
                         x: { ticks: { font: { size: 9 } } }
@@ -536,7 +721,75 @@
             });
         }
 
-        // RENDU DE L'ONGLET TRANSACTION AVEC LES AMÉLIORATIONS VISUELLES
+        // ============================================================
+        // METRICS DASHBOARD (respecte les filtres dashboard)
+        // ============================================================
+        function calculateDashboardMetrics() {
+            const select = document.getElementById('dashboard-month-select');
+            const activeMonth = select ? select.value : '';
+
+            const catTotals = {};
+            const posteTotals = {};
+
+            transactions.forEach(t => {
+                if (!transactionPassesDashboardFilters(t)) return; // filtres + exclu_dashboard
+                const m = t.mois_affectation || getYearMonthString(t.date);
+                if (m !== activeMonth) return;
+                const amt = parseFloat(t.montant) || 0;
+                const c = (t.categorie || 'NON CLASSÉ').toUpperCase();
+                catTotals[c] = (catTotals[c] || 0) + amt;
+                const p = (t.poste || 'AUTRE').toUpperCase();
+                posteTotals[p] = (posteTotals[p] || 0) + amt;
+            });
+
+            // Rendu catégories
+            const chartContainer = document.getElementById('categories-chart-container');
+            if (chartContainer) {
+                chartContainer.innerHTML = '';
+                const f = getDashboardFilters();
+                // Si filtre catégorie actif → n'affiche que cette catégorie
+                const catsToShow = f.cat
+                    ? (budgetStructure[f.cat] ? [f.cat] : Object.keys(budgetStructure))
+                    : Object.keys(budgetStructure);
+
+                let hasData = false;
+                catsToShow.forEach(cat => {
+                    const totalVal = catTotals[cat] || 0;
+                    if (f.cat && totalVal === 0 && !catTotals[cat]) return;
+                    hasData = true;
+                    const colorClasses = categoryColorMap[cat] || "bg-slate-500 text-white font-bold px-2 py-0.5 rounded";
+                    const item = document.createElement('div');
+                    item.className = "flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 text-xs";
+                    item.innerHTML = `<span class="${colorClasses}">${cat}</span><b>${totalVal.toFixed(2)} €</b>`;
+                    chartContainer.appendChild(item);
+                });
+                if (!hasData) {
+                    chartContainer.innerHTML = '<p class="text-xs text-slate-400 italic">Aucune donnée pour ce mois avec ces filtres.</p>';
+                }
+            }
+
+            // Rendu postes
+            const posteContainer = document.getElementById('postes-chart-container');
+            if (posteContainer) {
+                posteContainer.innerHTML = '';
+                const sortedPostes = Object.keys(posteTotals).sort((a, b) => Math.abs(posteTotals[b]) - Math.abs(posteTotals[a]));
+                if (sortedPostes.length === 0) {
+                    posteContainer.innerHTML = '<p class="text-xs text-slate-400 italic">Aucune donnée pour ce mois avec ces filtres.</p>';
+                    return;
+                }
+                sortedPostes.forEach(poste => {
+                    const totalVal = posteTotals[poste];
+                    const item = document.createElement('div');
+                    item.className = "flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 text-xs";
+                    item.innerHTML = `<span class="font-semibold text-slate-600 uppercase tracking-tight text-[11px]">${poste}</span><b>${totalVal.toFixed(2)} €</b>`;
+                    posteContainer.appendChild(item);
+                });
+            }
+        }
+
+        // ============================================================
+        // RENDU TRANSACTIONS
+        // ============================================================
         function renderResponsiveTransactions() {
             const pcTbody = document.getElementById('pc-table-body');
             const mobileContainer = document.getElementById('mobile-cards-container');
@@ -544,48 +797,48 @@
 
             pcTbody.innerHTML = ''; mobileContainer.innerHTML = '';
 
-            const searchQuery = document.getElementById('search-input') ? document.getElementById('search-input').value.toLowerCase().trim() : '';
-            const catFilter = document.getElementById('filter-categorie') ? document.getElementById('filter-categorie').value : '';
-            const posteFilter = document.getElementById('filter-poste') ? document.getElementById('filter-poste').value : '';
+            const searchQuery = document.getElementById('search-input')?.value.toLowerCase().trim() || '';
+            const catFilter = document.getElementById('filter-categorie')?.value || '';
+            const posteFilter = document.getElementById('filter-poste')?.value || '';
 
             const filteredTransactions = transactions.filter(t => {
                 if (isHidePointedActive && t.pointe) return false;
-
                 const cleanCat = (t.categorie || '').toUpperCase().trim();
                 const cleanPoste = (t.poste || '').toUpperCase().trim();
                 const cleanDesc = (t.description || '').toLowerCase();
                 const cleanDetails = (t.details || '').toLowerCase();
-
-                const matchesSearch = !searchQuery || 
-                    cleanPoste.toLowerCase().includes(searchQuery) || 
-                    cleanDesc.includes(searchQuery) || 
+                const matchesSearch = !searchQuery ||
+                    cleanPoste.toLowerCase().includes(searchQuery) ||
+                    cleanDesc.includes(searchQuery) ||
                     cleanDetails.includes(searchQuery);
-                
                 const matchesCat = !catFilter || cleanCat === catFilter.toUpperCase().trim();
                 const matchesPoste = !posteFilter || cleanPoste === posteFilter.toUpperCase().trim();
-
                 return matchesSearch && matchesCat && matchesPoste;
             });
 
-            if (filteredTransactions.length === 0) { 
-                emptyState.classList.remove('hidden'); 
-                return; 
+            if (filteredTransactions.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
             }
             emptyState.classList.add('hidden');
 
             filteredTransactions.forEach((t) => {
-                const index = transactions.indexOf(t); 
+                const index = transactions.indexOf(t);
                 const cleanCat = (t.categorie || '').toUpperCase().trim();
                 const currentBadgeStyle = categoryColorMap[cleanCat] || "bg-slate-400 text-white font-bold px-2 py-0.5 rounded text-[10px]";
-                
+
                 const rawMontant = parseFloat(t.montant) || 0;
                 const mColor = rawMontant > 0 ? "text-emerald-600 font-bold" : "text-slate-800 font-semibold";
                 const mText = (rawMontant > 0 ? "+" : "") + rawMontant.toFixed(2) + " €";
-                
+
                 const finalAffectation = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
                 const rowBgClass = t.pointe ? "bg-slate-50/70 text-slate-400 opacity-75 hover:opacity-100" : "bg-white text-slate-900 font-medium";
 
-                // Nouveau bouton de pointage amélioré visuellement (Checkbox pilule moderne)
+                // Badge "exclu du dashboard"
+                const excluBadge = t.exclu_dashboard
+                    ? `<span class="ml-1.5 text-[9px] bg-rose-100 text-rose-500 px-1.5 py-0.5 rounded font-semibold tracking-tight">⊘ exclu</span>`
+                    : '';
+
                 const pointageButtonHTML = `
                     <button onclick="togglePointage(${index}, event)" class="group flex items-center justify-center w-7 h-7 rounded-lg border-2 transition-all duration-200 ${t.pointe ? 'bg-emerald-500 border-emerald-500 text-white shadow-xs' : 'bg-white border-slate-200 hover:border-emerald-400 text-transparent hover:text-slate-300'}" title="${t.pointe ? 'Dé-pointer' : 'Pointer'}">
                         <svg class="w-4 h-4 stroke-current" fill="none" stroke-width="3.5" viewBox="0 0 24 24">
@@ -594,7 +847,7 @@
                     </button>
                 `;
 
-                // 1. Rendu Desktop
+                // Rendu Desktop
                 const tr = document.createElement('tr');
                 tr.className = `${rowBgClass} transition-colors border-b border-slate-100 hover:bg-slate-50/50 cursor-pointer`;
                 tr.onclick = () => openDetailsDrawer(index);
@@ -604,7 +857,9 @@
                     <td class="p-3 whitespace-nowrap font-medium text-slate-400">${finalAffectation}</td>
                     <td class="p-3 whitespace-nowrap"><span class="${currentBadgeStyle}">${t.categorie || 'SANS CAT'}</span></td>
                     <td class="p-3 font-semibold uppercase tracking-tight text-[11px] text-slate-700">${t.poste || ''}</td>
-                    <td class="p-3 truncate max-w-[140px] ${t.pointe ? 'line-through text-slate-400' : ''}">${t.description || ''}</td>
+                    <td class="p-3 truncate max-w-[140px] ${t.pointe ? 'line-through text-slate-400' : ''}">
+                        ${t.description || ''}${excluBadge}
+                    </td>
                     <td class="p-3 truncate max-w-[120px] text-slate-400 italic text-[11px]">${t.details || ''}</td>
                     <td class="p-3 text-right whitespace-nowrap ${mColor}">${mText}</td>
                     <td class="p-3 text-center">
@@ -614,7 +869,7 @@
                 `;
                 pcTbody.appendChild(tr);
 
-                // 2. Rendu Mobile (Cards)
+                // Rendu Mobile (Cards)
                 const card = document.createElement('div');
                 card.className = `p-4 flex items-center justify-between gap-3 ${t.pointe ? 'bg-slate-50/50' : 'bg-white'} hover:bg-slate-50 transition-colors cursor-pointer`;
                 card.onclick = () => openDetailsDrawer(index);
@@ -625,6 +880,7 @@
                             <div class="flex items-center gap-2 flex-wrap">
                                 <span class="text-[10px] font-mono text-slate-400">${t.date}</span>
                                 <span class="${currentBadgeStyle}">${t.categorie || 'SANS'}</span>
+                                ${t.exclu_dashboard ? '<span class="text-[9px] bg-rose-100 text-rose-500 px-1.5 py-0.5 rounded font-semibold">⊘ exclu</span>' : ''}
                             </div>
                             <h4 class="text-xs font-bold text-slate-800 uppercase tracking-tight truncate">${t.poste || ''} : <span class="font-normal normal-case text-slate-600 ${t.pointe ? 'line-through text-slate-400' : ''}">${t.description || ''}</span></h4>
                             ${t.details ? `<p class="text-[10px] text-slate-400 italic truncate">${t.details}</p>` : ''}
@@ -639,10 +895,12 @@
             });
         }
 
-        // ENSEMBLE DES ACTIONS FILTRES ET ENRICHISEMENT DES SELECTS
+        // ============================================================
+        // DROPDOWNS FORMULAIRE
+        // ============================================================
         function populateCategorieDropdown() {
             const formCat = document.getElementById('form-categorie');
-            if(!formCat) return;
+            if (!formCat) return;
             formCat.innerHTML = '';
             Object.keys(budgetStructure).forEach(cat => {
                 const opt = document.createElement('option');
@@ -654,7 +912,7 @@
 
         function populateFilterCategorieDropdown() {
             const filterCat = document.getElementById('filter-categorie');
-            if(!filterCat) return;
+            if (!filterCat) return;
             filterCat.innerHTML = '<option value="">📁 Toutes les catégories</option>';
             Object.keys(budgetStructure).forEach(cat => {
                 const opt = document.createElement('option');
@@ -667,9 +925,7 @@
             const catFilter = document.getElementById('filter-categorie').value;
             const posteFilter = document.getElementById('filter-poste');
             if (!posteFilter) return;
-
             posteFilter.innerHTML = '<option value="">🏷️ Tous les postes</option>';
-            
             if (catFilter && budgetStructure[catFilter]) {
                 Object.keys(budgetStructure[catFilter]).forEach(poste => {
                     const opt = document.createElement('option');
@@ -678,9 +934,7 @@
                 });
             } else {
                 const allPostes = new Set();
-                Object.values(budgetStructure).forEach(catObj => {
-                    Object.keys(catObj).forEach(p => allPostes.add(p));
-                });
+                Object.values(budgetStructure).forEach(catObj => Object.keys(catObj).forEach(p => allPostes.add(p)));
                 [...allPostes].sort().forEach(poste => {
                     const opt = document.createElement('option');
                     opt.value = poste; opt.textContent = poste;
@@ -692,7 +946,7 @@
         function updatePosteDropdown() {
             const cat = document.getElementById('form-categorie').value;
             const formPoste = document.getElementById('form-poste');
-            if(!formPoste || !cat || !budgetStructure[cat]) return;
+            if (!formPoste || !cat || !budgetStructure[cat]) return;
             formPoste.innerHTML = '';
             Object.keys(budgetStructure[cat]).forEach(poste => {
                 const opt = document.createElement('option');
@@ -706,7 +960,7 @@
             const cat = document.getElementById('form-categorie').value;
             const poste = document.getElementById('form-poste').value;
             const formDesc = document.getElementById('form-description');
-            if(!formDesc || !cat || !poste || !budgetStructure[cat][poste]) return;
+            if (!formDesc || !cat || !poste || !budgetStructure[cat][poste]) return;
             formDesc.innerHTML = '';
             budgetStructure[cat][poste].forEach(desc => {
                 const opt = document.createElement('option');
@@ -715,13 +969,17 @@
             });
         }
 
+        // ============================================================
+        // MODAL TRANSACTION
+        // ============================================================
         function openTransactionModal(index = null) {
             populateCategorieDropdown();
             const modal = document.getElementById('transaction-modal');
             const form = document.getElementById('transaction-form');
             form.reset();
-            
-            if(index !== null) {
+            setExcluDashboardToggle(false); // reset par défaut
+
+            if (index !== null) {
                 const t = transactions[index];
                 document.getElementById('modal-title').textContent = "Éditer l'écriture";
                 document.getElementById('edit-index').value = index;
@@ -735,6 +993,7 @@
                 document.getElementById('form-description').value = t.description || '';
                 document.getElementById('form-details').value = t.details || '';
                 document.getElementById('form-montant').value = t.montant || '';
+                setExcluDashboardToggle(t.exclu_dashboard || false);
             } else {
                 document.getElementById('modal-title').textContent = "Nouvelle écriture";
                 document.getElementById('edit-index').value = '';
@@ -753,7 +1012,7 @@
             e.preventDefault();
             const idx = document.getElementById('edit-index').value;
             const dbId = document.getElementById('edit-db-id').value;
-            
+
             const payload = {
                 date: document.getElementById('form-date').value,
                 mois_affectation: document.getElementById('form-affectation').value,
@@ -762,16 +1021,17 @@
                 description: document.getElementById('form-description').value,
                 details: document.getElementById('form-details').value.trim(),
                 montant: parseFloat(document.getElementById('form-montant').value) || 0,
-                pointe: idx !== '' ? transactions[idx].pointe : false
+                pointe: idx !== '' ? transactions[idx].pointe : false,
+                exclu_dashboard: document.getElementById('form-exclu-dashboard').value === 'true'
             };
 
             try {
-                if(dbId) {
+                if (dbId) {
                     const { error } = await _supabase.from('transactions').update(payload).eq('id', dbId);
-                    if(error) throw error;
+                    if (error) throw error;
                 } else {
                     const { error } = await _supabase.from('transactions').insert([payload]);
-                    if(error) throw error;
+                    if (error) throw error;
                 }
                 closeTransactionModal();
                 fetchTransactionsFromCloud();
@@ -781,28 +1041,36 @@
         }
 
         async function deleteTransaction(index) {
-            if(!confirm("Supprimer définitivement cette transaction ?")) return;
+            if (!confirm("Supprimer définitivement cette transaction ?")) return;
             const t = transactions[index];
             try {
                 const { error } = await _supabase.from('transactions').delete().eq('id', t.id);
-                if(error) throw error;
+                if (error) throw error;
                 fetchTransactionsFromCloud();
             } catch(err) {
                 alert("Erreur lors de la suppression.");
             }
         }
 
+        // ============================================================
+        // DRAWER DÉTAILS
+        // ============================================================
         function openDetailsDrawer(index) {
             const t = transactions[index];
             document.getElementById('drawer-pointage-status').className = t.pointe ? "text-emerald-600 font-semibold" : "text-amber-600 font-semibold";
             document.getElementById('drawer-pointage-status').textContent = t.pointe ? "🟢 Vérifiée et pointée" : "⚪ En attente de validation";
+
+            // Statut dashboard (NOUVEAU)
+            document.getElementById('drawer-exclu-dashboard').textContent = t.exclu_dashboard ? '⊘ Exclue du dashboard' : '✓ Incluse au dashboard';
+            document.getElementById('drawer-exclu-dashboard').className = t.exclu_dashboard ? 'text-rose-500 font-semibold' : 'text-emerald-600 font-semibold';
+
             document.getElementById('drawer-date').textContent = t.date;
             document.getElementById('drawer-affectation').textContent = t.mois_affectation || getYearMonthString(t.date);
             document.getElementById('drawer-categorie').textContent = t.categorie || '-';
             document.getElementById('drawer-poste').textContent = t.poste || '-';
             document.getElementById('drawer-description').textContent = t.description || '-';
             document.getElementById('drawer-details').textContent = t.details || 'Aucune note bancaire rattachée.';
-            
+
             const rawM = parseFloat(t.montant) || 0;
             const mText = (rawM > 0 ? "+" : "") + rawM.toFixed(2) + " €";
             document.getElementById('drawer-montant').className = rawM > 0 ? "text-emerald-600 font-bold text-lg" : "text-slate-900 font-bold text-lg";
@@ -820,9 +1088,12 @@
             document.getElementById('details-drawer-modal').classList.add('hidden');
         }
 
+        // ============================================================
+        // SÉLECTEUR DE MOIS DASHBOARD
+        // ============================================================
         function buildMonthDropdown() {
             const select = document.getElementById('dashboard-month-select');
-            if(!select) return;
+            if (!select) return;
             const months = [...new Set(transactions.map(t => t.mois_affectation || getYearMonthString(t.date)))].sort().reverse();
             select.innerHTML = '';
             months.forEach(m => {
@@ -835,66 +1106,17 @@
 
         function navigateMonth(direction) {
             const select = document.getElementById('dashboard-month-select');
-            if(!select || select.options.length <= 1) return;
+            if (!select || select.options.length <= 1) return;
             let newIdx = select.selectedIndex - direction;
-            if(newIdx >= 0 && newIdx < select.options.length) {
+            if (newIdx >= 0 && newIdx < select.options.length) {
                 select.selectedIndex = newIdx;
                 calculateDashboardMetrics();
             }
         }
 
-        function calculateDashboardMetrics() {
-            const select = document.getElementById('dashboard-month-select');
-            const activeMonth = select ? select.value : '';
-            
-            const catTotals = {};
-            const posteTotals = {};
-
-            transactions.forEach(t => {
-                const m = t.mois_affectation || getYearMonthString(t.date);
-                if(m === activeMonth) {
-                    const amt = parseFloat(t.montant) || 0;
-                    const c = (t.categorie || 'NON CLASSÉ').toUpperCase();
-                    catTotals[c] = (catTotals[c] || 0) + amt;
-
-                    const p = (t.poste || 'AUTRE').toUpperCase();
-                    posteTotals[p] = (posteTotals[p] || 0) + amt;
-                }
-            });
-
-            // Rendu visuel de la structure des catégories
-            const chartContainer = document.getElementById('categories-chart-container');
-            if(chartContainer) {
-                chartContainer.innerHTML = '';
-                Object.keys(budgetStructure).forEach(cat => {
-                    const totalVal = catTotals[cat] || 0;
-                    const colorClasses = categoryColorMap[cat] || "bg-slate-500 text-white font-bold px-2 py-0.5 rounded";
-                    const item = document.createElement('div');
-                    item.className = "flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 text-xs";
-                    item.innerHTML = `<span class="${colorClasses}">${cat}</span><b>${totalVal.toFixed(2)} €</b>`;
-                    chartContainer.appendChild(item);
-                });
-            }
-
-            // Rendu visuel des postes
-            const posteContainer = document.getElementById('postes-chart-container');
-            if(posteContainer) {
-                posteContainer.innerHTML = '';
-                const sortedPostes = Object.keys(posteTotals).sort((a,b) => Math.abs(posteTotals[b]) - Math.abs(posteTotals[a]));
-                if(sortedPostes.length === 0) {
-                    posteContainer.innerHTML = '<p class="text-xs text-slate-400 italic">Aucune donnée pour ce mois.</p>';
-                    return;
-                }
-                sortedPostes.forEach(poste => {
-                    const totalVal = posteTotals[poste];
-                    const item = document.createElement('div');
-                    item.className = "flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 text-xs";
-                    item.innerHTML = `<span class="font-semibold text-slate-600 uppercase tracking-tight text-[11px]">${poste}</span><b>${totalVal.toFixed(2)} €</b>`;
-                    posteContainer.appendChild(item);
-                });
-            }
-        }
-
+        // ============================================================
+        // CSV IMPORT (stubs existants)
+        // ============================================================
         function parseCSV() { console.log("Analyse CSV lancée..."); }
         function processCSVLines() { console.log("Traitement IA lancé..."); }
         function saveImportedTransactions() { console.log("Sauvegarde Cloud lancée..."); }
