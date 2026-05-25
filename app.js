@@ -67,7 +67,7 @@ const barColorMap = {
 };
 
 function checkPassword() {
-    if (typeof CONFIG === 'undefined') { alert("❌ Fichier config manquant."); return; }
+    if (typeof CONFIG !== 'undefined') { alert("❌ Fichier config manquant."); return; }
     if (document.getElementById('password-input').value === CONFIG.SECRET_PASSWORD) {
         document.getElementById('login-page').classList.add('hidden');
         document.getElementById('app-content').classList.remove('hidden');
@@ -162,7 +162,8 @@ function renderResponsiveTransactions() {
 
     const searchQuery = document.getElementById('search-input') ? document.getElementById('search-input').value.toLowerCase().trim() : '';
     const catFilter = document.getElementById('filter-categorie') ? document.getElementById('filter-categorie').value : '';
-    const pointageFilter = document.getElementById('filter-pointage') ? document.getElementById('filter-pointage').value : '';
+    // RÉCUPÉRATION DU NOUVEAU FILTRE POSTE AU LIEU DU POINTAGE
+    const posteFilter = document.getElementById('filter-poste') ? document.getElementById('filter-poste').value : '';
 
     const filteredTransactions = transactions.filter(t => {
         if (isHidePointedActive && t.pointe) return false;
@@ -173,11 +174,10 @@ function renderResponsiveTransactions() {
         const matchesSearch = !searchQuery || cleanPoste.toLowerCase().includes(searchQuery) || cleanDesc.includes(searchQuery);
         const matchesCat = !catFilter || cleanCat === catFilter.toUpperCase().trim();
         
-        let matchesPointage = true;
-        if (pointageFilter === 'pointe') matchesPointage = t.pointe === true;
-        if (pointageFilter === 'non-pointe') matchesPointage = t.pointe === false;
+        // CORRECTION DE LA LOGIQUE DE FILTRAGE SUR LES POSTES
+        const matchesPoste = !posteFilter || cleanPoste === posteFilter.toUpperCase().trim();
 
-        return matchesSearch && matchesCat && matchesPointage;
+        return matchesSearch && matchesCat && matchesPoste;
     });
 
     if (filteredTransactions.length === 0) { emptyState.classList.remove('hidden'); return; }
@@ -242,6 +242,35 @@ function populateFilterCategorieDropdown() {
     const filterCat = document.getElementById('filter-categorie');
     if(!filterCat) return; filterCat.innerHTML = '<option value="">📁 Toutes catégories</option>';
     Object.keys(budgetStructure).forEach(cat => { filterCat.appendChild(new Option(cat, cat)); });
+    // DÉCLENCHE ÉGALEMENT LA MISE À JOUR DE LA LISTE DES POSTES FILTRÉS
+    updateFilterPosteDropdown();
+}
+
+// NOUVELLE FONCTION POUR REMPLIR LE DROPDOWN DES POSTES DANS LE FILTRE DE RECHERCHE
+function updateFilterPosteDropdown() {
+    const filterCatVal = document.getElementById('filter-categorie').value;
+    const filterPoste = document.getElementById('filter-poste');
+    if(!filterPoste) return;
+    
+    filterPoste.innerHTML = '<option value="">📋 Tout les postes</option>';
+    
+    if(filterCatVal && budgetStructure[filterCatVal]) {
+        // Si une catégorie est choisie, on affiche ses postes
+        Object.keys(budgetStructure[filterCatVal]).forEach(poste => {
+            filterPoste.appendChild(new Option(poste, poste));
+        });
+    } else {
+        // Si aucune catégorie n'est choisie, on liste la totalité des postes disponibles globalement
+        const tousLesPostes = new Set();
+        Object.values(budgetStructure).forEach(postesObj => {
+            Object.keys(postesObj).forEach(poste => tousLesPostes.add(poste));
+        });
+        tousLesPostes.forEach(poste => {
+            filterPoste.appendChild(new Option(poste, ...[poste]));
+        });
+    }
+    // Relance le filtrage après changement
+    renderResponsiveTransactions();
 }
 
 function updatePosteDropdown() {
