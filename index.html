@@ -4,1122 +4,1155 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Buddy Budget</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body { font-family: 'DM Sans', sans-serif; background: #f0f2f7; min-height: 100vh; }
+        .mono { font-family: 'DM Mono', monospace; }
+
+        /* Dot grid background */
+        body::before {
+            content: '';
+            position: fixed; inset: 0; pointer-events: none; z-index: 0;
+            background-image: radial-gradient(circle, #c8cfe0 1px, transparent 1px);
+            background-size: 22px 22px;
+            opacity: .35;
+        }
+        #login-page, #app-content { position: relative; z-index: 1; }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+
+        /* Cards */
+        .card {
+            background: rgba(255,255,255,.92);
+            backdrop-filter: blur(8px);
+            border-radius: 18px;
+            border: 1px solid rgba(226,232,240,.8);
+            box-shadow: 0 1px 4px rgba(15,23,42,.05), 0 0 0 1px rgba(255,255,255,.6) inset;
+        }
+        .card-flat {
+            background: rgba(255,255,255,.85);
+            border-radius: 14px;
+            border: 1px solid rgba(226,232,240,.7);
+        }
+
+        /* Tabs */
         .tabs-content { display: none; }
         .tabs-content.active { display: block; }
-        .select-clean {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
+        .select-clean { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
+        .tab-btn { transition: all .18s; border-radius: 10px; font-size: 12px; font-weight: 500; padding: 6px 20px; color: #64748b; }
+        .tab-btn.active-tab { background: #fff; color: #0f172a; font-weight: 600; box-shadow: 0 1px 6px rgba(15,23,42,.1); }
+
+        /* KPI */
+        .kpi { border-radius: 16px; padding: 16px 20px; flex: 1; min-width: 0; }
+        .kpi-in  { background: linear-gradient(145deg,#ecfdf5,#d1fae5); border: 1px solid #a7f3d0; }
+        .kpi-out { background: linear-gradient(145deg,#fff1f2,#ffe4e6); border: 1px solid #fecdd3; }
+        .kpi-bal-pos { background: linear-gradient(145deg,#eff6ff,#dbeafe); border: 1px solid #bfdbfe; }
+        .kpi-bal-neg { background: linear-gradient(145deg,#fffbeb,#fef3c7); border: 1px solid #fde68a; }
+
+        /* Fields */
+        .field {
+            width: 100%; padding: 8px 12px; background: #f8fafc;
+            border: 1px solid #e2e8f0; border-radius: 10px;
+            font-size: 12px; font-family: 'DM Sans', sans-serif;
+            outline: none; color: #334155; transition: border .15s, background .15s, box-shadow .15s;
         }
+        .field:focus { border-color: #94a3b8; background: #fff; box-shadow: 0 0 0 3px rgba(148,163,184,.12); }
+
+        /* Badges */
+        .badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 99px; font-size: 10px; font-weight: 700; letter-spacing: .03em; white-space: nowrap; }
+        .badge-entrees   { background:#dcfce7; color:#15803d; }
+        .badge-prelevements { background:#fee2e2; color:#b91c1c; }
+        .badge-epargne   { background:#fef9c3; color:#a16207; }
+        .badge-quotidien { background:#dbeafe; color:#1d4ed8; }
+        .badge-patin     { background:#ede9fe; color:#6d28d9; }
+        .badge-default   { background:#f1f5f9; color:#475569; }
+        .badge-exclu     { background:#fce7f3; color:#be185d; font-size:9px; padding:1px 7px; }
+
+        /* Filter pill */
+        .filter-pill { display:inline-flex; align-items:center; gap:4px; background:#f0f9ff; border:1px solid #bae6fd; color:#0369a1; font-size:10px; font-weight:600; padding:2px 9px; border-radius:99px; }
+        .filter-pill-btn { cursor:pointer; color:#0ea5e9; font-size:11px; margin-left:2px; line-height:1; }
+
+        /* Progress */
+        .prog-track { height:4px; border-radius:99px; background:#f1f5f9; overflow:hidden; }
+        .prog-fill { height:100%; border-radius:99px; transition: width .5s cubic-bezier(.4,0,.2,1); }
+
+        /* Table rows */
+        .tr-row { transition: background .1s; border-bottom: 1px solid #f1f5f9; }
+        .tr-row:hover { background: #f8fafc; }
+        .tr-row.is-pointed { opacity:.6; }
+        .tr-row.is-pointed:hover { opacity:.85; }
+
+        /* Filtered mode banner */
+        .filter-active-banner {
+            background: linear-gradient(135deg,#eef2ff,#e0e7ff);
+            border: 1px solid #c7d2fe;
+            border-radius: 12px;
+            padding: 8px 14px;
+        }
+
+        /* Animations */
+        @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        .fade-in { animation: fadeUp .28s ease both; }
+
+        /* Toggle switch */
+        .toggle-track { position:relative; display:inline-flex; height:20px; width:38px; border-radius:99px; transition: background .2s; cursor:pointer; flex-shrink:0; }
+        .toggle-thumb { position:absolute; top:3px; left:3px; height:14px; width:14px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.18); transition: transform .2s; }
+        .toggle-track.on { background:#10b981; }
+        .toggle-track.off { background:#cbd5e1; }
+        .toggle-track.on .toggle-thumb { transform: translateX(18px); }
+        .toggle-track.exclu-on { background:#f43f5e; }
+
+        /* Modal scroll */
+        .modal-scroll { max-height: 92vh; overflow-y: auto; }
+
+        /* Section labels */
+        .section-label { font-size:10px; font-weight:700; letter-spacing:.08em; color:#94a3b8; text-transform:uppercase; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 font-sans antialiased">
+<body>
 
-    <!-- ===================== LOGIN PAGE ===================== -->
-    <div id="login-page" class="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center z-50">
-        <div class="bg-white p-8 rounded-2xl shadow-sm max-w-sm w-full mx-4 border border-slate-100">
-            <h1 class="text-xl font-semibold mb-6 text-center tracking-tight text-slate-800">My Buddy Budget</h1>
-            <input type="password" id="password-input" placeholder="Mot de passe" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4 focus:outline-none focus:ring-1 focus:ring-slate-400 text-sm">
-            <button onclick="checkPassword()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 px-4 rounded-xl transition text-sm">Se connecter</button>
-            <p id="login-error" class="text-red-500 text-xs mt-3 hidden text-center">Mot de passe incorrect.</p>
+<!-- ===================== LOGIN ===================== -->
+<div id="login-page" class="fixed inset-0 flex flex-col items-center justify-center z-50" style="background:linear-gradient(150deg,#0f172a 0%,#1e293b 60%,#0c4a6e 100%)">
+    <div class="mb-10 text-center">
+        <div class="w-14 h-14 rounded-2xl bg-emerald-500 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-emerald-900/40">
+            <svg class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
         </div>
+        <h1 class="text-white text-2xl font-semibold tracking-tight">My Buddy Budget</h1>
+        <p class="text-slate-400 text-sm mt-1.5">Votre suivi budgétaire personnel</p>
     </div>
+    <div style="background:rgba(255,255,255,.06);backdrop-filter:blur(16px)" class="p-7 rounded-2xl border border-white/10 w-full max-w-xs mx-4 shadow-2xl">
+        <label class="block text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Mot de passe</label>
+        <input type="password" id="password-input" placeholder="••••••••" class="w-full p-3 rounded-xl border border-white/15 mb-4 text-white text-sm outline-none focus:border-emerald-400 transition" style="background:rgba(255,255,255,.08);placeholder-color:#94a3b8">
+        <button onclick="checkPassword()" class="w-full bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-white font-semibold py-3 rounded-xl transition text-sm shadow-lg shadow-emerald-900/30">
+            Se connecter
+        </button>
+        <p id="login-error" class="text-rose-400 text-xs mt-3 hidden text-center font-medium">Mot de passe incorrect.</p>
+    </div>
+</div>
 
-    <!-- ===================== APP CONTENT ===================== -->
-    <div id="app-content" class="hidden min-h-screen flex flex-col">
-        <header class="bg-white border-b border-slate-200/80 sticky top-0 z-30">
-            <div class="max-w-5xl mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
-                <div class="flex items-center gap-2">
-                    <span class="text-base font-semibold tracking-tight text-slate-900">My Buddy Budget</span>
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+<!-- ===================== APP ===================== -->
+<div id="app-content" class="hidden min-h-screen flex flex-col">
+
+    <!-- HEADER -->
+    <header class="sticky top-0 z-30" style="background:rgba(255,255,255,.88);backdrop-filter:blur(16px);border-bottom:1px solid rgba(226,232,240,.7);box-shadow:0 1px 8px rgba(15,23,42,.06)">
+        <div class="max-w-5xl mx-auto px-5 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl bg-emerald-500 flex items-center justify-center shadow-sm">
+                    <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
                 </div>
-                <nav class="flex space-x-1 bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
-                    <button onclick="switchTab('tab-dashboard')" id="btn-tab-dashboard" class="tab-btn flex-1 sm:flex-none px-5 py-1.5 rounded-lg text-xs font-medium bg-white text-slate-900 shadow-xs transition">Dashboard</button>
-                    <button onclick="switchTab('tab-transactions')" id="btn-tab-transactions" class="tab-btn flex-1 sm:flex-none px-5 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-900 transition">Transactions</button>
-                </nav>
+                <span class="text-sm font-semibold tracking-tight text-slate-900">My Buddy Budget</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             </div>
-        </header>
+            <nav class="flex items-center gap-1 p-1 rounded-xl" style="background:#f1f5f9">
+                <button onclick="switchTab('tab-dashboard')" id="btn-tab-dashboard" class="tab-btn active-tab">Dashboard</button>
+                <button onclick="switchTab('tab-transactions')" id="btn-tab-transactions" class="tab-btn">Transactions</button>
+            </nav>
+        </div>
+    </header>
 
-        <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-6">
+    <main class="flex-grow max-w-5xl w-full mx-auto px-4 sm:px-5 py-6 space-y-0">
 
-            <!-- =========== DASHBOARD TAB =========== -->
-            <section id="tab-dashboard" class="tabs-content active space-y-4">
+        <!-- ========= DASHBOARD ========= -->
+        <section id="tab-dashboard" class="tabs-content active space-y-4 fade-in">
 
-                <!-- Sélecteur de mois + Graphique principal -->
-                <div class="flex flex-col md:flex-row gap-4 items-stretch">
-                    <div class="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-200/60 shadow-2xs h-12 md:w-64 shrink-0">
-                        <button onclick="navigateMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600 transition font-bold text-sm">&lt;</button>
-                        <div class="relative flex-grow mx-2 text-center">
-                            <select id="dashboard-month-select" onchange="calculateDashboardMetrics()" class="select-clean w-full bg-transparent text-center text-xs font-semibold text-slate-700 outline-none cursor-pointer"></select>
-                        </div>
-                        <button onclick="navigateMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600 transition font-bold text-sm">&gt;</button>
+            <!-- KPIs + sélecteur mois -->
+            <div class="flex flex-col sm:flex-row gap-3 items-stretch">
+                <!-- Sélecteur mois -->
+                <div class="card flex items-center gap-1 px-2 py-2 sm:w-56 shrink-0 h-[68px]">
+                    <button onclick="navigateMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition text-sm font-bold shrink-0">‹</button>
+                    <div class="flex-grow text-center">
+                        <p class="section-label mb-0.5">Mois</p>
+                        <select id="dashboard-month-select" onchange="refreshDashboard()" class="select-clean w-full text-center text-xs font-semibold text-slate-800 outline-none cursor-pointer bg-transparent"></select>
                     </div>
+                    <button onclick="navigateMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition text-sm font-bold shrink-0">›</button>
+                </div>
 
-                    <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-2xs flex-grow">
-                        <div class="relative h-64 w-full">
-                            <canvas id="mainBudgetChart"></canvas>
+                <!-- KPI cards -->
+                <div class="flex gap-3 flex-1 min-w-0">
+                    <div class="kpi kpi-in">
+                        <p class="section-label text-emerald-600 mb-1">↑ Entrées</p>
+                        <p id="kpi-entrees" class="text-xl font-bold text-emerald-700 mono truncate">—</p>
+                    </div>
+                    <div class="kpi kpi-out">
+                        <p class="section-label text-rose-600 mb-1">↓ Dépenses</p>
+                        <p id="kpi-depenses" class="text-xl font-bold text-rose-700 mono truncate">—</p>
+                    </div>
+                    <!-- Solde masqué si filtres actifs -->
+                    <div id="kpi-solde-card" class="kpi kpi-bal-pos">
+                        <p class="section-label text-blue-600 mb-1">⇌ Solde</p>
+                        <p id="kpi-solde" class="text-xl font-bold text-blue-700 mono truncate">—</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Graphique -->
+            <div class="card p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <p class="section-label">📈 Évolution mensuelle</p>
+                    <div id="chart-filter-badge" class="hidden filter-pill">
+                        <span id="chart-filter-label-text"></span>
+                    </div>
+                </div>
+                <div class="relative h-52 w-full">
+                    <canvas id="mainBudgetChart"></canvas>
+                </div>
+            </div>
+
+            <!-- FILTRES DASHBOARD -->
+            <div class="card p-4">
+                <div class="flex flex-wrap gap-2 items-center">
+                    <p class="section-label shrink-0 mr-1">Filtres graphiques</p>
+                    <select id="dash-filter-categorie" onchange="populateDashFilterPostes(); applyDashboardFilters()" class="field flex-1 min-w-[130px]">
+                        <option value="">📁 Toutes catégories</option>
+                    </select>
+                    <select id="dash-filter-poste" onchange="populateDashFilterDescriptions(); applyDashboardFilters()" class="field flex-1 min-w-[130px]">
+                        <option value="">🏷️ Tous postes</option>
+                    </select>
+                    <select id="dash-filter-description" onchange="applyDashboardFilters()" class="field flex-1 min-w-[130px]">
+                        <option value="">📝 Toutes descriptions</option>
+                    </select>
+                    <button onclick="resetDashboardFilters()" class="px-3 py-2 text-[11px] font-semibold text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition shrink-0" title="Réinitialiser">✕</button>
+                </div>
+                <!-- Pills filtres actifs -->
+                <div id="dash-active-filter-indicator" class="hidden mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-2 items-center">
+                    <span class="section-label">Actifs :</span>
+                    <span id="dash-filter-pill-cat" class="filter-pill hidden"></span>
+                    <span id="dash-filter-pill-poste" class="filter-pill hidden"></span>
+                    <span id="dash-filter-pill-desc" class="filter-pill hidden"></span>
+                    <span class="text-[10px] text-indigo-400 font-medium">· Solde masqué</span>
+                </div>
+            </div>
+
+            <!-- Catégories + Postes -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+                <!-- Catégories (2/3) -->
+                <div class="card p-5 lg:col-span-2">
+                    <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                        <p class="section-label">📁 Volume par Catégorie</p>
+                        <p id="cat-month-label" class="text-[10px] font-semibold text-slate-400"></p>
+                    </div>
+                    <div id="categories-chart-container" class="space-y-4"></div>
+                </div>
+
+                <!-- Postes (1/3) -->
+                <div class="card p-5">
+                    <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                        <p class="section-label">📋 Par Poste</p>
+                    </div>
+                    <div id="postes-chart-container" class="space-y-3 max-h-[380px] overflow-y-auto pr-1"></div>
+                </div>
+            </div>
+
+            <!-- Config IA -->
+            <div class="card-flat p-3" style="background:rgba(248,250,252,.9)">
+                <button onclick="document.getElementById('ia-config-panel').classList.toggle('hidden')" class="w-full flex justify-between items-center">
+                    <span class="section-label">⚙️ Configuration clé IA</span>
+                    <span class="text-slate-400 text-xs">🛡️</span>
+                </button>
+                <div id="ia-config-panel" class="hidden mt-3 pt-3 border-t border-slate-100 flex flex-col sm:flex-row gap-2">
+                    <input type="password" id="api-key-input" placeholder="Clé Gemini API" class="field flex-grow">
+                    <button onclick="saveApiKey()" class="bg-slate-900 text-white font-semibold py-2 px-4 rounded-lg text-xs transition hover:bg-slate-700">Sauvegarder</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========= TRANSACTIONS ========= -->
+        <section id="tab-transactions" class="tabs-content space-y-3 fade-in pt-1">
+
+            <!-- Actions -->
+            <div class="flex gap-2.5">
+                <button onclick="toggleImportZone()" class="flex-1 card flex items-center justify-center gap-2 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50/80 transition">
+                    🤖 Importer CSV
+                </button>
+                <button onclick="openTransactionModal()" class="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-semibold text-white rounded-2xl transition hover:opacity-90 active:scale-[.98]" style="background:linear-gradient(135deg,#0f172a,#334155);box-shadow:0 4px 14px rgba(15,23,42,.22)">
+                    ➕ Ajouter une écriture
+                </button>
+            </div>
+
+            <!-- Filtres transactions -->
+            <div class="card p-3.5">
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                    <input type="text" id="search-input" oninput="renderResponsiveTransactions()" placeholder="🔍 Rechercher…" class="field">
+                    <select id="filter-categorie" onchange="populateFilterPostes(); renderResponsiveTransactions()" class="field"></select>
+                    <select id="filter-poste" onchange="renderResponsiveTransactions()" class="field">
+                        <option value="">🏷️ Tous les postes</option>
+                    </select>
+                    <div class="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer select-none transition hover:bg-slate-100" style="background:#f8fafc;border:1px solid #e2e8f0" onclick="toggleHidePointedFilter()">
+                        <span class="text-[11px] font-semibold text-slate-500">Masquer pointées</span>
+                        <div id="toggle-filter-pointed" class="toggle-track off">
+                            <div id="toggle-filter-circle" class="toggle-thumb"></div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- ===== NOUVEAUX FILTRES DASHBOARD ===== -->
-                <div class="bg-white p-3 rounded-xl border border-slate-200/60 shadow-2xs">
-                    <div class="flex flex-wrap gap-2 items-center">
-                        <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider shrink-0">🔍 Filtrer les données :</span>
-                        <select id="dash-filter-categorie"
-                            onchange="populateDashFilterPostes(); applyDashboardFilters()"
-                            class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none font-medium text-slate-600 flex-1 min-w-[140px]">
-                            <option value="">📁 Toutes les catégories</option>
-                        </select>
-                        <select id="dash-filter-poste"
-                            onchange="populateDashFilterDescriptions(); applyDashboardFilters()"
-                            class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none font-medium text-slate-600 flex-1 min-w-[140px]">
-                            <option value="">🏷️ Tous les postes</option>
-                        </select>
-                        <select id="dash-filter-description"
-                            onchange="applyDashboardFilters()"
-                            class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none font-medium text-slate-600 flex-1 min-w-[140px]">
-                            <option value="">📝 Toutes les descriptions</option>
-                        </select>
-                        <button onclick="resetDashboardFilters()" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 rounded-lg text-xs font-semibold transition shrink-0">✕ Réinitialiser</button>
-                    </div>
-                    <!-- Indicateur de filtres actifs -->
-                    <div id="dash-active-filter-indicator" class="hidden mt-2 pt-2 border-t border-slate-100">
-                        <p id="dash-active-filter-text" class="text-[10px] text-indigo-600 font-semibold"></p>
-                    </div>
+            <!-- Zone import CSV -->
+            <div id="integrated-import-zone" class="hidden card p-4 space-y-3">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-2.5">
+                    <p class="section-label">Module d'importation assisté</p>
+                    <button onclick="toggleImportZone()" class="text-slate-400 hover:text-slate-600 text-xl font-light leading-none">&times;</button>
                 </div>
-                <!-- ===== FIN FILTRES DASHBOARD ===== -->
-
-                <!-- Panneaux Catégories & Postes -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs lg:col-span-2 space-y-3">
-                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100 flex justify-between">
-                            <span>📁 Volume des Catégories (Mois sélectionné)</span>
-                        </h3>
-                        <div id="categories-chart-container" class="space-y-3 pt-1"></div>
-                    </div>
-
-                    <div class="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs space-y-3">
-                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100">
-                            <span>📋 Volume par Poste (Mois sélectionné)</span>
-                        </h3>
-                        <div id="postes-chart-container" class="space-y-3 max-h-[400px] overflow-y-auto pr-1"></div>
-                    </div>
+                <div class="flex flex-col sm:flex-row gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    <input type="file" id="csv-file-input" accept=".csv" class="text-xs text-slate-600 flex-grow file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-slate-200 file:text-slate-700 hover:file:bg-slate-300 transition">
+                    <button onclick="parseCSV()" class="bg-slate-900 text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition hover:bg-slate-700">Analyser</button>
                 </div>
-
-                <!-- Config clé IA -->
-                <div class="bg-slate-100 rounded-xl p-3 border border-slate-200/40">
-                    <button onclick="document.getElementById('collapsed-config-panel').classList.toggle('hidden')" class="w-full flex justify-between items-center text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                        <span>⚙️ Configuration clé IA</span>
-                        <span>🛡️</span>
-                    </button>
-                    <div id="collapsed-config-panel" class="hidden mt-3 pt-3 border-t border-slate-200 flex flex-col sm:flex-row gap-2">
-                        <input type="password" id="api-key-input" placeholder="Clé Gemini API" class="flex-grow p-2 bg-white border border-slate-200 rounded-lg text-xs outline-none">
-                        <button onclick="saveApiKey()" class="bg-slate-900 text-white font-medium py-1.5 px-4 rounded-lg text-xs transition">Sauvegarder</button>
+                <div id="csv-mapping-container" class="hidden p-3 border border-slate-200 bg-slate-50 rounded-xl space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div><label class="section-label mb-1 block">Date</label><select id="map-date" class="field"></select></div>
+                        <div><label class="section-label mb-1 block">Libellé</label><select id="map-details" class="field"></select></div>
+                        <div><label class="section-label mb-1 block">Montant</label><select id="map-montant" class="field"></select></div>
                     </div>
+                    <button onclick="processCSVLines()" class="w-full bg-slate-800 text-white font-semibold py-2 rounded-lg text-xs transition hover:bg-slate-700">🤖 Classer via Gemini</button>
                 </div>
-            </section>
-
-            <!-- =========== TRANSACTIONS TAB =========== -->
-            <section id="tab-transactions" class="tabs-content space-y-4">
-                <div class="flex gap-2 w-full">
-                    <button onclick="toggleImportZone()" class="flex-1 bg-white border border-slate-200 text-slate-700 font-medium py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-2xs hover:bg-slate-50 transition">
-                        🤖 Importer CSV
-                    </button>
-                    <button onclick="openTransactionModal()" class="flex-1 bg-slate-900 text-white font-medium py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-2xs hover:bg-slate-800 transition">
-                        ➕ Ajouter une écriture
-                    </button>
-                </div>
-
-                <!-- Barre de filtres transactions -->
-                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200/60 shadow-2xs">
-                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 flex-grow">
-                        <div>
-                            <input type="text" id="search-input" oninput="renderResponsiveTransactions()" placeholder="🔍 Rechercher description, note..." class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:bg-white transition">
-                        </div>
-                        <div>
-                            <select id="filter-categorie" onchange="populateFilterPostes(); renderResponsiveTransactions()" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none bg-white font-medium text-slate-600"></select>
-                        </div>
-                        <div>
-                            <select id="filter-poste" onchange="renderResponsiveTransactions()" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none bg-white font-medium text-slate-600">
-                                <option value="">🏷️ Tous les postes</option>
-                            </select>
-                        </div>
-                        <div class="flex items-center justify-between px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer select-none" onclick="toggleHidePointedFilter()">
-                            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Masquer pointées</span>
-                            <button id="toggle-filter-pointed" type="button" class="relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full bg-slate-200 transition-colors duration-200 ease-in-out focus:outline-none">
-                                <span id="toggle-filter-circle" class="pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out translate-x-1 mt-1"></span>
-                            </button>
-                        </div>
+                <div id="csv-preview-container" class="hidden space-y-2">
+                    <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="text-slate-600 text-xs font-medium">Prévisualisation avant envoi</span>
+                        <button onclick="saveImportedTransactions()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1 px-3 rounded-lg text-xs transition">💾 Envoyer au Cloud</button>
                     </div>
-                </div>
-
-                <!-- Zone d'import CSV -->
-                <div id="integrated-import-zone" class="hidden bg-white p-4 rounded-xl border border-slate-200 shadow-inner space-y-3">
-                    <div class="flex justify-between items-center border-b border-slate-100 pb-2">
-                        <h3 class="text-xs font-semibold text-slate-700 uppercase tracking-wider">Module d'importation assisté</h3>
-                        <button onclick="toggleImportZone()" class="text-slate-400 hover:text-slate-600 text-sm font-bold">&times;</button>
-                    </div>
-                    <div class="flex flex-col sm:flex-row gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                        <input type="file" id="csv-file-input" accept=".csv" class="text-xs text-slate-600 flex-grow file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[11px] file:font-semibold file:bg-slate-200 file:text-slate-700 hover:file:bg-slate-300">
-                        <button onclick="parseCSV()" class="bg-slate-900 text-white font-medium py-1.5 px-3 rounded-md text-xs transition">Analyseur</button>
-                    </div>
-                    <div id="csv-mapping-container" class="hidden p-3 border border-slate-200 bg-slate-50 rounded-lg space-y-3">
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div><label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Date</label><select id="map-date" class="w-full p-2 bg-white border border-slate-200 rounded-md text-xs"></select></div>
-                            <div><label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Libellé</label><select id="map-details" class="w-full p-2 bg-white border border-slate-200 rounded-md text-xs"></select></div>
-                            <div><label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Montant</label><select id="map-montant" class="w-full p-2 bg-white border border-slate-200 rounded-md text-xs"></select></div>
-                        </div>
-                        <button onclick="processCSVLines()" class="w-full bg-slate-800 text-white font-medium py-2 rounded-md text-xs transition">🤖 Classer via Gemini</button>
-                    </div>
-                    <div id="csv-preview-container" class="hidden space-y-2">
-                        <div class="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
-                            <span class="text-slate-600 text-xs font-medium">Prévisualisation avant envoi :</span>
-                            <button onclick="saveImportedTransactions()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1 px-3 rounded-md text-xs transition">💾 Envoyer au Cloud</button>
-                        </div>
-                        <div class="overflow-x-auto border border-slate-100 rounded-lg max-h-60">
-                            <table class="w-full text-left text-[11px] bg-white">
-                                <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-100">
-                                    <tr><th class="p-2">Date</th><th class="p-2">Libellé</th><th class="p-2">Poste</th><th class="p-2 text-right">Montant</th></tr>
-                                </thead>
-                                <tbody id="csv-preview-tbody" class="divide-y divide-slate-100"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tableau des transactions -->
-                <div class="bg-white rounded-xl border border-slate-200/60 shadow-2xs overflow-hidden">
-                    <div class="hidden md:block overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-slate-50/70 border-b border-slate-200/80 text-slate-400 text-[11px] uppercase tracking-wider font-semibold">
-                                    <th class="p-3.5 text-center w-14">Pointé</th>
-                                    <th class="p-3.5">Date</th>
-                                    <th class="p-3.5">Affectation</th>
-                                    <th class="p-3.5">Catégorie</th>
-                                    <th class="p-3.5">Poste</th>
-                                    <th class="p-3.5">Description</th>
-                                    <th class="p-3.5">Notes</th>
-                                    <th class="p-3.5 text-right">Montant</th>
-                                    <th class="p-3.5 text-center">Actions</th>
-                                </tr>
+                    <div class="overflow-x-auto border border-slate-100 rounded-xl max-h-60">
+                        <table class="w-full text-left text-[11px]">
+                            <thead class="text-slate-400 font-semibold border-b border-slate-100" style="background:#fafbfc">
+                                <tr><th class="p-2.5">Date</th><th class="p-2.5">Libellé</th><th class="p-2.5">Poste</th><th class="p-2.5 text-right">Montant</th></tr>
                             </thead>
-                            <tbody id="pc-table-body" class="divide-y divide-slate-100 text-xs text-slate-700"></tbody>
+                            <tbody id="csv-preview-tbody" class="divide-y divide-slate-50 bg-white"></tbody>
                         </table>
                     </div>
-
-                    <div class="block md:hidden">
-                        <div id="mobile-cards-container" class="divide-y divide-slate-100 bg-white"></div>
-                    </div>
-
-                    <div id="empty-state" class="p-8 text-center text-slate-400 italic text-xs hidden">Aucune opération détectée ou correspondant aux filtres.</div>
                 </div>
-            </section>
-        </main>
-    </div>
-
-    <!-- ===================== DRAWER DÉTAILS ===================== -->
-    <div id="details-drawer-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-40 hidden" onclick="closeDetailsDrawer()">
-        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 overflow-hidden border border-slate-100" onclick="event.stopPropagation()">
-            <div class="bg-slate-900 text-white px-4 py-3 flex justify-between items-center">
-                <h3 class="font-medium text-xs tracking-tight">Détails de la transaction</h3>
-                <button onclick="closeDetailsDrawer()" class="text-white/80 hover:text-white text-lg font-bold">&times;</button>
             </div>
-            <div class="p-4 space-y-3 text-xs text-slate-700">
-                <div class="flex justify-between border-b border-slate-100 pb-1.5">
-                    <span class="text-slate-400">Statut de pointage</span>
-                    <span id="drawer-pointage-status" class="font-semibold"></span>
+
+            <!-- Tableau -->
+            <div class="card overflow-hidden">
+                <!-- Desktop -->
+                <div class="hidden md:block overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr style="background:#fafbfc;border-bottom:1px solid #f1f5f9">
+                                <th class="p-3.5 text-center w-12 section-label">✓</th>
+                                <th class="p-3.5 section-label">Date</th>
+                                <th class="p-3.5 section-label">Affectation</th>
+                                <th class="p-3.5 section-label">Catégorie</th>
+                                <th class="p-3.5 section-label">Poste</th>
+                                <th class="p-3.5 section-label">Description</th>
+                                <th class="p-3.5 section-label">Notes</th>
+                                <th class="p-3.5 section-label text-right">Montant</th>
+                                <th class="p-3.5 section-label text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pc-table-body"></tbody>
+                    </table>
                 </div>
-                <!-- NOUVEAU : statut dashboard -->
-                <div class="flex justify-between border-b border-slate-100 pb-1.5">
-                    <span class="text-slate-400">Statut Dashboard</span>
-                    <span id="drawer-exclu-dashboard" class="font-semibold"></span>
+                <!-- Mobile -->
+                <div class="block md:hidden">
+                    <div id="mobile-cards-container" class="divide-y divide-slate-50"></div>
                 </div>
-                <div class="flex justify-between border-b border-slate-100 pb-1.5">
-                    <span class="text-slate-400">Date effective</span>
-                    <span id="drawer-date" class="font-mono"></span>
+                <!-- Empty state -->
+                <div id="empty-state" class="hidden p-14 text-center">
+                    <div class="text-4xl mb-3">🔍</div>
+                    <p class="text-slate-400 text-xs font-medium">Aucune transaction correspondante</p>
                 </div>
-                <div class="flex justify-between border-b border-slate-100 pb-1.5">
-                    <span class="text-slate-400">Mois Dashboard</span>
-                    <span id="drawer-affectation" class="text-slate-800"></span>
-                </div>
-                <div class="flex justify-between border-b border-slate-100 pb-1.5">
-                    <span class="text-slate-400">Catégorie</span>
-                    <span id="drawer-categorie" class="font-semibold uppercase tracking-tight"></span>
-                </div>
-                <div class="flex justify-between border-b border-slate-100 pb-1.5">
-                    <span class="text-slate-400">Poste</span>
-                    <span id="drawer-poste" class="font-semibold uppercase tracking-tight"></span>
-                </div>
-                <div class="flex justify-between border-b border-slate-100 pb-1.5">
-                    <span class="text-slate-400">Description</span>
-                    <span class="font-medium" id="drawer-description"></span>
-                </div>
-                <div class="space-y-1">
-                    <span class="text-slate-400">Notes de banque</span>
-                    <div id="drawer-details" class="bg-slate-50 border border-slate-200 p-2 rounded-lg text-[11px] text-slate-500 italic whitespace-normal break-words"></div>
-                </div>
-                <div class="flex justify-between items-center pt-1">
-                    <span class="text-slate-400">Montant Saisi</span>
-                    <span id="drawer-montant" class="text-base font-semibold"></span>
-                </div>
-                <div class="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100" id="drawer-actions-container"></div>
             </div>
+        </section>
+    </main>
+</div>
+
+<!-- ===================== DRAWER DÉTAILS ===================== -->
+<div id="details-drawer-modal" class="fixed inset-0 flex items-center justify-center z-40 hidden" style="background:rgba(15,23,42,.45);backdrop-filter:blur(6px)" onclick="closeDetailsDrawer()">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-4 overflow-hidden" style="border:1px solid rgba(226,232,240,.8)" onclick="event.stopPropagation()">
+        <!-- Header -->
+        <div class="px-5 py-4 flex justify-between items-center" style="background:linear-gradient(135deg,#0f172a,#1e3a5f)">
+            <p class="font-semibold text-xs text-white uppercase tracking-widest">Détails</p>
+            <button onclick="closeDetailsDrawer()" class="text-white/50 hover:text-white text-2xl font-light leading-none">&times;</button>
+        </div>
+        <!-- Body -->
+        <div class="p-5 space-y-2 text-xs text-slate-700">
+            <div class="flex justify-between items-center py-1.5 border-b border-slate-50">
+                <span class="text-slate-400 font-medium">Pointage</span>
+                <span id="drawer-pointage-status" class="font-semibold"></span>
+            </div>
+            <div class="flex justify-between items-center py-1.5 border-b border-slate-50">
+                <span class="text-slate-400 font-medium">Dashboard</span>
+                <span id="drawer-exclu-dashboard" class="font-semibold"></span>
+            </div>
+            <div class="flex justify-between items-center py-1.5 border-b border-slate-50">
+                <span class="text-slate-400 font-medium">Date</span>
+                <span id="drawer-date" class="mono text-slate-600 text-[11px]"></span>
+            </div>
+            <div class="flex justify-between items-center py-1.5 border-b border-slate-50">
+                <span class="text-slate-400 font-medium">Mois Dashboard</span>
+                <span id="drawer-affectation" class="text-slate-700 font-semibold mono text-[11px]"></span>
+            </div>
+            <div class="flex justify-between items-center py-1.5 border-b border-slate-50">
+                <span class="text-slate-400 font-medium">Catégorie</span>
+                <span id="drawer-categorie" class="font-bold uppercase tracking-tight"></span>
+            </div>
+            <div class="flex justify-between items-center py-1.5 border-b border-slate-50">
+                <span class="text-slate-400 font-medium">Poste</span>
+                <span id="drawer-poste" class="font-semibold uppercase tracking-tight text-slate-700"></span>
+            </div>
+            <div class="flex justify-between items-center py-1.5 border-b border-slate-50">
+                <span class="text-slate-400 font-medium">Description</span>
+                <span id="drawer-description" class="font-medium text-slate-700 text-right max-w-[55%]"></span>
+            </div>
+            <div class="py-1.5 space-y-1.5">
+                <p class="text-slate-400 font-medium">Notes de banque</p>
+                <div id="drawer-details" class="bg-slate-50 border border-slate-100 p-2.5 rounded-xl text-[11px] text-slate-500 italic break-words leading-relaxed"></div>
+            </div>
+            <div class="flex justify-between items-center pt-2 border-t border-slate-100">
+                <span class="text-slate-400 font-medium">Montant</span>
+                <span id="drawer-montant" class="text-xl font-bold mono"></span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-3" id="drawer-actions-container"></div>
         </div>
     </div>
+</div>
 
-    <!-- ===================== MODAL TRANSACTION ===================== -->
-    <div id="transaction-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 overflow-hidden border border-slate-100 max-h-[95vh] overflow-y-auto">
-            <div class="bg-slate-900 text-white px-4 py-3 flex justify-between items-center sticky top-0 z-10">
-                <h3 id="modal-title" class="font-medium text-xs uppercase tracking-wider">Éditer</h3>
-                <button onclick="closeTransactionModal()" class="text-white/70 hover:text-white text-lg font-bold">&times;</button>
-            </div>
-            <form id="transaction-form" onsubmit="saveTransaction(event)" class="p-4 space-y-3">
-                <input type="hidden" id="edit-index">
-                <input type="hidden" id="edit-db-id">
-                <!-- Champ caché pour exclu_dashboard -->
-                <input type="hidden" id="form-exclu-dashboard" value="false">
-
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Date</label>
-                        <input type="date" id="form-date" onchange="syncDefaultAffectationMonth()" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Mois Dashboard</label>
-                        <input type="month" id="form-affectation" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Catégorie</label>
-                        <select id="form-categorie" onchange="updatePosteDropdown()" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs bg-white outline-none"></select>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Poste</label>
-                        <select id="form-poste" onchange="updateDescriptionDropdown()" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs bg-white outline-none"></select>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Description</label>
-                    <select id="form-description" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs bg-white outline-none"></select>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Notes / Détails</label>
-                    <input type="text" id="form-details" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Montant (€)</label>
-                    <div class="relative">
-                        <input type="number" step="0.01" id="form-montant" placeholder="0.00" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none font-medium">
-                        <span class="absolute right-3 top-2 text-[10px] text-slate-400 italic">Strictement tel quel</span>
-                    </div>
-                </div>
-
-                <!-- ===== NOUVEAU : Toggle "Exclure du Dashboard" ===== -->
-                <div class="flex items-center justify-between px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer select-none" onclick="toggleExcluDashboard()">
-                    <div>
-                        <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">⊘ Exclure du Dashboard</span>
-                        <p class="text-[9px] text-slate-400 mt-0.5">Non comptabilisée dans les graphiques et totaux.</p>
-                    </div>
-                    <button id="toggle-exclu-dashboard" type="button" class="relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full bg-slate-200 transition-colors duration-200 ease-in-out focus:outline-none ml-3">
-                        <span id="toggle-exclu-dashboard-circle" class="pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out translate-x-1 mt-1"></span>
-                    </button>
-                </div>
-                <!-- ===== FIN Toggle ===== -->
-
-                <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100">
-                    <button type="button" onclick="closeTransactionModal()" class="px-3 py-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 text-xs transition">Annuler</button>
-                    <button type="submit" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs transition">Sauvegarder</button>
-                </div>
-            </form>
+<!-- ===================== MODAL TRANSACTION ===================== -->
+<div id="transaction-modal" class="fixed inset-0 flex items-center justify-center z-50 hidden" style="background:rgba(15,23,42,.45);backdrop-filter:blur(6px)">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-4 overflow-hidden modal-scroll" style="border:1px solid rgba(226,232,240,.8)">
+        <div class="px-5 py-4 flex justify-between items-center sticky top-0 z-10" style="background:linear-gradient(135deg,#0f172a,#1e3a5f)">
+            <p id="modal-title" class="font-semibold text-xs text-white uppercase tracking-widest">Éditer</p>
+            <button onclick="closeTransactionModal()" class="text-white/50 hover:text-white text-2xl font-light leading-none">&times;</button>
         </div>
-    </div>
+        <form id="transaction-form" onsubmit="saveTransaction(event)" class="p-5 space-y-4">
+            <input type="hidden" id="edit-index">
+            <input type="hidden" id="edit-db-id">
+            <input type="hidden" id="form-exclu-dashboard" value="false">
 
-    <!-- ===================== SCRIPT ===================== -->
-    <script>
-        let _supabase;
+            <!-- Date + Affectation -->
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="section-label mb-1.5 block">Date</label>
+                    <input type="date" id="form-date" onchange="syncDefaultAffectationMonth()" required class="field">
+                </div>
+                <div>
+                    <label class="section-label mb-1.5 block">Mois Dashboard</label>
+                    <input type="month" id="form-affectation" required class="field">
+                </div>
+            </div>
+
+            <!-- Cat + Poste -->
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="section-label mb-1.5 block">Catégorie</label>
+                    <select id="form-categorie" onchange="updatePosteDropdown()" required class="field"></select>
+                </div>
+                <div>
+                    <label class="section-label mb-1.5 block">Poste</label>
+                    <select id="form-poste" onchange="updateDescriptionDropdown()" required class="field"></select>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label class="section-label mb-1.5 block">Description</label>
+                <select id="form-description" required class="field"></select>
+            </div>
+
+            <!-- Notes -->
+            <div>
+                <label class="section-label mb-1.5 block">Notes / Détails bancaires</label>
+                <input type="text" id="form-details" class="field" placeholder="Libellé bancaire, référence…">
+            </div>
+
+            <!-- Montant -->
+            <div>
+                <label class="section-label mb-1.5 block">Montant (€)</label>
+                <div class="relative">
+                    <input type="number" step="0.01" id="form-montant" placeholder="0.00" required class="field pr-32 mono font-semibold">
+                    <span class="absolute right-3 top-2.5 text-[10px] text-slate-400 italic font-sans">Strictement tel quel</span>
+                </div>
+            </div>
+
+            <!-- Toggle Exclure du Dashboard -->
+            <div class="rounded-xl p-3.5 border border-slate-200 cursor-pointer hover:bg-slate-50 transition" style="background:#fafbfd" onclick="toggleExcluDashboard()">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">⊘ Exclure du Dashboard</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">Non comptabilisée dans les graphiques et totaux</p>
+                    </div>
+                    <div id="toggle-exclu-dashboard" class="toggle-track off ml-4">
+                        <div id="toggle-exclu-dashboard-circle" class="toggle-thumb"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex justify-end gap-2 pt-1 border-t border-slate-100">
+                <button type="button" onclick="closeTransactionModal()" class="px-4 py-2 border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-50 text-xs font-medium transition">Annuler</button>
+                <button type="submit" class="px-5 py-2 rounded-xl text-white text-xs font-semibold transition hover:opacity-90 active:scale-[.98]" style="background:linear-gradient(135deg,#0f172a,#334155);box-shadow:0 2px 10px rgba(15,23,42,.2)">Sauvegarder</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ===================== SCRIPT ===================== -->
+<script>
+    // ─── SUPABASE ─────────────────────────────────────────────
+    let _supabase;
+    try {
+        if (typeof CONFIG !== 'undefined') {
+            _supabase = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+        }
+    } catch(e) { console.error(e); }
+
+    // ─── BUDGET STRUCTURE ─────────────────────────────────────
+    const budgetStructure = {
+        "ENTRÉES": {
+            "REVENUS FABIEN": ["Revenu principal","chômage","frais km","Remboursement"],
+            "REVENUS MARINA": ["Revenu secondaire","Remboursement"],
+            "CAF": ["Prestations familiales","Remboursement"],
+        },
+        "PRÉLEVÈMENTS (FIXES)": {
+            "ABONNEMENTS TV": ["Disney Plus","Netflix","Deezer","Remboursement"],
+            "ASSURANCES": ["Juridique","Maison / Auto","Prévoyance","Mutuelle","Remboursement"],
+            "BANQUE": ["SG","Fortuneo","Boursobank","Remboursement"],
+            "ECOLE": ["Collège"],
+            "ÉNERGIE": ["Eau","Gaz","Electricité","Remboursement"],
+            "IMPÔTS": ["Fonciers","Revenus","Remboursement"],
+            "INVESTISSEMENT IMMO": ["SCI Lille","Remboursement"],
+            "MAISON": ["Emprunt principal","Remboursement"],
+            "MÉNAGE ET URSSAF": ["Lina","Remboursement"],
+            "TELEPHONIE, INTERNET": ["SFR, Emile","Free, Internet","SFR, Fabien perso","SFR, Fabien pro","Free, Mobile Marina","Remboursement"],
+            "VOITURE": ["5008","e-C3","Remboursement"],
+        },
+        "ÉPARGNE": {
+            "ÉPARGNE": ["Épargne, Ménage","Épargne, Leonie","Épargne, Emile","Remboursement"],
+        },
+        "DÉPENSES QUOTIDIENNES": {
+            "ALIMENTATION": ["Courses alimentaires","Snacking","Remboursement"],
+            "ANIMAUX": ["Nourriture","Vétérinaire","Remboursement"],
+            "CADEAUX": ["Événements / Fêtes","Remboursement"],
+            "CHÈQUES": ["Suivi chèques émis","Remboursement"],
+            "LOISIRS": ["SORTIES","Remboursement"],
+            "SANTÉ": ["Médecin","Pharmacie","Labo","Remboursement"],
+            "SHOPPING": ["Amazon divers","Vêtements","Maison","Fournitures Boulot","Remboursement"],
+            "VOITURE": ["Carburant","Carburant PRO","Entretien","Parking","Péage","Remboursement","Réparation"],
+        },
+        "PATIN": {
+            "STAGE": ["Stage","Remboursement"],
+            "DÉPLACEMENT": ["Déplacement","Remboursement"],
+            "CAFÉTÉRIA": ["Cafétéria","Remboursement"],
+            "ÉQUIPEMENTS": ["Équipements","Remboursement"],
+            "COTISATION": ["Cotisation","Remboursement"],
+        }
+    };
+
+    const categoryBadgeClass = {
+        "ENTRÉES": "badge badge-entrees",
+        "PRÉLEVÈMENTS (FIXES)": "badge badge-prelevements",
+        "ÉPARGNE": "badge badge-epargne",
+        "DÉPENSES QUOTIDIENNES": "badge badge-quotidien",
+        "PATIN": "badge badge-patin"
+    };
+    const categoryBarColor = {
+        "ENTRÉES": "#10b981",
+        "PRÉLEVÈMENTS (FIXES)": "#f43f5e",
+        "ÉPARGNE": "#f59e0b",
+        "DÉPENSES QUOTIDIENNES": "#3b82f6",
+        "PATIN": "#8b5cf6"
+    };
+
+    let transactions = [];
+    let isHidePointedActive = false;
+    let budgetChartInstance = null;
+
+    // ─── AUTH ─────────────────────────────────────────────────
+    function checkPassword() {
+        if (typeof CONFIG === 'undefined') { alert("❌ config.js manquant."); return; }
+        if (document.getElementById('password-input').value === CONFIG.SECRET_PASSWORD) {
+            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('app-content').classList.remove('hidden');
+            initApp();
+        } else {
+            document.getElementById('login-error').classList.remove('hidden');
+        }
+    }
+    document.getElementById('password-input').addEventListener('keypress', e => { if (e.key === 'Enter') checkPassword(); });
+
+    // ─── TABS ─────────────────────────────────────────────────
+    function switchTab(tabId) {
+        document.querySelectorAll('.tabs-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => { el.classList.remove('active-tab'); });
+        document.getElementById(tabId).classList.add('active');
+        document.getElementById('btn-' + tabId).classList.add('active-tab');
+        if (tabId === 'tab-dashboard') { buildMonthDropdown(); renderMainBudgetChart(); }
+    }
+
+    function initApp() {
+        fetchTransactionsFromCloud();
+        populateCategorieDropdown();
+        populateFilterCategorieDropdown();
+        populateFilterPostes();
+        populateDashFilterCategories();
+        document.getElementById('api-key-input').value = localStorage.getItem('gemini_api_key') || '';
+    }
+
+    function saveApiKey() {
+        localStorage.setItem('gemini_api_key', document.getElementById('api-key-input').value.trim());
+        alert("Clé mémorisée.");
+    }
+    function toggleImportZone() { document.getElementById('integrated-import-zone').classList.toggle('hidden'); }
+
+    // ─── CLOUD ────────────────────────────────────────────────
+    async function fetchTransactionsFromCloud() {
+        if (!_supabase) return;
         try {
-            if (typeof CONFIG !== 'undefined') {
-                _supabase = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
-            } else {
-                console.error("⚠️ Alerte : Le fichier 'config.js' est introuvable ou illisible.");
-            }
-        } catch (err) {
-            console.error("⚠️ Échec d'initialisation Supabase :", err);
-        }
-
-        const budgetStructure = {
-            "REVENUS": {
-                "FABIEN": ["Revenu principal", "chômage", "frais km", "Remboursement"],
-                "MARINA": ["Revenu principal", "SCI","Remboursement"],
-                "CAF": ["Prestations familiales", "Remboursement"],
-            },
-            "PRÉLEVÈMENTS (FIXES)": {
-                "ABONNEMENTS TV": ["Disney Plus", "Netflix", "Deezer", "Remboursement"],
-                "ASSURANCES": ["Juridique", "Maison / Auto", "Prévoyance", "Mutuelle", "Remboursement"],
-                "BANQUE": ["SG", "Fortuneo", "Boursobank", "Remboursement"],
-                "ECOLE": ["Collège"],
-                "ÉNERGIE": ["Eau", "Gaz", "Electricité", "Remboursement"],
-                "IMPÔTS": ["Fonciers", "Revenus", "Remboursement"],
-                "INVESTISSEMENT IMMO": ["SCI Lille", "Remboursement"],
-                "MAISON": ["Emprunt principal", "Remboursement"],
-                "MÉNAGE ET URSSAF": ["Lina", "Remboursement"],
-                "TELEPHONIE, INTERNET": ["SFR, Emile", "Free, Internet", "SFR, Fabien perso", "SFR, Fabien pro", "Free, Mobile Marina", "Remboursement"],
-                "VOITURE": ["5008", "e-C3","Remboursement"],
-            },
-            "ÉPARGNE": {
-                "ÉPARGNE": ["Épargne, Ménage", "Épargne, Leonie", "Épargne, Emile", "Remboursement"],
-            },
-            "DÉPENSES QUOTIDIENNES": {
-                "ALIMENTATION": ["Courses alimentaires", "Snacking", "Remboursement"],
-                "ANIMAUX": ["Nourriture", "Vétérinaire", "Remboursement"],
-                "CADEAUX": ["Événements / Fêtes", "Remboursement"],
-                "CHÈQUES": ["Suivi chèques émis", "Remboursement"],
-                "LOISIRS": ["SORTIES", "Remboursement"],
-                "SANTÉ": ["Médecin", "Pharmacie", "Labo", "Remboursement"],
-                "SHOPPING": ["Amazon divers", "Vêtements", "Maison", "Fournitures Boulot", "Remboursement"],
-                "VIREMENTS INTERNES": ["Virement interne"],
-                "VOITURE": ["Carburant", "Carburant PRO", "Entretien", "Parking", "Péage", "Remboursement", "Réparation"],
-            },
-            "PATIN": {
-                "STAGE": ["Stage", "Remboursement"],
-                "DÉPLACEMENT": ["Déplacement", "Remboursement"],
-                "CAFÉTÉRIA": ["Cafétéria", "Remboursement"],
-                "ÉQUIPEMENTS": ["Équipements", "Remboursement"],
-                "COTISATION": ["Cotisation", "Remboursement"],
-            }
-        };
-
-        let transactions = [];
-        let tempImportedTransactions = [];
-        let csvHeaders = [];
-        let csvRows = [];
-        let expandedCategories = {};
-        let expandedPostes = {};
-        let isHidePointedActive = false;
-        let budgetChartInstance = null;
-
-        const categoryColorMap = {
-            "ENTRÉES": "bg-emerald-500 text-white font-bold px-2.5 py-0.5 rounded shadow-2xs text-[10px]",
-            "PRÉLEVÈMENTS (FIXES)": "bg-rose-500 text-white font-bold px-2.5 py-0.5 rounded shadow-2xs text-[10px]",
-            "ÉPARGNE": "bg-amber-500 text-white font-bold px-2.5 py-0.5 rounded shadow-2xs text-[10px]",
-            "DÉPENSES QUOTIDIENNES": "bg-sky-500 text-white font-bold px-2.5 py-0.5 rounded shadow-2xs text-[10px]",
-            "PATIN": "bg-indigo-500 text-white font-bold px-2.5 py-0.5 rounded shadow-2xs text-[10px]"
-        };
-
-        // ============================================================
-        // AUTH
-        // ============================================================
-        function checkPassword() {
-            if (typeof CONFIG === 'undefined') {
-                alert("❌ Erreur : Le fichier 'config.js' est manquant ou invalide.");
-                return;
-            }
-            if (document.getElementById('password-input').value === CONFIG.SECRET_PASSWORD) {
-                document.getElementById('login-page').classList.add('hidden');
-                document.getElementById('app-content').classList.remove('hidden');
-                initApp();
-            } else {
-                document.getElementById('login-error').classList.remove('hidden');
-            }
-        }
-
-        document.getElementById('password-input').addEventListener('keypress', function(e) { if (e.key === 'Enter') checkPassword(); });
-
-        // ============================================================
-        // NAVIGATION / TABS
-        // ============================================================
-        function switchTab(tabId) {
-            document.querySelectorAll('.tabs-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => {
-                el.classList.remove('bg-white', 'text-slate-900', 'shadow-xs');
-                el.classList.add('text-slate-500', 'hover:text-slate-900');
-            });
-            document.getElementById(tabId).classList.add('active');
-            document.getElementById('btn-' + tabId).classList.add('bg-white', 'text-slate-900', 'shadow-xs');
-            if (tabId === 'tab-dashboard') {
-                buildMonthDropdown();
-                renderMainBudgetChart();
-            }
-        }
-
-        function initApp() {
-            fetchTransactionsFromCloud();
-            populateCategorieDropdown();
-            populateFilterCategorieDropdown();
-            populateFilterPostes();
-            populateDashFilterCategories();
-            document.getElementById('api-key-input').value = localStorage.getItem('gemini_api_key') || '';
-        }
-
-        function saveApiKey() {
-            localStorage.setItem('gemini_api_key', document.getElementById('api-key-input').value.trim());
-            alert("Clé mémorisée.");
-        }
-
-        function toggleImportZone() { document.getElementById('integrated-import-zone').classList.toggle('hidden'); }
-
-        // ============================================================
-        // CLOUD DATA
-        // ============================================================
-        async function fetchTransactionsFromCloud() {
-            if (!_supabase) return;
-            try {
-                const { data, error } = await _supabase.from('transactions').select('*').order('date', { ascending: false });
-                if (error) throw error;
-                transactions = data || [];
-                renderResponsiveTransactions();
-                buildMonthDropdown();
-                renderMainBudgetChart();
-            } catch (err) { console.error(err); }
-        }
-
-        // ============================================================
-        // HELPERS
-        // ============================================================
-        function getYearMonthString(dateStr) {
-            if (!dateStr || !dateStr.includes('-')) return '';
-            const p = dateStr.split('-');
-            return `${p[0]}-${p[1].padStart(2, '0')}`;
-        }
-
-        function syncDefaultAffectationMonth() {
-            const dateVal = document.getElementById('form-date').value;
-            if (dateVal) document.getElementById('form-affectation').value = getYearMonthString(dateVal);
-        }
-
-        // ============================================================
-        // DASHBOARD FILTERS (NOUVEAUX)
-        // ============================================================
-        function populateDashFilterCategories() {
-            const sel = document.getElementById('dash-filter-categorie');
-            if (!sel) return;
-            sel.innerHTML = '<option value="">📁 Toutes les catégories</option>';
-            Object.keys(budgetStructure).forEach(cat => {
-                const opt = document.createElement('option');
-                opt.value = cat; opt.textContent = cat;
-                sel.appendChild(opt);
-            });
-        }
-
-        function populateDashFilterPostes() {
-            const catVal = document.getElementById('dash-filter-categorie').value;
-            const postesSel = document.getElementById('dash-filter-poste');
-            const descSel = document.getElementById('dash-filter-description');
-            postesSel.innerHTML = '<option value="">🏷️ Tous les postes</option>';
-            descSel.innerHTML = '<option value="">📝 Toutes les descriptions</option>';
-
-            if (catVal && budgetStructure[catVal]) {
-                Object.keys(budgetStructure[catVal]).forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p; opt.textContent = p;
-                    postesSel.appendChild(opt);
-                });
-            } else {
-                const allPostes = new Set();
-                Object.values(budgetStructure).forEach(catObj => Object.keys(catObj).forEach(p => allPostes.add(p)));
-                [...allPostes].sort().forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p; opt.textContent = p;
-                    postesSel.appendChild(opt);
-                });
-            }
-        }
-
-        function populateDashFilterDescriptions() {
-            const catVal = document.getElementById('dash-filter-categorie').value;
-            const posteVal = document.getElementById('dash-filter-poste').value;
-            const descSel = document.getElementById('dash-filter-description');
-            descSel.innerHTML = '<option value="">📝 Toutes les descriptions</option>';
-            if (catVal && posteVal && budgetStructure[catVal] && budgetStructure[catVal][posteVal]) {
-                budgetStructure[catVal][posteVal].forEach(d => {
-                    const opt = document.createElement('option');
-                    opt.value = d; opt.textContent = d;
-                    descSel.appendChild(opt);
-                });
-            }
-        }
-
-        function getDashboardFilters() {
-            return {
-                cat: (document.getElementById('dash-filter-categorie')?.value || '').toUpperCase().trim(),
-                poste: (document.getElementById('dash-filter-poste')?.value || '').toUpperCase().trim(),
-                desc: document.getElementById('dash-filter-description')?.value || ''
-            };
-        }
-
-        /** Retourne true si la transaction doit apparaître dans le dashboard selon les filtres actifs */
-        function transactionPassesDashboardFilters(t) {
-            if (t.exclu_dashboard) return false;
-            const f = getDashboardFilters();
-            const cleanCat = (t.categorie || '').toUpperCase().trim();
-            const cleanPoste = (t.poste || '').toUpperCase().trim();
-            const cleanDesc = (t.description || '');
-            if (f.cat && cleanCat !== f.cat) return false;
-            if (f.poste && cleanPoste !== f.poste) return false;
-            if (f.desc && cleanDesc !== f.desc) return false;
-            return true;
-        }
-
-        function applyDashboardFilters() {
-            updateDashActiveFilterIndicator();
-            calculateDashboardMetrics();
-            renderMainBudgetChart();
-        }
-
-        function resetDashboardFilters() {
-            document.getElementById('dash-filter-categorie').value = '';
-            populateDashFilterPostes(); // resets poste + desc selects
-            applyDashboardFilters();
-        }
-
-        function updateDashActiveFilterIndicator() {
-            const f = getDashboardFilters();
-            const parts = [];
-            if (f.cat) parts.push(`Catégorie : ${f.cat}`);
-            if (f.poste) parts.push(`Poste : ${f.poste}`);
-            if (f.desc) parts.push(`Description : ${f.desc}`);
-            const indicator = document.getElementById('dash-active-filter-indicator');
-            const text = document.getElementById('dash-active-filter-text');
-            if (parts.length > 0) {
-                text.textContent = `✦ Filtres actifs → ${parts.join(' · ')}`;
-                indicator.classList.remove('hidden');
-            } else {
-                indicator.classList.add('hidden');
-            }
-        }
-
-        // ============================================================
-        // TOGGLE "EXCLURE DU DASHBOARD"
-        // ============================================================
-        function setExcluDashboardToggle(active) {
-            document.getElementById('form-exclu-dashboard').value = active ? 'true' : 'false';
-            const btn = document.getElementById('toggle-exclu-dashboard');
-            const circle = document.getElementById('toggle-exclu-dashboard-circle');
-            if (active) {
-                btn.className = 'relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full bg-rose-500 transition-colors duration-200 ease-in-out focus:outline-none ml-3';
-                circle.className = 'pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out mt-1 translate-x-5';
-            } else {
-                btn.className = 'relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full bg-slate-200 transition-colors duration-200 ease-in-out focus:outline-none ml-3';
-                circle.className = 'pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out mt-1 translate-x-1';
-            }
-        }
-
-        function toggleExcluDashboard() {
-            const current = document.getElementById('form-exclu-dashboard').value === 'true';
-            setExcluDashboardToggle(!current);
-        }
-
-        // ============================================================
-        // FILTRES TRANSACTIONS
-        // ============================================================
-        function toggleHidePointedFilter() {
-            isHidePointedActive = !isHidePointedActive;
-            const btn = document.getElementById('toggle-filter-pointed');
-            const circle = document.getElementById('toggle-filter-circle');
-            if (isHidePointedActive) {
-                btn.classList.replace('bg-slate-200', 'bg-emerald-500');
-                circle.classList.replace('translate-x-1', 'translate-x-5');
-            } else {
-                btn.classList.replace('bg-emerald-500', 'bg-slate-200');
-                circle.classList.replace('translate-x-5', 'translate-x-1');
-            }
+            const { data, error } = await _supabase.from('transactions').select('*').order('date', { ascending: false });
+            if (error) throw error;
+            transactions = data || [];
             renderResponsiveTransactions();
-        }
+            buildMonthDropdown();
+            renderMainBudgetChart();
+        } catch(err) { console.error(err); }
+    }
 
-        async function togglePointage(index, event) {
-            if (event) event.stopPropagation();
-            const t = transactions[index];
-            const nouveauStatut = !t.pointe;
-            try {
-                const { error } = await _supabase.from('transactions').update({ pointe: nouveauStatut }).eq('id', t.id);
-                if (error) throw error;
-                t.pointe = nouveauStatut;
-                renderResponsiveTransactions();
-                renderMainBudgetChart();
-            } catch(err) {
-                alert("Erreur lors de la mise à jour du pointage.");
-            }
-        }
+    // ─── HELPERS ──────────────────────────────────────────────
+    function getYearMonthString(d) {
+        if (!d || !d.includes('-')) return '';
+        const p = d.split('-');
+        return `${p[0]}-${p[1].padStart(2,'0')}`;
+    }
+    function syncDefaultAffectationMonth() {
+        const v = document.getElementById('form-date').value;
+        if (v) document.getElementById('form-affectation').value = getYearMonthString(v);
+    }
+    function fmt(n) { return n.toFixed(2).replace('.', ',') + ' €'; }
 
-        // ============================================================
-        // GRAPHIQUE PRINCIPAL (respecte les filtres dashboard)
-        // ============================================================
-        function renderMainBudgetChart() {
-            const ctx = document.getElementById('mainBudgetChart');
-            if (!ctx) return;
+    // ─── DASHBOARD FILTERS ────────────────────────────────────
+    function populateDashFilterCategories() {
+        const sel = document.getElementById('dash-filter-categorie');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">📁 Toutes catégories</option>';
+        Object.keys(budgetStructure).forEach(cat => {
+            const o = document.createElement('option'); o.value = cat; o.textContent = cat; sel.appendChild(o);
+        });
+    }
 
-            const monthlyData = {};
-            transactions.forEach(t => {
-                if (!transactionPassesDashboardFilters(t)) return; // applique filtres + exclu_dashboard
-                const m = t.mois_affectation || getYearMonthString(t.date);
-                if (!m) return;
-                if (!monthlyData[m]) monthlyData[m] = { entrees: 0, depenses: 0 };
-                const amt = parseFloat(t.montant) || 0;
-                if (amt > 0) {
-                    monthlyData[m].entrees += amt;
-                } else {
-                    monthlyData[m].depenses += Math.abs(amt);
-                }
+    function populateDashFilterPostes() {
+        const catVal = document.getElementById('dash-filter-categorie').value;
+        const ps = document.getElementById('dash-filter-poste');
+        const ds = document.getElementById('dash-filter-description');
+        ps.innerHTML = '<option value="">🏷️ Tous postes</option>';
+        ds.innerHTML = '<option value="">📝 Toutes descriptions</option>';
+        const src = catVal && budgetStructure[catVal] ? budgetStructure[catVal]
+            : Object.fromEntries(Object.values(budgetStructure).flatMap(c => Object.entries(c)));
+        const postes = catVal && budgetStructure[catVal] ? Object.keys(budgetStructure[catVal])
+            : [...new Set(Object.values(budgetStructure).flatMap(c => Object.keys(c)))].sort();
+        postes.forEach(p => {
+            const o = document.createElement('option'); o.value = p; o.textContent = p; ps.appendChild(o);
+        });
+    }
+
+    function populateDashFilterDescriptions() {
+        const catVal = document.getElementById('dash-filter-categorie').value;
+        const posteVal = document.getElementById('dash-filter-poste').value;
+        const ds = document.getElementById('dash-filter-description');
+        ds.innerHTML = '<option value="">📝 Toutes descriptions</option>';
+        if (catVal && posteVal && budgetStructure[catVal]?.[posteVal]) {
+            budgetStructure[catVal][posteVal].forEach(d => {
+                const o = document.createElement('option'); o.value = d; o.textContent = d; ds.appendChild(o);
             });
+        }
+    }
 
-            const sortedMonths = Object.keys(monthlyData).sort();
-            const entreesData = sortedMonths.map(m => monthlyData[m].entrees);
-            const depensesData = sortedMonths.map(m => monthlyData[m].depenses);
-            const soldeData = sortedMonths.map(m => monthlyData[m].entrees - monthlyData[m].depenses);
+    function getDashboardFilters() {
+        return {
+            cat:   (document.getElementById('dash-filter-categorie')?.value || '').toUpperCase().trim(),
+            poste: (document.getElementById('dash-filter-poste')?.value    || '').toUpperCase().trim(),
+            desc:   document.getElementById('dash-filter-description')?.value || ''
+        };
+    }
 
-            if (budgetChartInstance) budgetChartInstance.destroy();
+    function filtersAreActive() {
+        const f = getDashboardFilters();
+        return !!(f.cat || f.poste || f.desc);
+    }
 
-            budgetChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: sortedMonths,
-                    datasets: [
-                        {
-                            label: 'Solde Période',
-                            type: 'line',
-                            data: soldeData,
-                            borderColor: '#0f172a',
-                            backgroundColor: '#0f172a',
-                            borderWidth: 2.5,
-                            tension: 0.3,
-                            fill: false,
-                            pointRadius: 3
-                        },
-                        {
-                            label: 'Entrées',
-                            data: entreesData,
-                            backgroundColor: '#10b981',
-                            borderRadius: 4
-                        },
-                        {
-                            label: 'Dépenses',
-                            data: depensesData,
-                            backgroundColor: '#ef4444',
-                            borderRadius: 4
-                        }
-                    ]
+    function transactionPassesDashboardFilters(t) {
+        if (t.exclu_dashboard) return false;
+        const f = getDashboardFilters();
+        if (f.cat   && (t.categorie ||'').toUpperCase().trim() !== f.cat)   return false;
+        if (f.poste && (t.poste     ||'').toUpperCase().trim() !== f.poste) return false;
+        if (f.desc  && (t.description||'') !== f.desc) return false;
+        return true;
+    }
+
+    function applyDashboardFilters() {
+        updateDashActivePills();
+        updateKpiSoldeVisibility();
+        calculateDashboardMetrics();
+        renderMainBudgetChart();
+    }
+
+    function resetDashboardFilters() {
+        document.getElementById('dash-filter-categorie').value = '';
+        populateDashFilterPostes();
+        applyDashboardFilters();
+    }
+
+    /** Masque/affiche le KPI Solde selon si des filtres sont actifs */
+    function updateKpiSoldeVisibility() {
+        const card = document.getElementById('kpi-solde-card');
+        if (!card) return;
+        card.style.display = filtersAreActive() ? 'none' : '';
+    }
+
+    function updateDashActivePills() {
+        const f = getDashboardFilters();
+        const active = !!(f.cat || f.poste || f.desc);
+        document.getElementById('dash-active-filter-indicator').classList.toggle('hidden', !active);
+        const pillCat   = document.getElementById('dash-filter-pill-cat');
+        const pillPoste = document.getElementById('dash-filter-pill-poste');
+        const pillDesc  = document.getElementById('dash-filter-pill-desc');
+        pillCat.classList.toggle('hidden', !f.cat);
+        pillPoste.classList.toggle('hidden', !f.poste);
+        pillDesc.classList.toggle('hidden', !f.desc);
+        if (f.cat)   pillCat.textContent   = '📁 ' + f.cat;
+        if (f.poste) pillPoste.textContent = '🏷️ ' + f.poste;
+        if (f.desc)  pillDesc.textContent  = '📝 ' + f.desc;
+        // Badge sur le graphique
+        const badge = document.getElementById('chart-filter-badge');
+        const label = document.getElementById('chart-filter-label-text');
+        if (active) {
+            label.textContent = '⚡ ' + [f.cat, f.poste, f.desc].filter(Boolean).join(' › ');
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    // ─── TOGGLE EXCLU DASHBOARD ───────────────────────────────
+    function setExcluDashboardToggle(active) {
+        document.getElementById('form-exclu-dashboard').value = active ? 'true' : 'false';
+        const track = document.getElementById('toggle-exclu-dashboard');
+        track.className = `toggle-track ${active ? 'exclu-on' : 'off'}`;
+    }
+    function toggleExcluDashboard() {
+        setExcluDashboardToggle(document.getElementById('form-exclu-dashboard').value !== 'true');
+    }
+
+    // ─── GRAPHIQUE ────────────────────────────────────────────
+    function renderMainBudgetChart() {
+        const ctx = document.getElementById('mainBudgetChart');
+        if (!ctx) return;
+        const filtersOn = filtersAreActive();
+
+        const monthlyData = {};
+        transactions.forEach(t => {
+            if (!transactionPassesDashboardFilters(t)) return;
+            const m = t.mois_affectation || getYearMonthString(t.date);
+            if (!m) return;
+            if (!monthlyData[m]) monthlyData[m] = { entrees: 0, depenses: 0 };
+            const amt = parseFloat(t.montant) || 0;
+            if (amt > 0) monthlyData[m].entrees += amt;
+            else monthlyData[m].depenses += Math.abs(amt);
+        });
+
+        const months = Object.keys(monthlyData).sort();
+        const datasets = [
+            { label: 'Entrées',  data: months.map(m => monthlyData[m].entrees),  backgroundColor: 'rgba(16,185,129,.85)', borderRadius: 6, borderSkipped: false, order: 2 },
+            { label: 'Dépenses', data: months.map(m => monthlyData[m].depenses), backgroundColor: 'rgba(244,63,94,.8)',  borderRadius: 6, borderSkipped: false, order: 2 }
+        ];
+
+        // Solde seulement si aucun filtre actif
+        if (!filtersOn) {
+            datasets.unshift({
+                label: 'Solde', type: 'line',
+                data: months.map(m => monthlyData[m].entrees - monthlyData[m].depenses),
+                borderColor: '#0f172a', backgroundColor: '#0f172a',
+                borderWidth: 2, tension: 0.4, fill: false,
+                pointRadius: 4, pointBackgroundColor: '#fff', pointBorderWidth: 2,
+                order: 1
+            });
+        }
+
+        if (budgetChartInstance) budgetChartInstance.destroy();
+        budgetChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: months, datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { font: { size: 10, family: 'DM Sans' }, padding: 14, usePointStyle: true } },
+                    tooltip: { bodyFont: { size: 11, family: 'DM Mono' }, titleFont: { size: 10, family: 'DM Sans' }, padding: 10, cornerRadius: 10 }
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { labels: { font: { size: 10 } } } },
-                    scales: {
-                        y: { beginAtZero: true, ticks: { font: { size: 9 } } },
-                        x: { ticks: { font: { size: 9 } } }
-                    }
-                }
-            });
-        }
-
-        // ============================================================
-        // METRICS DASHBOARD (respecte les filtres dashboard)
-        // ============================================================
-        function calculateDashboardMetrics() {
-            const select = document.getElementById('dashboard-month-select');
-            const activeMonth = select ? select.value : '';
-
-            const catTotals = {};
-            const posteTotals = {};
-
-            transactions.forEach(t => {
-                if (!transactionPassesDashboardFilters(t)) return; // filtres + exclu_dashboard
-                const m = t.mois_affectation || getYearMonthString(t.date);
-                if (m !== activeMonth) return;
-                const amt = parseFloat(t.montant) || 0;
-                const c = (t.categorie || 'NON CLASSÉ').toUpperCase();
-                catTotals[c] = (catTotals[c] || 0) + amt;
-                const p = (t.poste || 'AUTRE').toUpperCase();
-                posteTotals[p] = (posteTotals[p] || 0) + amt;
-            });
-
-            // Rendu catégories
-            const chartContainer = document.getElementById('categories-chart-container');
-            if (chartContainer) {
-                chartContainer.innerHTML = '';
-                const f = getDashboardFilters();
-                // Si filtre catégorie actif → n'affiche que cette catégorie
-                const catsToShow = f.cat
-                    ? (budgetStructure[f.cat] ? [f.cat] : Object.keys(budgetStructure))
-                    : Object.keys(budgetStructure);
-
-                let hasData = false;
-                catsToShow.forEach(cat => {
-                    const totalVal = catTotals[cat] || 0;
-                    if (f.cat && totalVal === 0 && !catTotals[cat]) return;
-                    hasData = true;
-                    const colorClasses = categoryColorMap[cat] || "bg-slate-500 text-white font-bold px-2 py-0.5 rounded";
-                    const item = document.createElement('div');
-                    item.className = "flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 text-xs";
-                    item.innerHTML = `<span class="${colorClasses}">${cat}</span><b>${totalVal.toFixed(2)} €</b>`;
-                    chartContainer.appendChild(item);
-                });
-                if (!hasData) {
-                    chartContainer.innerHTML = '<p class="text-xs text-slate-400 italic">Aucune donnée pour ce mois avec ces filtres.</p>';
+                scales: {
+                    y: { beginAtZero: true, ticks: { font: { size: 9 }, callback: v => v.toLocaleString('fr') + ' €' }, grid: { color: '#f1f5f9' }, border: { dash: [3,3] } },
+                    x: { ticks: { font: { size: 9 } }, grid: { display: false } }
                 }
             }
+        });
+    }
 
-            // Rendu postes
-            const posteContainer = document.getElementById('postes-chart-container');
-            if (posteContainer) {
-                posteContainer.innerHTML = '';
-                const sortedPostes = Object.keys(posteTotals).sort((a, b) => Math.abs(posteTotals[b]) - Math.abs(posteTotals[a]));
-                if (sortedPostes.length === 0) {
-                    posteContainer.innerHTML = '<p class="text-xs text-slate-400 italic">Aucune donnée pour ce mois avec ces filtres.</p>';
-                    return;
-                }
-                sortedPostes.forEach(poste => {
-                    const totalVal = posteTotals[poste];
-                    const item = document.createElement('div');
-                    item.className = "flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 text-xs";
-                    item.innerHTML = `<span class="font-semibold text-slate-600 uppercase tracking-tight text-[11px]">${poste}</span><b>${totalVal.toFixed(2)} €</b>`;
-                    posteContainer.appendChild(item);
-                });
-            }
+    // ─── MÉTRIQUES DASHBOARD ──────────────────────────────────
+    function refreshDashboard() { calculateDashboardMetrics(); }
+
+    function calculateDashboardMetrics() {
+        const activeMonth = document.getElementById('dashboard-month-select')?.value || '';
+        const catTotals = {}, posteTotals = {};
+        let totalIn = 0, totalOut = 0;
+
+        transactions.forEach(t => {
+            if (!transactionPassesDashboardFilters(t)) return;
+            const m = t.mois_affectation || getYearMonthString(t.date);
+            if (m !== activeMonth) return;
+            const amt = parseFloat(t.montant) || 0;
+            if (amt > 0) totalIn += amt; else totalOut += Math.abs(amt);
+            const c = (t.categorie || 'NON CLASSÉ').toUpperCase();
+            catTotals[c] = (catTotals[c] || 0) + amt;
+            const p = (t.poste || 'AUTRE').toUpperCase();
+            posteTotals[p] = (posteTotals[p] || 0) + amt;
+        });
+
+        // KPIs
+        document.getElementById('kpi-entrees').textContent  = fmt(totalIn);
+        document.getElementById('kpi-depenses').textContent = fmt(totalOut);
+        const solde = totalIn - totalOut;
+        document.getElementById('kpi-solde').textContent = (solde >= 0 ? '+' : '') + fmt(solde);
+        const sc = document.getElementById('kpi-solde-card');
+        sc.className = `kpi ${solde >= 0 ? 'kpi-bal-pos' : 'kpi-bal-neg'}`;
+        document.getElementById('kpi-solde').style.color = solde >= 0 ? '#1d4ed8' : '#b45309';
+
+        // Label mois sur panneau catégories
+        const catMonthLabel = document.getElementById('cat-month-label');
+        if (catMonthLabel) catMonthLabel.textContent = activeMonth;
+
+        // Panneau catégories
+        const catContainer = document.getElementById('categories-chart-container');
+        if (catContainer) {
+            catContainer.innerHTML = '';
+            const f = getDashboardFilters();
+            const catsToShow = f.cat && budgetStructure[f.cat] ? [f.cat] : Object.keys(budgetStructure);
+            const maxAbs = Math.max(...catsToShow.map(c => Math.abs(catTotals[c] || 0)), 1);
+            catsToShow.forEach(cat => {
+                const v = catTotals[cat] || 0;
+                const barColor = categoryBarColor[cat] || '#94a3b8';
+                const badgeClass = categoryBadgeClass[cat] || 'badge badge-default';
+                const pct = Math.round(Math.abs(v) / maxAbs * 100);
+                const valColor = v < 0 ? '#f43f5e' : (v > 0 ? '#10b981' : '#94a3b8');
+                const item = document.createElement('div');
+                item.className = 'space-y-1.5';
+                item.innerHTML = `
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="${badgeClass}">${cat}</span>
+                        <span class="text-xs font-bold mono" style="color:${valColor}">${v !== 0 ? (v < 0 ? '' : '+') + fmt(v) : '—'}</span>
+                    </div>
+                    <div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:${barColor}"></div></div>
+                `;
+                catContainer.appendChild(item);
+            });
+            if (!catsToShow.length) catContainer.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-4">Aucune donnée.</p>';
         }
 
-        // ============================================================
-        // RENDU TRANSACTIONS
-        // ============================================================
-        function renderResponsiveTransactions() {
-            const pcTbody = document.getElementById('pc-table-body');
-            const mobileContainer = document.getElementById('mobile-cards-container');
-            const emptyState = document.getElementById('empty-state');
-
-            pcTbody.innerHTML = ''; mobileContainer.innerHTML = '';
-
-            const searchQuery = document.getElementById('search-input')?.value.toLowerCase().trim() || '';
-            const catFilter = document.getElementById('filter-categorie')?.value || '';
-            const posteFilter = document.getElementById('filter-poste')?.value || '';
-
-            const filteredTransactions = transactions.filter(t => {
-                if (isHidePointedActive && t.pointe) return false;
-                const cleanCat = (t.categorie || '').toUpperCase().trim();
-                const cleanPoste = (t.poste || '').toUpperCase().trim();
-                const cleanDesc = (t.description || '').toLowerCase();
-                const cleanDetails = (t.details || '').toLowerCase();
-                const matchesSearch = !searchQuery ||
-                    cleanPoste.toLowerCase().includes(searchQuery) ||
-                    cleanDesc.includes(searchQuery) ||
-                    cleanDetails.includes(searchQuery);
-                const matchesCat = !catFilter || cleanCat === catFilter.toUpperCase().trim();
-                const matchesPoste = !posteFilter || cleanPoste === posteFilter.toUpperCase().trim();
-                return matchesSearch && matchesCat && matchesPoste;
-            });
-
-            if (filteredTransactions.length === 0) {
-                emptyState.classList.remove('hidden');
+        // Panneau postes
+        const posteContainer = document.getElementById('postes-chart-container');
+        if (posteContainer) {
+            posteContainer.innerHTML = '';
+            const sortedPostes = Object.keys(posteTotals).sort((a,b) => Math.abs(posteTotals[b]) - Math.abs(posteTotals[a]));
+            if (!sortedPostes.length) {
+                posteContainer.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-4">Aucune donnée.</p>';
                 return;
             }
-            emptyState.classList.add('hidden');
-
-            filteredTransactions.forEach((t) => {
-                const index = transactions.indexOf(t);
-                const cleanCat = (t.categorie || '').toUpperCase().trim();
-                const currentBadgeStyle = categoryColorMap[cleanCat] || "bg-slate-400 text-white font-bold px-2 py-0.5 rounded text-[10px]";
-
-                const rawMontant = parseFloat(t.montant) || 0;
-                const mColor = rawMontant > 0 ? "text-emerald-600 font-bold" : "text-slate-800 font-semibold";
-                const mText = (rawMontant > 0 ? "+" : "") + rawMontant.toFixed(2) + " €";
-
-                const finalAffectation = t.mois_affectation ? t.mois_affectation : getYearMonthString(t.date);
-                const rowBgClass = t.pointe ? "bg-slate-50/70 text-slate-400 opacity-75 hover:opacity-100" : "bg-white text-slate-900 font-medium";
-
-                // Badge "exclu du dashboard"
-                const excluBadge = t.exclu_dashboard
-                    ? `<span class="ml-1.5 text-[9px] bg-rose-100 text-rose-500 px-1.5 py-0.5 rounded font-semibold tracking-tight">⊘ exclu</span>`
-                    : '';
-
-                const pointageButtonHTML = `
-                    <button onclick="togglePointage(${index}, event)" class="group flex items-center justify-center w-7 h-7 rounded-lg border-2 transition-all duration-200 ${t.pointe ? 'bg-emerald-500 border-emerald-500 text-white shadow-xs' : 'bg-white border-slate-200 hover:border-emerald-400 text-transparent hover:text-slate-300'}" title="${t.pointe ? 'Dé-pointer' : 'Pointer'}">
-                        <svg class="w-4 h-4 stroke-current" fill="none" stroke-width="3.5" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
-                        </svg>
-                    </button>
-                `;
-
-                // Rendu Desktop
-                const tr = document.createElement('tr');
-                tr.className = `${rowBgClass} transition-colors border-b border-slate-100 hover:bg-slate-50/50 cursor-pointer`;
-                tr.onclick = () => openDetailsDrawer(index);
-                tr.innerHTML = `
-                    <td class="p-3 text-center flex justify-center items-center h-full mt-1">${pointageButtonHTML}</td>
-                    <td class="p-3 whitespace-nowrap font-mono text-[11px] text-slate-400">${t.date}</td>
-                    <td class="p-3 whitespace-nowrap font-medium text-slate-400">${finalAffectation}</td>
-                    <td class="p-3 whitespace-nowrap"><span class="${currentBadgeStyle}">${t.categorie || 'SANS CAT'}</span></td>
-                    <td class="p-3 font-semibold uppercase tracking-tight text-[11px] text-slate-700">${t.poste || ''}</td>
-                    <td class="p-3 truncate max-w-[140px] ${t.pointe ? 'line-through text-slate-400' : ''}">
-                        ${t.description || ''}${excluBadge}
-                    </td>
-                    <td class="p-3 truncate max-w-[120px] text-slate-400 italic text-[11px]">${t.details || ''}</td>
-                    <td class="p-3 text-right whitespace-nowrap ${mColor}">${mText}</td>
-                    <td class="p-3 text-center">
-                        <button onclick="event.stopPropagation(); openTransactionModal(${index})" class="text-indigo-600 hover:text-indigo-900 font-medium text-[11px] mr-2">Éditer</button>
-                        <button onclick="event.stopPropagation(); deleteTransaction(${index})" class="text-rose-600 hover:text-rose-900 font-medium text-[11px]">Suppr.</button>
-                    </td>
-                `;
-                pcTbody.appendChild(tr);
-
-                // Rendu Mobile (Cards)
-                const card = document.createElement('div');
-                card.className = `p-4 flex items-center justify-between gap-3 ${t.pointe ? 'bg-slate-50/50' : 'bg-white'} hover:bg-slate-50 transition-colors cursor-pointer`;
-                card.onclick = () => openDetailsDrawer(index);
-                card.innerHTML = `
-                    <div class="flex items-center gap-3 min-w-0">
-                        <div class="shrink-0">${pointageButtonHTML}</div>
-                        <div class="min-w-0 space-y-1">
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <span class="text-[10px] font-mono text-slate-400">${t.date}</span>
-                                <span class="${currentBadgeStyle}">${t.categorie || 'SANS'}</span>
-                                ${t.exclu_dashboard ? '<span class="text-[9px] bg-rose-100 text-rose-500 px-1.5 py-0.5 rounded font-semibold">⊘ exclu</span>' : ''}
-                            </div>
-                            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-tight truncate">${t.poste || ''} : <span class="font-normal normal-case text-slate-600 ${t.pointe ? 'line-through text-slate-400' : ''}">${t.description || ''}</span></h4>
-                            ${t.details ? `<p class="text-[10px] text-slate-400 italic truncate">${t.details}</p>` : ''}
-                        </div>
+            const maxAbs = Math.max(...sortedPostes.map(p => Math.abs(posteTotals[p])), 1);
+            sortedPostes.forEach(poste => {
+                const v = posteTotals[poste];
+                const pct = Math.round(Math.abs(v) / maxAbs * 100);
+                const valColor = v < 0 ? '#f43f5e' : (v > 0 ? '#10b981' : '#94a3b8');
+                const barBg = v < 0 ? '#fecdd3' : '#a7f3d0';
+                const item = document.createElement('div');
+                item.className = 'space-y-1';
+                item.innerHTML = `
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="text-[11px] font-semibold text-slate-600 uppercase tracking-tight truncate">${poste}</span>
+                        <span class="text-[11px] font-bold mono shrink-0" style="color:${valColor}">${fmt(Math.abs(v))}</span>
                     </div>
-                    <div class="text-right shrink-0">
-                        <div class="text-xs font-bold ${mColor}">${mText}</div>
-                        <span class="text-[9px] font-medium text-slate-400">${finalAffectation}</span>
-                    </div>
+                    <div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:${barBg}"></div></div>
                 `;
-                mobileContainer.appendChild(card);
+                posteContainer.appendChild(item);
             });
         }
+    }
 
-        // ============================================================
-        // DROPDOWNS FORMULAIRE
-        // ============================================================
-        function populateCategorieDropdown() {
-            const formCat = document.getElementById('form-categorie');
-            if (!formCat) return;
-            formCat.innerHTML = '';
-            Object.keys(budgetStructure).forEach(cat => {
-                const opt = document.createElement('option');
-                opt.value = cat; opt.textContent = cat;
-                formCat.appendChild(opt);
-            });
+    // ─── TOGGLE FILTRE POINTÉES ───────────────────────────────
+    function toggleHidePointedFilter() {
+        isHidePointedActive = !isHidePointedActive;
+        const track = document.getElementById('toggle-filter-pointed');
+        track.className = `toggle-track ${isHidePointedActive ? 'on' : 'off'}`;
+        renderResponsiveTransactions();
+    }
+
+    async function togglePointage(index, event) {
+        if (event) event.stopPropagation();
+        const t = transactions[index];
+        const newVal = !t.pointe;
+        try {
+            const { error } = await _supabase.from('transactions').update({ pointe: newVal }).eq('id', t.id);
+            if (error) throw error;
+            t.pointe = newVal;
+            renderResponsiveTransactions();
+            renderMainBudgetChart();
+        } catch { alert("Erreur lors de la mise à jour du pointage."); }
+    }
+
+    // ─── RENDER TRANSACTIONS ──────────────────────────────────
+    function renderResponsiveTransactions() {
+        const pcTbody = document.getElementById('pc-table-body');
+        const mobileContainer = document.getElementById('mobile-cards-container');
+        const emptyState = document.getElementById('empty-state');
+        pcTbody.innerHTML = ''; mobileContainer.innerHTML = '';
+
+        const q     = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+        const catF  = (document.getElementById('filter-categorie')?.value || '').toUpperCase().trim();
+        const posteF= (document.getElementById('filter-poste')?.value || '').toUpperCase().trim();
+
+        const filtered = transactions.filter(t => {
+            if (isHidePointedActive && t.pointe) return false;
+            const cCat   = (t.categorie ||'').toUpperCase().trim();
+            const cPoste = (t.poste     ||'').toUpperCase().trim();
+            const cDesc  = (t.description||'').toLowerCase();
+            const cDet   = (t.details   ||'').toLowerCase();
+            return (!q   || cPoste.toLowerCase().includes(q) || cDesc.includes(q) || cDet.includes(q))
+                && (!catF  || cCat   === catF)
+                && (!posteF|| cPoste === posteF);
+        });
+
+        if (!filtered.length) { emptyState.classList.remove('hidden'); return; }
+        emptyState.classList.add('hidden');
+
+        filtered.forEach(t => {
+            const idx = transactions.indexOf(t);
+            const cCat = (t.categorie||'').toUpperCase().trim();
+            const badgeClass = categoryBadgeClass[cCat] || 'badge badge-default';
+            const amt = parseFloat(t.montant) || 0;
+            const mColor = amt > 0 ? '#059669' : '#334155';
+            const mText  = (amt > 0 ? '+' : '') + fmt(amt);
+            const affect = t.mois_affectation || getYearMonthString(t.date);
+            const excluBadge = t.exclu_dashboard ? `<span class="badge badge-exclu ml-1.5">⊘</span>` : '';
+
+            const pointBtn = `
+                <button onclick="togglePointage(${idx},event)" title="${t.pointe ? 'Dé-pointer' : 'Pointer'}"
+                    class="w-7 h-7 flex items-center justify-center rounded-lg border-2 transition-all ${t.pointe ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-200 hover:border-emerald-400 text-transparent hover:text-slate-200'}">
+                    <svg class="w-3.5 h-3.5 stroke-current" fill="none" stroke-width="3.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </button>`;
+
+            // Desktop
+            const tr = document.createElement('tr');
+            tr.className = `tr-row cursor-pointer ${t.pointe ? 'is-pointed' : ''}`;
+            tr.onclick = () => openDetailsDrawer(idx);
+            tr.innerHTML = `
+                <td class="p-3 text-center"><div class="flex justify-center">${pointBtn}</div></td>
+                <td class="p-3 mono text-[11px] text-slate-400 whitespace-nowrap">${t.date}</td>
+                <td class="p-3 mono text-[11px] text-slate-400 whitespace-nowrap">${affect}</td>
+                <td class="p-3"><span class="${badgeClass}">${t.categorie||'—'}</span></td>
+                <td class="p-3 text-[11px] font-semibold uppercase tracking-tight text-slate-600">${t.poste||''}</td>
+                <td class="p-3 text-[11px] max-w-[140px] truncate ${t.pointe ? 'line-through text-slate-400' : 'text-slate-700'}">${t.description||''}${excluBadge}</td>
+                <td class="p-3 text-[11px] max-w-[110px] truncate text-slate-400 italic">${t.details||''}</td>
+                <td class="p-3 text-right text-xs font-bold mono whitespace-nowrap" style="color:${mColor}">${mText}</td>
+                <td class="p-3 text-center whitespace-nowrap">
+                    <button onclick="event.stopPropagation();openTransactionModal(${idx})" class="text-indigo-500 hover:text-indigo-800 text-[11px] font-semibold mr-2">Éditer</button>
+                    <button onclick="event.stopPropagation();deleteTransaction(${idx})" class="text-rose-500 hover:text-rose-800 text-[11px] font-semibold">Suppr.</button>
+                </td>`;
+            pcTbody.appendChild(tr);
+
+            // Mobile
+            const card = document.createElement('div');
+            card.className = `p-4 flex items-center gap-3 ${t.pointe ? 'bg-slate-50/60' : 'bg-white'} hover:bg-slate-50 transition-colors cursor-pointer`;
+            card.onclick = () => openDetailsDrawer(idx);
+            card.innerHTML = `
+                <div class="shrink-0">${pointBtn}</div>
+                <div class="min-w-0 flex-1 space-y-1">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="mono text-[10px] text-slate-400">${t.date}</span>
+                        <span class="${badgeClass}">${t.categorie||'—'}</span>
+                        ${t.exclu_dashboard ? '<span class="badge badge-exclu">⊘ exclu</span>' : ''}
+                    </div>
+                    <p class="text-xs font-semibold text-slate-800 uppercase tracking-tight truncate">${t.poste||''}<span class="font-normal normal-case text-slate-500 ${t.pointe ? 'line-through' : ''}"> · ${t.description||''}</span></p>
+                    ${t.details ? `<p class="text-[10px] text-slate-400 italic truncate">${t.details}</p>` : ''}
+                </div>
+                <div class="text-right shrink-0">
+                    <p class="text-xs font-bold mono" style="color:${mColor}">${mText}</p>
+                    <p class="text-[10px] text-slate-400 mono">${affect}</p>
+                </div>`;
+            mobileContainer.appendChild(card);
+        });
+    }
+
+    // ─── DROPDOWNS FORMULAIRE ─────────────────────────────────
+    function populateCategorieDropdown() {
+        const el = document.getElementById('form-categorie');
+        if (!el) return;
+        el.innerHTML = '';
+        Object.keys(budgetStructure).forEach(cat => {
+            const o = document.createElement('option'); o.value = cat; o.textContent = cat; el.appendChild(o);
+        });
+        updatePosteDropdown();
+    }
+    function populateFilterCategorieDropdown() {
+        const el = document.getElementById('filter-categorie');
+        if (!el) return;
+        el.innerHTML = '<option value="">📁 Toutes les catégories</option>';
+        Object.keys(budgetStructure).forEach(cat => {
+            const o = document.createElement('option'); o.value = cat; o.textContent = cat; el.appendChild(o);
+        });
+    }
+    function populateFilterPostes() {
+        const catVal = document.getElementById('filter-categorie').value;
+        const el = document.getElementById('filter-poste');
+        if (!el) return;
+        el.innerHTML = '<option value="">🏷️ Tous les postes</option>';
+        const postes = catVal && budgetStructure[catVal]
+            ? Object.keys(budgetStructure[catVal])
+            : [...new Set(Object.values(budgetStructure).flatMap(c => Object.keys(c)))].sort();
+        postes.forEach(p => {
+            const o = document.createElement('option'); o.value = p; o.textContent = p; el.appendChild(o);
+        });
+    }
+    function updatePosteDropdown() {
+        const cat = document.getElementById('form-categorie').value;
+        const el = document.getElementById('form-poste');
+        if (!el || !cat || !budgetStructure[cat]) return;
+        el.innerHTML = '';
+        Object.keys(budgetStructure[cat]).forEach(p => {
+            const o = document.createElement('option'); o.value = p; o.textContent = p; el.appendChild(o);
+        });
+        updateDescriptionDropdown();
+    }
+    function updateDescriptionDropdown() {
+        const cat = document.getElementById('form-categorie').value;
+        const p   = document.getElementById('form-poste').value;
+        const el  = document.getElementById('form-description');
+        if (!el || !cat || !p || !budgetStructure[cat]?.[p]) return;
+        el.innerHTML = '';
+        budgetStructure[cat][p].forEach(d => {
+            const o = document.createElement('option'); o.value = d; o.textContent = d; el.appendChild(o);
+        });
+    }
+
+    // ─── MODAL TRANSACTION ────────────────────────────────────
+    function openTransactionModal(index = null) {
+        populateCategorieDropdown();
+        document.getElementById('transaction-form').reset();
+        setExcluDashboardToggle(false);
+        if (index !== null) {
+            const t = transactions[index];
+            document.getElementById('modal-title').textContent = "Éditer l'écriture";
+            document.getElementById('edit-index').value = index;
+            document.getElementById('edit-db-id').value = t.id || '';
+            document.getElementById('form-date').value = t.date || '';
+            document.getElementById('form-affectation').value = t.mois_affectation || getYearMonthString(t.date);
+            document.getElementById('form-categorie').value = t.categorie || '';
             updatePosteDropdown();
-        }
-
-        function populateFilterCategorieDropdown() {
-            const filterCat = document.getElementById('filter-categorie');
-            if (!filterCat) return;
-            filterCat.innerHTML = '<option value="">📁 Toutes les catégories</option>';
-            Object.keys(budgetStructure).forEach(cat => {
-                const opt = document.createElement('option');
-                opt.value = cat; opt.textContent = cat;
-                filterCat.appendChild(opt);
-            });
-        }
-
-        function populateFilterPostes() {
-            const catFilter = document.getElementById('filter-categorie').value;
-            const posteFilter = document.getElementById('filter-poste');
-            if (!posteFilter) return;
-            posteFilter.innerHTML = '<option value="">🏷️ Tous les postes</option>';
-            if (catFilter && budgetStructure[catFilter]) {
-                Object.keys(budgetStructure[catFilter]).forEach(poste => {
-                    const opt = document.createElement('option');
-                    opt.value = poste; opt.textContent = poste;
-                    posteFilter.appendChild(opt);
-                });
-            } else {
-                const allPostes = new Set();
-                Object.values(budgetStructure).forEach(catObj => Object.keys(catObj).forEach(p => allPostes.add(p)));
-                [...allPostes].sort().forEach(poste => {
-                    const opt = document.createElement('option');
-                    opt.value = poste; opt.textContent = poste;
-                    posteFilter.appendChild(opt);
-                });
-            }
-        }
-
-        function updatePosteDropdown() {
-            const cat = document.getElementById('form-categorie').value;
-            const formPoste = document.getElementById('form-poste');
-            if (!formPoste || !cat || !budgetStructure[cat]) return;
-            formPoste.innerHTML = '';
-            Object.keys(budgetStructure[cat]).forEach(poste => {
-                const opt = document.createElement('option');
-                opt.value = poste; opt.textContent = poste;
-                formPoste.appendChild(opt);
-            });
+            document.getElementById('form-poste').value = t.poste || '';
             updateDescriptionDropdown();
+            document.getElementById('form-description').value = t.description || '';
+            document.getElementById('form-details').value = t.details || '';
+            document.getElementById('form-montant').value = t.montant || '';
+            setExcluDashboardToggle(t.exclu_dashboard || false);
+        } else {
+            document.getElementById('modal-title').textContent = "Nouvelle écriture";
+            document.getElementById('edit-index').value = '';
+            document.getElementById('edit-db-id').value = '';
+            document.getElementById('form-date').value = new Date().toISOString().split('T')[0];
+            syncDefaultAffectationMonth();
         }
+        document.getElementById('transaction-modal').classList.remove('hidden');
+    }
+    function closeTransactionModal() { document.getElementById('transaction-modal').classList.add('hidden'); }
 
-        function updateDescriptionDropdown() {
-            const cat = document.getElementById('form-categorie').value;
-            const poste = document.getElementById('form-poste').value;
-            const formDesc = document.getElementById('form-description');
-            if (!formDesc || !cat || !poste || !budgetStructure[cat][poste]) return;
-            formDesc.innerHTML = '';
-            budgetStructure[cat][poste].forEach(desc => {
-                const opt = document.createElement('option');
-                opt.value = desc; opt.textContent = desc;
-                formDesc.appendChild(opt);
-            });
-        }
-
-        // ============================================================
-        // MODAL TRANSACTION
-        // ============================================================
-        function openTransactionModal(index = null) {
-            populateCategorieDropdown();
-            const modal = document.getElementById('transaction-modal');
-            const form = document.getElementById('transaction-form');
-            form.reset();
-            setExcluDashboardToggle(false); // reset par défaut
-
-            if (index !== null) {
-                const t = transactions[index];
-                document.getElementById('modal-title').textContent = "Éditer l'écriture";
-                document.getElementById('edit-index').value = index;
-                document.getElementById('edit-db-id').value = t.id || '';
-                document.getElementById('form-date').value = t.date || '';
-                document.getElementById('form-affectation').value = t.mois_affectation || getYearMonthString(t.date);
-                document.getElementById('form-categorie').value = t.categorie || '';
-                updatePosteDropdown();
-                document.getElementById('form-poste').value = t.poste || '';
-                updateDescriptionDropdown();
-                document.getElementById('form-description').value = t.description || '';
-                document.getElementById('form-details').value = t.details || '';
-                document.getElementById('form-montant').value = t.montant || '';
-                setExcluDashboardToggle(t.exclu_dashboard || false);
-            } else {
-                document.getElementById('modal-title').textContent = "Nouvelle écriture";
-                document.getElementById('edit-index').value = '';
-                document.getElementById('edit-db-id').value = '';
-                document.getElementById('form-date').value = new Date().toISOString().split('T')[0];
-                syncDefaultAffectationMonth();
-            }
-            modal.classList.remove('hidden');
-        }
-
-        function closeTransactionModal() {
-            document.getElementById('transaction-modal').classList.add('hidden');
-        }
-
-        async function saveTransaction(e) {
-            e.preventDefault();
-            const idx = document.getElementById('edit-index').value;
-            const dbId = document.getElementById('edit-db-id').value;
-
-            const payload = {
-                date: document.getElementById('form-date').value,
-                mois_affectation: document.getElementById('form-affectation').value,
-                categorie: document.getElementById('form-categorie').value,
-                poste: document.getElementById('form-poste').value,
-                description: document.getElementById('form-description').value,
-                details: document.getElementById('form-details').value.trim(),
-                montant: parseFloat(document.getElementById('form-montant').value) || 0,
-                pointe: idx !== '' ? transactions[idx].pointe : false,
-                exclu_dashboard: document.getElementById('form-exclu-dashboard').value === 'true'
-            };
-
-            try {
-                if (dbId) {
-                    const { error } = await _supabase.from('transactions').update(payload).eq('id', dbId);
-                    if (error) throw error;
-                } else {
-                    const { error } = await _supabase.from('transactions').insert([payload]);
-                    if (error) throw error;
-                }
-                closeTransactionModal();
-                fetchTransactionsFromCloud();
-            } catch(err) {
-                alert("Erreur de synchronisation avec la base de données.");
-            }
-        }
-
-        async function deleteTransaction(index) {
-            if (!confirm("Supprimer définitivement cette transaction ?")) return;
-            const t = transactions[index];
-            try {
-                const { error } = await _supabase.from('transactions').delete().eq('id', t.id);
+    async function saveTransaction(e) {
+        e.preventDefault();
+        const idx  = document.getElementById('edit-index').value;
+        const dbId = document.getElementById('edit-db-id').value;
+        const payload = {
+            date:            document.getElementById('form-date').value,
+            mois_affectation:document.getElementById('form-affectation').value,
+            categorie:       document.getElementById('form-categorie').value,
+            poste:           document.getElementById('form-poste').value,
+            description:     document.getElementById('form-description').value,
+            details:         document.getElementById('form-details').value.trim(),
+            montant:         parseFloat(document.getElementById('form-montant').value) || 0,
+            pointe:          idx !== '' ? transactions[idx].pointe : false,
+            exclu_dashboard: document.getElementById('form-exclu-dashboard').value === 'true'
+        };
+        try {
+            if (dbId) {
+                const { error } = await _supabase.from('transactions').update(payload).eq('id', dbId);
                 if (error) throw error;
-                fetchTransactionsFromCloud();
-            } catch(err) {
-                alert("Erreur lors de la suppression.");
+            } else {
+                const { error } = await _supabase.from('transactions').insert([payload]);
+                if (error) throw error;
             }
-        }
+            closeTransactionModal();
+            fetchTransactionsFromCloud();
+        } catch { alert("Erreur de synchronisation avec la base de données."); }
+    }
 
-        // ============================================================
-        // DRAWER DÉTAILS
-        // ============================================================
-        function openDetailsDrawer(index) {
-            const t = transactions[index];
-            document.getElementById('drawer-pointage-status').className = t.pointe ? "text-emerald-600 font-semibold" : "text-amber-600 font-semibold";
-            document.getElementById('drawer-pointage-status').textContent = t.pointe ? "🟢 Vérifiée et pointée" : "⚪ En attente de validation";
+    async function deleteTransaction(index) {
+        if (!confirm("Supprimer définitivement cette transaction ?")) return;
+        try {
+            const { error } = await _supabase.from('transactions').delete().eq('id', transactions[index].id);
+            if (error) throw error;
+            fetchTransactionsFromCloud();
+        } catch { alert("Erreur lors de la suppression."); }
+    }
 
-            // Statut dashboard (NOUVEAU)
-            document.getElementById('drawer-exclu-dashboard').textContent = t.exclu_dashboard ? '⊘ Exclue du dashboard' : '✓ Incluse au dashboard';
-            document.getElementById('drawer-exclu-dashboard').className = t.exclu_dashboard ? 'text-rose-500 font-semibold' : 'text-emerald-600 font-semibold';
+    // ─── DRAWER DÉTAILS ───────────────────────────────────────
+    function openDetailsDrawer(index) {
+        const t = transactions[index];
+        const set = (id, text, color) => { const el = document.getElementById(id); el.textContent = text; if (color) el.style.color = color; };
+        set('drawer-pointage-status', t.pointe ? "🟢 Vérifiée et pointée" : "⚪ En attente", t.pointe ? '#059669' : '#d97706');
+        set('drawer-exclu-dashboard', t.exclu_dashboard ? '⊘ Exclue du dashboard' : '✓ Incluse', t.exclu_dashboard ? '#f43f5e' : '#059669');
+        set('drawer-date', t.date);
+        set('drawer-affectation', t.mois_affectation || getYearMonthString(t.date));
+        set('drawer-categorie', t.categorie || '—');
+        set('drawer-poste', t.poste || '—');
+        set('drawer-description', t.description || '—');
+        document.getElementById('drawer-details').textContent = t.details || 'Aucune note bancaire rattachée.';
+        const amt = parseFloat(t.montant) || 0;
+        set('drawer-montant', (amt > 0 ? '+' : '') + fmt(amt), amt > 0 ? '#059669' : '#0f172a');
+        document.getElementById('drawer-actions-container').innerHTML = `
+            <button onclick="closeDetailsDrawer();openTransactionModal(${index})" class="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-center transition text-xs">Modifier</button>
+            <button onclick="closeDetailsDrawer();deleteTransaction(${index})" class="py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold rounded-xl text-center transition text-xs">Supprimer</button>`;
+        document.getElementById('details-drawer-modal').classList.remove('hidden');
+    }
+    function closeDetailsDrawer() { document.getElementById('details-drawer-modal').classList.add('hidden'); }
 
-            document.getElementById('drawer-date').textContent = t.date;
-            document.getElementById('drawer-affectation').textContent = t.mois_affectation || getYearMonthString(t.date);
-            document.getElementById('drawer-categorie').textContent = t.categorie || '-';
-            document.getElementById('drawer-poste').textContent = t.poste || '-';
-            document.getElementById('drawer-description').textContent = t.description || '-';
-            document.getElementById('drawer-details').textContent = t.details || 'Aucune note bancaire rattachée.';
+    // ─── SÉLECTEUR MOIS ───────────────────────────────────────
+    function buildMonthDropdown() {
+        const sel = document.getElementById('dashboard-month-select');
+        if (!sel) return;
+        const months = [...new Set(transactions.map(t => t.mois_affectation || getYearMonthString(t.date)))].sort().reverse();
+        sel.innerHTML = '';
+        months.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; sel.appendChild(o); });
+        updateKpiSoldeVisibility();
+        calculateDashboardMetrics();
+    }
+    function navigateMonth(direction) {
+        const sel = document.getElementById('dashboard-month-select');
+        if (!sel || sel.options.length <= 1) return;
+        const newIdx = sel.selectedIndex - direction;
+        if (newIdx >= 0 && newIdx < sel.options.length) { sel.selectedIndex = newIdx; calculateDashboardMetrics(); }
+    }
 
-            const rawM = parseFloat(t.montant) || 0;
-            const mText = (rawM > 0 ? "+" : "") + rawM.toFixed(2) + " €";
-            document.getElementById('drawer-montant').className = rawM > 0 ? "text-emerald-600 font-bold text-lg" : "text-slate-900 font-bold text-lg";
-            document.getElementById('drawer-montant').textContent = mText;
-
-            const actionsContainer = document.getElementById('drawer-actions-container');
-            actionsContainer.innerHTML = `
-                <button onclick="closeDetailsDrawer(); openTransactionModal(${index})" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg text-center transition">Modifier</button>
-                <button onclick="closeDetailsDrawer(); deleteTransaction(${index})" class="py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-medium rounded-lg text-center transition">Supprimer</button>
-            `;
-            document.getElementById('details-drawer-modal').classList.remove('hidden');
-        }
-
-        function closeDetailsDrawer() {
-            document.getElementById('details-drawer-modal').classList.add('hidden');
-        }
-
-        // ============================================================
-        // SÉLECTEUR DE MOIS DASHBOARD
-        // ============================================================
-        function buildMonthDropdown() {
-            const select = document.getElementById('dashboard-month-select');
-            if (!select) return;
-            const months = [...new Set(transactions.map(t => t.mois_affectation || getYearMonthString(t.date)))].sort().reverse();
-            select.innerHTML = '';
-            months.forEach(m => {
-                const opt = document.createElement('option');
-                opt.value = m; opt.textContent = "FILTRER DÉTAILS : " + m;
-                select.appendChild(opt);
-            });
-            calculateDashboardMetrics();
-        }
-
-        function navigateMonth(direction) {
-            const select = document.getElementById('dashboard-month-select');
-            if (!select || select.options.length <= 1) return;
-            let newIdx = select.selectedIndex - direction;
-            if (newIdx >= 0 && newIdx < select.options.length) {
-                select.selectedIndex = newIdx;
-                calculateDashboardMetrics();
-            }
-        }
-
-        // ============================================================
-        // CSV IMPORT (stubs existants)
-        // ============================================================
-        function parseCSV() { console.log("Analyse CSV lancée..."); }
-        function processCSVLines() { console.log("Traitement IA lancé..."); }
-        function saveImportedTransactions() { console.log("Sauvegarde Cloud lancée..."); }
-    </script>
+    // ─── CSV STUBS ────────────────────────────────────────────
+    function parseCSV() { console.log("Analyse CSV..."); }
+    function processCSVLines() { console.log("Traitement IA..."); }
+    function saveImportedTransactions() { console.log("Sauvegarde Cloud..."); }
+</script>
 </body>
 </html>
