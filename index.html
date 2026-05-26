@@ -1389,8 +1389,7 @@ async function saveTransaction(e) {
         details:          document.getElementById('form-details').value.trim(),
         montant,
         pointe:           idx !== '' ? transactions[idx].pointe : false,
-        exclu_dashboard:  document.getElementById('form-exclu-dashboard').value === 'true',
-        user_id:          currentUser?.id
+        exclu_dashboard:  document.getElementById('form-exclu-dashboard').value === 'true'
     };
 
     try {
