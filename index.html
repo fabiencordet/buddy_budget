@@ -296,7 +296,7 @@
                 <!-- KPI cards (police responsive) -->
                 <div class="flex gap-2 sm:gap-3 flex-1 min-w-0">
                     <div class="kpi kpi-in">
-                        <p class="section-label text-emerald-700 mb-0.5 text-[9px] sm:text-[10px]">↑ Revenus</p>
+                        <p class="section-label text-emerald-700 mb-0.5 text-[9px] sm:text-[10px]">↑ Entrées</p>
                         <p id="kpi-entrees" class="text-xs sm:text-lg font-bold text-emerald-700 mono leading-tight">—</p>
                     </div>
                     <div class="kpi kpi-out">
@@ -980,8 +980,8 @@ function updateDashPills() {
 
 // ═══════════════════════════════════════════════════════════
 // GRAPHIQUE
-// Entrées = catégorie ENTRÉES uniquement
-// Dépenses = net de toutes les autres catégories
+// Entrées = tous les montants positifs
+// Dépenses = valeur absolue des montants négatifs
 // ═══════════════════════════════════════════════════════════
 function renderMainBudgetChart() {
     const ctx = document.getElementById('mainBudgetChart');
@@ -1000,28 +1000,20 @@ function renderMainBudgetChart() {
         if (!m) return;
         if (!monthlyData[m]) monthlyData[m] = { entrees: 0, depenses: 0 };
         const amt = parseFloat(t.montant) || 0;
-        const cat = (t.categorie || '').toUpperCase().trim();
-
-        if (cat === 'ENTRÉES') {
-            // Seule la catégorie ENTRÉES compte comme "revenus"
-            if (amt > 0) monthlyData[m].entrees += amt;
-        } else {
-            // Toutes les autres catégories représentent les dépenses (net inversé)
-            // Dépense positive → valeur positive ; remboursement → réduit le total
-            monthlyData[m].depenses += -amt;
-        }
+        if (amt > 0) monthlyData[m].entrees  += amt;
+        else         monthlyData[m].depenses += Math.abs(amt);
     });
 
     const months   = Object.keys(monthlyData).sort();
     const datasets = [
-        { label:'Revenus',  data:months.map(m => monthlyData[m].entrees),              backgroundColor:'rgba(16,185,129,.85)', borderRadius:6, order:2 },
-        { label:'Dépenses', data:months.map(m => Math.max(0, monthlyData[m].depenses)),backgroundColor:'rgba(244,63,94,.80)',  borderRadius:6, order:2 }
+        { label:'Entrées',  data:months.map(m => monthlyData[m].entrees),  backgroundColor:'rgba(16,185,129,.85)', borderRadius:6, order:2 },
+        { label:'Dépenses', data:months.map(m => monthlyData[m].depenses), backgroundColor:'rgba(244,63,94,.80)',  borderRadius:6, order:2 }
     ];
 
     if (showSolde) {
         datasets.unshift({
             label:'Solde', type:'line',
-            data:months.map(m => monthlyData[m].entrees - Math.max(0, monthlyData[m].depenses)),
+            data:months.map(m => monthlyData[m].entrees - monthlyData[m].depenses),
             borderColor:'#0f172a', backgroundColor:'#0f172a',
             borderWidth:2, tension:0.4, fill:false,
             pointRadius:4, pointBackgroundColor:'#fff', pointBorderWidth:2, order:1
@@ -1047,9 +1039,10 @@ function renderMainBudgetChart() {
 
 // ═══════════════════════════════════════════════════════════
 // DASHBOARD METRICS
-// Net par catégorie/poste/description : somme algébrique
-// KPI Revenus = catégorie ENTRÉES
-// KPI Dépenses = net des autres catégories (positif = dépense)
+// KPI Entrées  = somme des montants positifs du mois
+// KPI Dépenses = valeur absolue des montants négatifs du mois
+// KPI Solde    = Entrées − Dépenses
+// Panneaux     = somme algébrique (nette) par catégorie / poste / description
 // ═══════════════════════════════════════════════════════════
 function refreshDashboard() { calculateDashboardMetrics(); }
 
@@ -1080,7 +1073,7 @@ function renderPanel(container, totals, colorFn) {
 function calculateDashboardMetrics() {
     const activeMonth = document.getElementById('dashboard-month-select')?.value || '';
     const catTotals = {}, posteTotals = {}, descTotals = {};
-    let totalRevenu = 0, totalDepense = 0;
+    let totalIn = 0, totalOut = 0;
 
     transactions.forEach(t => {
         if (!transactionPassesDashFilters(t)) return;
@@ -1089,25 +1082,25 @@ function calculateDashboardMetrics() {
         const amt = parseFloat(t.montant) || 0;
         const cat = (t.categorie || 'NON CLASSÉ').toUpperCase().trim();
 
-        // KPI : même logique que le graphique
-        if (cat === 'ENTRÉES') { if (amt > 0) totalRevenu += amt; }
-        else totalDepense += -amt; // inversion : dépenses en positif
+        // KPIs : montant positif → entrée, montant négatif → dépense
+        if (amt > 0) totalIn  += amt;
+        else         totalOut += Math.abs(amt);
 
-        // Panneaux : total net (algébrique) par catégorie / poste / description
-        catTotals[cat]  = (catTotals[cat]  || 0) + amt;
-        const poste     = (t.poste || 'AUTRE').toUpperCase().trim();
+        // Panneaux : somme algébrique nette (entrées + sorties se compensent)
+        catTotals[cat] = (catTotals[cat] || 0) + amt;
+        const poste = (t.poste || 'AUTRE').toUpperCase().trim();
         posteTotals[poste] = (posteTotals[poste] || 0) + amt;
-        const desc      = t.description || '—';
+        const desc = t.description || '—';
         descTotals[desc] = (descTotals[desc] || 0) + amt;
     });
 
     // KPIs
-    document.getElementById('kpi-entrees').textContent  = fmt(totalRevenu);
-    document.getElementById('kpi-depenses').textContent = fmt(Math.max(0, totalDepense));
-    const solde = totalRevenu - Math.max(0, totalDepense);
+    document.getElementById('kpi-entrees').textContent  = fmt(totalIn);
+    document.getElementById('kpi-depenses').textContent = fmt(totalOut);
+    const solde = totalIn - totalOut;
     document.getElementById('kpi-solde').textContent = (solde >= 0 ? '+' : '') + fmt(solde);
     const sc = document.getElementById('kpi-solde-card');
-    sc.className = `kpi ${solde >= 0 ? 'kpi-bal-pos' : 'kpi-bal-neg'}`;
+    if (sc) sc.className = `kpi ${solde >= 0 ? 'kpi-bal-pos' : 'kpi-bal-neg'}`;
     document.getElementById('kpi-solde').style.color = solde >= 0 ? '#1d4ed8' : '#b45309';
 
     const monthLabel = document.getElementById('cat-month-label');
