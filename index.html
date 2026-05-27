@@ -47,7 +47,7 @@
         .tabs-content.active { display: block; }
         .select-clean { -webkit-appearance: none; appearance: none; }
 
-        .tab-btn { transition: all .18s; border-radius: 10px; font-size: 12px; font-weight: 500; padding: 6px 20px; color: #64748b; }
+        .tab-btn { transition: all .18s; border-radius: 10px; font-size: 11px; font-weight: 500; padding: 5px 10px; color: #64748b; white-space: nowrap; }
         .tab-btn.active-tab { background: #fff; color: #0f172a; font-weight: 600; box-shadow: 0 1px 6px rgba(15,23,42,.1); }
 
         .auth-tab { flex:1; padding:8px; font-size:12px; font-weight:500; border-radius:8px; color:#94a3b8; transition:all .18s; cursor:pointer; border:none; background:transparent; }
@@ -249,10 +249,10 @@
             </div>
 
             <!-- Nav -->
-            <nav class="flex items-center gap-1 p-1 rounded-xl flex-grow sm:flex-grow-0" style="background:#f1f5f9">
-                <button onclick="switchTab('tab-dashboard')" id="btn-tab-dashboard" class="tab-btn active-tab flex-1 sm:flex-none">Dashboard</button>
-                <button onclick="switchTab('tab-transactions')" id="btn-tab-transactions" class="tab-btn flex-1 sm:flex-none">Transactions</button>
-                <button onclick="switchTab('tab-annual')" id="btn-tab-annual" class="tab-btn flex-1 sm:flex-none">Annuel</button>
+            <nav class="flex items-center gap-0.5 p-1 rounded-xl shrink-0" style="background:#f1f5f9">
+                <button onclick="switchTab('tab-dashboard')" id="btn-tab-dashboard" class="tab-btn active-tab">Dashboard</button>
+                <button onclick="switchTab('tab-transactions')" id="btn-tab-transactions" class="tab-btn">Transactions</button>
+                <button onclick="switchTab('tab-annual')" id="btn-tab-annual" class="tab-btn">Annuel</button>
             </nav>
 
             <!-- Bouton Paramètres -->
@@ -1478,23 +1478,33 @@ function renderResponsiveTransactions() {
         pcTbody.appendChild(tr);
 
         const card = document.createElement('div');
-        card.className = `p-4 flex items-center gap-3 ${t.pointe?'bg-slate-50/60':'bg-white'} hover:bg-slate-50 transition-colors cursor-pointer`;
+        card.className = `px-3 py-3 flex items-center gap-2.5 ${t.pointe?'bg-slate-50/60':'bg-white'} hover:bg-slate-50 transition-colors cursor-pointer`;
         card.onclick = () => openDetailsDrawer(idx);
+
+        const mCatLabel   = (t.categorie||'—').length > 13 ? (t.categorie||'—').substring(0,12)+'…' : (t.categorie||'—');
+        const mPosteLabel = (t.poste||'').length > 13 ? (t.poste||'').substring(0,12)+'…' : (t.poste||'');
+        const mCompte     = t.compte_bancaire ? `<span class="inline-flex items-center shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-semibold" style="background:#f0f9ff;color:#0369a1;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🏦 ${t.compte_bancaire}</span>` : '';
+
         card.innerHTML = `
             <div class="shrink-0">${pointBtn}</div>
-            <div class="min-w-0 flex-1 space-y-1">
-                <div class="flex items-center gap-1.5 flex-wrap">
-                    <span class="mono text-[10px] text-slate-400">${t.date}</span>
-                    <span class="${badgeClass}">${t.categorie||'—'}</span>
-                    ${t.exclu_dashboard?'<span class="badge badge-exclu">⊘</span>':''}
-                    ${t.compte_bancaire?`<span class="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style="background:#f0f9ff;color:#0369a1">🏦 ${t.compte_bancaire}</span>`:''}
+            <div class="min-w-0 flex-1">
+                <!-- Ligne 1 : compte · catégorie · poste -->
+                <div class="flex items-center gap-1 overflow-hidden" style="flex-wrap:nowrap">
+                    ${mCompte}
+                    <span class="${badgeClass} shrink-0" style="max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${mCatLabel}</span>
+                    ${t.exclu_dashboard?'<span class="badge badge-exclu shrink-0">⊘</span>':''}
+                    ${dupBadge ? `<span title="Doublon probable" style="font-size:10px;flex-shrink:0">⚠️</span>` : ''}
+                    <span class="text-[10px] font-semibold text-slate-600 uppercase tracking-tight truncate shrink-1 min-w-0">${mPosteLabel}</span>
                 </div>
-                <p class="text-xs font-semibold text-slate-800 uppercase tracking-tight truncate">${t.poste||''}<span class="font-normal normal-case text-slate-500 ${t.pointe?'line-through':''}"> · ${t.description||''}</span></p>
-                ${t.details?`<p class="text-[10px] text-slate-400 italic truncate">${t.details}</p>`:''}
+                <!-- Ligne 2 : description · notes -->
+                <div class="flex items-center gap-1 mt-0.5 overflow-hidden" style="flex-wrap:nowrap">
+                    <span class="text-[11px] ${t.pointe?'line-through text-slate-400':'text-slate-700'} truncate">${t.description||''}</span>
+                    ${t.details ? `<span class="text-[10px] text-slate-400 italic truncate shrink-1">· ${t.details}</span>` : ''}
+                </div>
             </div>
-            <div class="text-right shrink-0">
-                <p class="text-xs font-bold mono" style="color:${mColor}">${mText}</p>
-                <p class="text-[10px] text-slate-400 mono">${affect}</p>
+            <div class="text-right shrink-0 ml-1">
+                <p class="text-[12px] font-bold mono whitespace-nowrap" style="color:${mColor}">${mText}</p>
+                <p class="text-[9px] text-slate-400 mono">${affect}</p>
             </div>`;
         mobileContainer.appendChild(card);
     });
