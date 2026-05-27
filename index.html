@@ -498,19 +498,19 @@
             <!-- Tableau -->
             <div class="card overflow-hidden">
                 <div class="hidden md:block overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
+                    <table class="text-left border-collapse" style="width:100%;min-width:900px">
                         <thead>
                             <tr style="background:#fafbfc;border-bottom:1px solid #f1f5f9">
-                                <th class="p-3.5 text-center w-12 section-label">✓</th>
-                                <th class="p-3.5 section-label">Date</th>
-                                <th class="p-3.5 section-label">Affectation</th>
-                                <th class="p-3.5 section-label">Catégorie</th>
-                                <th class="p-3.5 section-label">Poste</th>
-                                <th class="p-3.5 section-label">Description</th>
-                                <th class="p-3.5 section-label">Notes</th>
-                                <th class="p-3.5 section-label">Compte</th>
-                                <th class="p-3.5 section-label text-right">Montant</th>
-                                <th class="p-3.5 section-label text-center">Actions</th>
+                                <th class="p-3 text-center w-10 section-label">✓</th>
+                                <th class="p-3 section-label whitespace-nowrap">Date</th>
+                                <th class="p-3 section-label whitespace-nowrap">Affectation</th>
+                                <th class="p-3 section-label whitespace-nowrap">Catégorie</th>
+                                <th class="p-3 section-label whitespace-nowrap">Poste</th>
+                                <th class="p-3 section-label whitespace-nowrap">Description</th>
+                                <th class="p-3 section-label whitespace-nowrap">Notes</th>
+                                <th class="p-3 section-label whitespace-nowrap">Compte</th>
+                                <th class="p-3 section-label text-right whitespace-nowrap">Montant</th>
+                                <th class="p-3 section-label text-center whitespace-nowrap" style="position:sticky;right:0;background:#fafbfc;box-shadow:-2px 0 6px rgba(15,23,42,.06)">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="pc-table-body"></tbody>
@@ -1333,14 +1333,14 @@ function renderResponsiveTransactions() {
             <td class="p-3 mono text-[11px] text-slate-400 whitespace-nowrap">${t.date}</td>
             <td class="p-3 mono text-[11px] text-slate-400 whitespace-nowrap">${affect}</td>
             <td class="p-3"><span class="${badgeClass}">${t.categorie||'—'}</span></td>
-            <td class="p-3 text-[11px] font-semibold uppercase tracking-tight text-slate-600">${t.poste||''}</td>
-            <td class="p-3 text-[11px] max-w-[140px] truncate ${t.pointe?'line-through text-slate-400':'text-slate-700'}">${t.description||''}${excluBadge}</td>
-            <td class="p-3 text-[11px] max-w-[110px] truncate text-slate-400 italic">${t.details||''}</td>
+            <td class="p-3 text-[11px] font-semibold uppercase tracking-tight text-slate-600 whitespace-nowrap">${t.poste||''}</td>
+            <td class="p-3 text-[11px] max-w-[160px] truncate ${t.pointe?'line-through text-slate-400':'text-slate-700'}" title="${(t.description||'')+((t.exclu_dashboard)?' ⊘':'')}">${t.description||''}${excluBadge}</td>
+            <td class="p-3 text-[11px] max-w-[130px] truncate text-slate-400 italic" title="${t.details||''}">${t.details||''}</td>
             <td class="p-3 text-[11px] text-slate-500 whitespace-nowrap">${t.compte_bancaire?`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style="background:#f0f9ff;color:#0369a1">🏦 ${t.compte_bancaire}</span>`:'—'}</td>
             <td class="p-3 text-right text-xs font-bold mono whitespace-nowrap" style="color:${mColor}">${mText}</td>
-            <td class="p-3 text-center whitespace-nowrap">
-                <button onclick="event.stopPropagation();openTransactionModal(${idx})" class="text-indigo-500 hover:text-indigo-800 text-[11px] font-semibold mr-2">Éditer</button>
-                <button onclick="event.stopPropagation();deleteTransaction(${idx})" class="text-rose-500 hover:text-rose-800 text-[11px] font-semibold">Suppr.</button>
+            <td class="p-3 text-center whitespace-nowrap" style="position:sticky;right:0;background:inherit;box-shadow:-2px 0 6px rgba(15,23,42,.06)">
+                <button onclick="event.stopPropagation();openTransactionModal(${idx})" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-[11px] font-semibold transition mr-1">✏️ Éditer</button>
+                <button onclick="event.stopPropagation();deleteTransaction(${idx})" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-500 hover:bg-rose-100 text-[11px] font-semibold transition">🗑 Suppr.</button>
             </td>`;
         pcTbody.appendChild(tr);
 
