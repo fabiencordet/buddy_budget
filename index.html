@@ -425,23 +425,55 @@
                     <input type="file" id="csv-file-input" accept=".csv" class="text-xs text-slate-600 flex-grow file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-slate-200 file:text-slate-700 hover:file:bg-slate-300">
                     <button onclick="parseCSV()" class="bg-slate-900 text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition hover:bg-slate-700">Analyser</button>
                 </div>
-                <div id="csv-mapping-container" class="hidden p-3 border border-slate-200 bg-slate-50 rounded-xl space-y-3">
+                <!-- Étape 2 : Mapping colonnes -->
+                <div id="csv-mapping-container" class="hidden p-4 border border-slate-200 bg-slate-50 rounded-xl space-y-3">
+                    <p class="section-label">Étape 2 — Associer les colonnes</p>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div><label class="section-label mb-1 block">Date</label><select id="map-date" class="field"></select></div>
-                        <div><label class="section-label mb-1 block">Libellé</label><select id="map-details" class="field"></select></div>
-                        <div><label class="section-label mb-1 block">Montant</label><select id="map-montant" class="field"></select></div>
+                        <div>
+                            <label class="section-label mb-1 block">📅 Date</label>
+                            <select id="map-date" class="field"></select>
+                        </div>
+                        <div>
+                            <label class="section-label mb-1 block">📝 Libellé bancaire</label>
+                            <select id="map-details" class="field"></select>
+                        </div>
+                        <div>
+                            <label class="section-label mb-1 block">💶 Montant</label>
+                            <select id="map-montant" class="field"></select>
+                        </div>
                     </div>
-                    <button onclick="processCSVLines()" class="w-full bg-slate-800 text-white font-semibold py-2 rounded-lg text-xs transition hover:bg-slate-700">🤖 Classer via Gemini</button>
+                    <div id="csv-sample" class="text-[10px] text-slate-400 italic"></div>
+                    <button id="btn-process-csv" onclick="processCSVLines()"
+                        class="w-full text-white font-semibold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2"
+                        style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 2px 10px rgba(99,102,241,.3)">
+                        🤖 Catégoriser via Gemini IA
+                    </button>
                 </div>
+
+                <!-- Étape 3 : Prévisualisation -->
                 <div id="csv-preview-container" class="hidden space-y-2">
-                    <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                        <span class="text-slate-600 text-xs font-medium">Prévisualisation avant envoi</span>
-                        <button onclick="saveImportedTransactions()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1 px-3 rounded-lg text-xs transition">💾 Envoyer au Cloud</button>
+                    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-700">Étape 3 — Vérifier avant import</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5"><span id="csv-import-count"></span> · Supprimez les lignes indésirables</p>
+                        </div>
+                        <button id="btn-save-import" onclick="saveImportedTransactions()"
+                            class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-4 rounded-xl text-xs transition flex items-center gap-1.5">
+                            💾 Importer
+                        </button>
                     </div>
-                    <div class="overflow-x-auto border border-slate-100 rounded-xl max-h-60">
+                    <div class="overflow-x-auto border border-slate-100 rounded-xl" style="max-height:320px">
                         <table class="w-full text-left text-[11px]">
-                            <thead class="text-slate-400 font-semibold border-b border-slate-100" style="background:#fafbfc">
-                                <tr><th class="p-2.5">Date</th><th class="p-2.5">Libellé</th><th class="p-2.5">Poste</th><th class="p-2.5 text-right">Montant</th></tr>
+                            <thead class="text-slate-400 font-semibold border-b border-slate-100 sticky top-0" style="background:#fafbfc">
+                                <tr>
+                                    <th class="p-2">Date</th>
+                                    <th class="p-2">Libellé (notes)</th>
+                                    <th class="p-2">Catégorie</th>
+                                    <th class="p-2">Poste</th>
+                                    <th class="p-2">Description</th>
+                                    <th class="p-2 text-right">Montant</th>
+                                    <th class="p-2 text-center w-8">✕</th>
+                                </tr>
                             </thead>
                             <tbody id="csv-preview-tbody" class="divide-y divide-slate-50 bg-white"></tbody>
                         </table>
@@ -1438,11 +1470,304 @@ function openDetailsDrawer(index) {
 function closeDetailsDrawer() { document.getElementById('details-drawer-modal').classList.add('hidden'); }
 
 // ═══════════════════════════════════════════════════════════
-// CSV STUBS
+// CSV IMPORT — Implémentation complète
 // ═══════════════════════════════════════════════════════════
-function parseCSV() { console.log('Analyse CSV...'); }
-function processCSVLines() { console.log('Traitement IA...'); }
-function saveImportedTransactions() { console.log('Sauvegarde Cloud...'); }
+let csvHeaders = [];
+let csvRows    = [];
+let tempImportedTransactions = [];
+
+/* ── Parsing ─────────────────────────────────────────────── */
+function detectSeparator(text) {
+    const line = text.split('\n')[0];
+    const counts = {
+        ';': (line.match(/;/g)  || []).length,
+        ',': (line.match(/,/g)  || []).length,
+        '\t':(line.match(/\t/g) || []).length,
+    };
+    return Object.keys(counts).reduce((a, b) => counts[a] >= counts[b] ? a : b);
+}
+
+function parseCSVLine(line, sep) {
+    const result = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+        if (line[i] === '"') { inQ = !inQ; }
+        else if (line[i] === sep && !inQ) { result.push(cur.trim()); cur = ''; }
+        else { cur += line[i]; }
+    }
+    result.push(cur.trim());
+    return result.map(v => v.replace(/^"|"$/g, '').trim());
+}
+
+function parseDate(str) {
+    if (!str) return null;
+    str = str.replace(/['"]/g, '').trim();
+    if (/^\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4}$/.test(str)) {
+        const p = str.split(/[\/\-\.]/);
+        return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+    }
+    if (/^\d{4}[\/\-\.]\d{2}[\/\-\.]\d{2}/.test(str)) return str.substring(0,10).replace(/\//g,'-');
+    return null;
+}
+
+function parseMontant(str) {
+    if (!str) return null;
+    let s = str.replace(/[€$£\u00a0\s]/g, '');
+    // Format français : 1.234,56 ou 1 234,56
+    if (/^\-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g,'').replace(',','.');
+    else s = s.replace(',','.');
+    const v = parseFloat(s);
+    return isNaN(v) ? null : v;
+}
+
+function autoDetectCol(headers, type) {
+    const lc = headers.map(h => h.toLowerCase());
+    const matchers = {
+        date:    ['date','jour','valeur','opération'],
+        details: ['libellé','libelle','label','description','opération','operation','motif'],
+        montant: ['montant','amount','débit','credit','solde','valeur'],
+    };
+    const kws = matchers[type] || [];
+    const idx = lc.findIndex(h => kws.some(k => h.includes(k)));
+    return idx >= 0 ? idx : -1;
+}
+
+/* ── Étape 1 : Analyser le fichier ──────────────────────── */
+function parseCSV() {
+    const file = document.getElementById('csv-file-input').files[0];
+    if (!file) { alert('Sélectionnez un fichier CSV.'); return; }
+
+    const reader = new FileReader();
+    reader.onload = e => {
+        const text = e.target.result;
+        const sep  = detectSeparator(text);
+        const lines = text.split(/\r?\n/).filter(l => l.trim());
+
+        csvHeaders = parseCSVLine(lines[0], sep);
+        csvRows    = lines.slice(1)
+                         .map(l => parseCSVLine(l, sep))
+                         .filter(r => r.length >= csvHeaders.length && r.some(c => c));
+
+        // Peupler les selects de mapping
+        const populateSelect = (id, type) => {
+            const sel = document.getElementById(id);
+            sel.innerHTML = '<option value="">— choisir —</option>';
+            csvHeaders.forEach((h, i) => {
+                const o = document.createElement('option');
+                o.value = i; o.textContent = h || `Colonne ${i+1}`;
+                sel.appendChild(o);
+            });
+            const auto = autoDetectCol(csvHeaders, type);
+            if (auto >= 0) sel.value = auto;
+        };
+        populateSelect('map-date',    'date');
+        populateSelect('map-details', 'details');
+        populateSelect('map-montant', 'montant');
+
+        // Aperçu des 3 premières lignes
+        const sample = csvRows.slice(0,3).map(r => r.join(' | ')).join(' → ');
+        document.getElementById('csv-sample').textContent = `Aperçu : ${sample}`;
+
+        document.getElementById('csv-mapping-container').classList.remove('hidden');
+        document.getElementById('csv-preview-container').classList.add('hidden');
+    };
+    reader.onerror = () => alert('Impossible de lire le fichier.');
+    reader.readAsText(file, 'UTF-8');
+}
+
+/* ── Étape 2 : Catégoriser via Gemini ───────────────────── */
+async function processCSVLines() {
+    const dateIdx    = parseInt(document.getElementById('map-date').value);
+    const detailIdx  = parseInt(document.getElementById('map-details').value);
+    const montantIdx = parseInt(document.getElementById('map-montant').value);
+
+    if (isNaN(dateIdx) || isNaN(detailIdx) || isNaN(montantIdx)) {
+        alert('Veuillez associer les 3 colonnes (Date, Libellé, Montant).');
+        return;
+    }
+
+    const apiKey = localStorage.getItem('gemini_api_key');
+    if (!apiKey) {
+        alert('Clé Gemini manquante — configurez-la dans ⚙️ Paramètres.');
+        return;
+    }
+
+    // Construire les transactions brutes
+    const raw = csvRows
+        .map(row => ({
+            date:    parseDate(row[dateIdx]    || ''),
+            details: (row[detailIdx] || '').trim(),   // notes brutes, inchangées
+            montant: parseMontant(row[montantIdx] || ''),
+        }))
+        .filter(t => t.date && t.montant !== null);
+
+    if (!raw.length) {
+        alert('Aucune transaction valide trouvée. Vérifiez le mapping des colonnes.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-process-csv');
+    const setBtnState = (loading, text) => {
+        btn.disabled = loading;
+        btn.innerHTML = loading
+            ? `<span class="spinner"></span> ${text}`
+            : `🤖 ${text}`;
+    };
+    setBtnState(true, 'Analyse en cours…');
+
+    try {
+        tempImportedTransactions = [];
+        const BATCH = 20;
+        for (let i = 0; i < raw.length; i += BATCH) {
+            const batch = raw.slice(i, i + BATCH);
+            setBtnState(true, `${Math.min(i+BATCH,raw.length)} / ${raw.length} lignes traitées…`);
+            const result = await callGeminiCategorize(batch, apiKey);
+            tempImportedTransactions.push(...result);
+        }
+        renderCSVPreview(tempImportedTransactions);
+        document.getElementById('csv-preview-container').classList.remove('hidden');
+        setBtnState(false, 'Relancer la catégorisation');
+    } catch(err) {
+        alert('Erreur Gemini : ' + err.message);
+        setBtnState(false, 'Catégoriser via Gemini IA');
+    }
+}
+
+async function callGeminiCategorize(batch, apiKey) {
+    // On envoie le budgetStructure complet comme référence à l'IA
+    const structureStr = JSON.stringify(budgetStructure);
+    const txList = batch.map((t, i) =>
+        `${i}|${t.details}|${t.montant > 0 ? '+' : ''}${t.montant}`
+    ).join('\n');
+
+    const prompt =
+`Tu es un assistant comptable français. Classe chaque transaction dans la structure budgétaire ci-dessous.
+
+STRUCTURE (JSON) :
+${structureStr}
+
+TRANSACTIONS (format: index|libellé|montant) :
+${txList}
+
+RÈGLES STRICTES :
+1. Utilise EXACTEMENT les noms de la structure (copie-colle, respecte majuscules et accents).
+2. Montant positif inconnu → REVENUS / REVENUS FABIEN / Remboursement
+3. Montant négatif inconnu → DÉPENSES QUOTIDIENNES / SHOPPING / Amazon divers
+4. Réponds UNIQUEMENT avec un tableau JSON valide, sans markdown ni texte autour.
+
+FORMAT DE RÉPONSE :
+[{"index":0,"categorie":"...","poste":"...","description":"..."},...]`;
+
+    const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0.1, maxOutputTokens: 4096 }
+            })
+        }
+    );
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const raw  = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+    // Nettoyer éventuels blocs markdown
+    const clean = raw.replace(/```json|```/gi, '').trim();
+    let classified = [];
+    try { classified = JSON.parse(clean); } catch { classified = []; }
+
+    return batch.map((t, i) => {
+        const match = classified.find(c => c.index === i) || {};
+        return {
+            ...t,
+            categorie:        match.categorie   || 'DÉPENSES QUOTIDIENNES',
+            poste:            match.poste       || 'SHOPPING',
+            description:      match.description || 'Amazon divers',
+            mois_affectation: getYearMonthString(t.date),
+            pointe:           false,
+            exclu_dashboard:  false,
+        };
+    });
+}
+
+/* ── Rendu de la preview ─────────────────────────────────── */
+function renderCSVPreview(list) {
+    const tbody = document.getElementById('csv-preview-tbody');
+    tbody.innerHTML = '';
+    list.forEach((t, i) => {
+        const amt        = parseFloat(t.montant) || 0;
+        const mColor     = amt > 0 ? '#059669' : '#e11d48';
+        const badgeClass = categoryBadgeClass[(t.categorie||'').toUpperCase().trim()] || 'badge badge-default';
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-slate-50 hover:bg-slate-50 transition-colors';
+        tr.innerHTML = `
+            <td class="p-2 mono text-[10px] text-slate-400 whitespace-nowrap">${t.date}</td>
+            <td class="p-2 text-[10px] text-slate-500 max-w-[180px] truncate" title="${t.details}">${t.details}</td>
+            <td class="p-2 whitespace-nowrap"><span class="${badgeClass}">${t.categorie}</span></td>
+            <td class="p-2 text-[10px] font-semibold text-slate-600 uppercase whitespace-nowrap">${t.poste}</td>
+            <td class="p-2 text-[10px] text-slate-500 whitespace-nowrap">${t.description}</td>
+            <td class="p-2 text-right mono text-[10px] font-bold whitespace-nowrap" style="color:${mColor}">${amt > 0 ? '+' : ''}${fmt(amt)}</td>
+            <td class="p-2 text-center">
+                <button onclick="removeImportRow(${i})"
+                    class="w-5 h-5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-400 hover:text-rose-600 text-xs font-bold transition leading-none flex items-center justify-center mx-auto">×</button>
+            </td>`;
+        tbody.appendChild(tr);
+    });
+
+    const n = list.length;
+    const cnt = document.getElementById('csv-import-count');
+    if (cnt) cnt.textContent = `${n} transaction${n > 1 ? 's' : ''} prête${n > 1 ? 's' : ''}`;
+}
+
+function removeImportRow(index) {
+    tempImportedTransactions.splice(index, 1);
+    renderCSVPreview(tempImportedTransactions);
+}
+
+/* ── Étape 3 : Sauvegarder ──────────────────────────────── */
+async function saveImportedTransactions() {
+    if (!tempImportedTransactions.length) { alert('Aucune transaction à importer.'); return; }
+
+    const btn = document.getElementById('btn-save-import');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" style="border-top-color:#fff;width:14px;height:14px;border-width:2px"></span>';
+
+    try {
+        const payload = tempImportedTransactions.map(t => ({
+            date:             t.date,
+            mois_affectation: t.mois_affectation || getYearMonthString(t.date),
+            categorie:        t.categorie,
+            poste:            t.poste,
+            description:      t.description,
+            details:          t.details,          // libellé bancaire brut, inchangé
+            montant:          parseFloat(t.montant),
+            pointe:           false,
+            exclu_dashboard:  false,
+        }));
+
+        const { error } = await _supabase.from('transactions').insert(payload);
+        if (error) throw error;
+
+        const n = payload.length;
+        toggleImportZone();
+        tempImportedTransactions = [];
+        document.getElementById('csv-preview-container').classList.add('hidden');
+        document.getElementById('csv-mapping-container').classList.add('hidden');
+        await fetchTransactionsFromCloud();
+        alert(`✅ ${n} transaction${n > 1 ? 's' : ''} importée${n > 1 ? 's' : ''} avec succès !`);
+    } catch(err) {
+        alert('Erreur lors de la sauvegarde : ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '💾 Importer';
+    }
+}
 </script>
 </body>
 </html>
