@@ -553,11 +553,11 @@
                                 <th class="p-2 text-center section-label" style="width:36px">✓</th>
                                 <th class="p-2 section-label whitespace-nowrap" style="width:88px">Date</th>
                                 <th class="p-2 section-label whitespace-nowrap" style="width:80px">Affect.</th>
-                                <th class="p-2 section-label" style="width:110px">Catégorie</th>
+                                <th class="p-2 section-label" style="width:130px">Catégorie</th>
                                 <th class="p-2 section-label" style="width:120px">Poste</th>
                                 <th class="p-2 section-label" style="width:110px">Description</th>
                                 <th class="p-2 section-label" style="width:110px">Notes</th>
-                                <th class="p-2 section-label" style="width:90px">Compte</th>
+                                <th class="p-2 section-label" style="width:68px">Compte</th>
                                 <th class="p-2 section-label text-right whitespace-nowrap" style="width:90px">Montant</th>
                                 <th class="p-2 section-label text-center whitespace-nowrap" style="width:58px;position:sticky;right:0;background:#fafbfc;box-shadow:-2px 0 6px rgba(15,23,42,.06)">Act.</th>
                             </tr>
@@ -1433,7 +1433,7 @@ function renderResponsiveTransactions() {
         const affect     = t.mois_affectation || getYearMonthString(t.date);
         const excluBadge = t.exclu_dashboard ? `<span class="badge badge-exclu ml-1.5">⊘</span>` : '';
         const dupKey = `${t.date}|${parseFloat(t.montant).toFixed(2)}`;
-        const dupBadge = dupSet.has(dupKey) ? `<span class="badge-dup ml-1.5">⚠️ doublon?</span>` : '';
+        const dupBadge = dupSet.has(dupKey) ? `<span title="Doublon probable" style="font-size:11px;cursor:default">⚠️</span>` : '';
 
         const pointBtn = `
             <button onclick="togglePointage(${idx},event)" title="${t.pointe?'Dé-pointer':'Pointer'}"
@@ -1445,11 +1445,11 @@ function renderResponsiveTransactions() {
         tr.className = `tr-row cursor-pointer ${t.pointe?'is-pointed':''}`;
         tr.onclick = () => openDetailsDrawer(idx);
 
-        const catLabel   = (t.categorie||'—').length > 15 ? (t.categorie||'—').substring(0,14)+'…' : (t.categorie||'—');
+        const catLabel   = (t.categorie||'—').length > 18 ? (t.categorie||'—').substring(0,17)+'…' : (t.categorie||'—');
         const posteLabel = (t.poste||'').length > 14 ? (t.poste||'').substring(0,13)+'…' : (t.poste||'');
         const descLabel  = (t.description||'').length > 14 ? (t.description||'').substring(0,13)+'…' : (t.description||'');
         const noteLabel  = (t.details||'').length > 13 ? (t.details||'').substring(0,12)+'…' : (t.details||'');
-        const compteLabel= (t.compte_bancaire||'').length > 10 ? (t.compte_bancaire||'').substring(0,9)+'…' : (t.compte_bancaire||'');
+        const compteLabel= (t.compte_bancaire||'').length > 7 ? (t.compte_bancaire||'').substring(0,6)+'…' : (t.compte_bancaire||'');
 
         tr.innerHTML = `
             <td class="p-2 text-center"><div class="flex justify-center">${pointBtn}</div></td>
