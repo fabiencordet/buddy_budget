@@ -558,7 +558,7 @@
                                 <th class="p-3 section-label whitespace-nowrap">Description</th>
                                 <th class="p-3 section-label whitespace-nowrap">Notes</th>
                                 <th class="p-3 section-label whitespace-nowrap">Compte</th>
-                                <th class="p-3 section-label text-right whitespace-nowrap" style="position:sticky;right:160px;background:#fafbfc;box-shadow:-1px 0 0 #f1f5f9">Montant</th>
+                                <th class="p-3 section-label text-right whitespace-nowrap">Montant</th>
                                 <th class="p-3 section-label text-center whitespace-nowrap" style="position:sticky;right:0;background:#fafbfc;box-shadow:-2px 0 6px rgba(15,23,42,.06)">Actions</th>
                             </tr>
                         </thead>
@@ -1461,8 +1461,8 @@ function renderResponsiveTransactions() {
             <td class="p-3 text-[11px] text-slate-500 whitespace-nowrap">${t.compte_bancaire?`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style="background:#f0f9ff;color:#0369a1">🏦 ${t.compte_bancaire}</span>`:'—'}</td>
             <td class="p-3 text-right text-xs font-bold mono whitespace-nowrap inline-edit-cell"
                 ondblclick="event.stopPropagation();startInlineEdit(this,${idx},'montant',${t.montant||0},false,null)"
-                style="color:${mColor};position:sticky;right:160px;background:inherit;box-shadow:-1px 0 0 #f1f5f9" title="Double-cliquer pour éditer">${mText}</td>
-            <td class="p-3 text-center whitespace-nowrap" style="position:sticky;right:0;background:inherit;box-shadow:-2px 0 6px rgba(15,23,42,.06)">
+                style="color:${mColor}" title="Double-cliquer pour éditer">${mText}</td>
+            <td class="p-3 text-center whitespace-nowrap" style="position:sticky;right:0;background:${t.pointe?'#f8fafc':'#fff'};box-shadow:-2px 0 6px rgba(15,23,42,.06)">
                 <button onclick="event.stopPropagation();openTransactionModal(${idx})" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-[11px] font-semibold transition mr-1">✏️ Éditer</button>
                 <button onclick="event.stopPropagation();deleteTransaction(${idx})" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-500 hover:bg-rose-100 text-[11px] font-semibold transition">🗑 Suppr.</button>
             </td>`;
@@ -2106,12 +2106,13 @@ function renderTableFooter(filtered) {
     const solde = totalIn - totalOut;
     const soldeColor = solde >= 0 ? '#059669' : '#e11d48';
     tfoot.innerHTML = `
-        <tr>
-            <td colspan="8" class="p-3 text-right text-[11px] text-slate-400 font-semibold">${filtered.length} transaction${filtered.length>1?'s':''}</td>
+        <tr class="tfoot-row">
+            <td colspan="7" class="p-3 text-right text-[11px] text-slate-400 font-semibold">${filtered.length} transaction${filtered.length>1?'s':''}</td>
+            <td class="p-3 text-[11px] text-slate-500 whitespace-nowrap"></td>
             <td class="p-3 text-right whitespace-nowrap">
                 <div class="flex flex-col items-end gap-0.5">
-                    <span class="text-[10px] text-emerald-600 mono font-semibold">+${fmt(totalIn)}</span>
-                    <span class="text-[10px] text-rose-500 mono font-semibold">-${fmt(totalOut)}</span>
+                    <span class="text-[10px] text-emerald-600 mono font-semibold">↑ +${fmt(totalIn)}</span>
+                    <span class="text-[10px] text-rose-500 mono font-semibold">↓ -${fmt(totalOut)}</span>
                     <span class="text-xs mono font-bold border-t border-slate-200 pt-0.5" style="color:${soldeColor}">${solde>=0?'+':''}${fmt(solde)}</span>
                 </div>
             </td>
