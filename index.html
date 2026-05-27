@@ -129,6 +129,40 @@
         }
         .settings-item:hover { background:#f8fafc; }
         .settings-item .si-icon { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; }
+
+        /* ── Inline edit ── */
+        .inline-edit-cell { cursor:text; position:relative; }
+        .inline-edit-cell:hover::after { content:'✏️'; position:absolute; right:4px; top:50%; transform:translateY(-50%); font-size:9px; opacity:.5; }
+        .inline-edit-input {
+            padding:2px 6px; border:1.5px solid #6366f1; border-radius:6px; font-size:11px;
+            font-family:'DM Sans',sans-serif; background:#fff; outline:none; min-width:80px;
+            box-shadow:0 0 0 3px rgba(99,102,241,.12);
+        }
+
+        /* ── Duplicate badge ── */
+        .badge-dup { background:#fef3c7; color:#92400e; font-size:9px; padding:1px 6px; border-radius:99px; font-weight:700; border:1px solid #fde68a; }
+
+        /* ── Budget prévisionnel ── */
+        .budget-prog-track { height:6px; border-radius:99px; background:#f1f5f9; overflow:hidden; flex:1; }
+        .budget-prog-fill  { height:100%; border-radius:99px; transition:width .5s cubic-bezier(.4,0,.2,1); }
+        .budget-over       { background:linear-gradient(90deg,#f43f5e,#fb7185); }
+        .budget-warn       { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
+        .budget-ok         { background:linear-gradient(90deg,#10b981,#34d399); }
+
+        /* ── Annual table ── */
+        .annual-table th, .annual-table td { padding:6px 10px; font-size:11px; white-space:nowrap; border-bottom:1px solid #f1f5f9; }
+        .annual-table thead th { background:#fafbfc; font-weight:700; letter-spacing:.04em; color:#94a3b8; font-size:10px; text-transform:uppercase; position:sticky; top:0; z-index:2; }
+        .annual-table tbody tr:hover { background:#f8fafc; }
+        .annual-table .row-label { font-weight:600; color:#334155; position:sticky; left:0; background:inherit; z-index:1; min-width:150px; max-width:200px; }
+        .annual-table .row-label.cat-row { background:#f8fafc; font-weight:700; color:#0f172a; font-size:11px; }
+        .annual-table .row-total { font-weight:700; background:#f0f9ff !important; }
+        .annual-cell-pos { color:#059669; font-weight:600; font-family:'DM Mono',monospace; }
+        .annual-cell-neg { color:#e11d48; font-weight:600; font-family:'DM Mono',monospace; }
+        .annual-cell-zero { color:#cbd5e1; }
+
+        /* ── Table footer totals ── */
+        .tfoot-row { background:#f8fafc; border-top:2px solid #e2e8f0; }
+        .tfoot-row td { font-weight:700; font-size:11px; padding:8px 12px; }
     </style>
 </head>
 <body>
@@ -218,6 +252,7 @@
             <nav class="flex items-center gap-1 p-1 rounded-xl flex-grow sm:flex-grow-0" style="background:#f1f5f9">
                 <button onclick="switchTab('tab-dashboard')" id="btn-tab-dashboard" class="tab-btn active-tab flex-1 sm:flex-none">Dashboard</button>
                 <button onclick="switchTab('tab-transactions')" id="btn-tab-transactions" class="tab-btn flex-1 sm:flex-none">Transactions</button>
+                <button onclick="switchTab('tab-annual')" id="btn-tab-annual" class="tab-btn flex-1 sm:flex-none">Annuel</button>
             </nav>
 
             <!-- Bouton Paramètres -->
@@ -381,6 +416,20 @@
                 </div>
             </div>
 
+            <!-- Budget Prévisionnel -->
+            <div class="card p-5">
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                    <div>
+                        <p class="section-label mb-0.5">🎯 Budget prévisionnel</p>
+                        <p class="text-[11px] text-slate-400">Consommation par poste vs. objectif fixé</p>
+                    </div>
+                    <button onclick="openBudgetModal()" class="px-3 py-1.5 text-[11px] font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition">⚙️ Configurer</button>
+                </div>
+                <div id="budget-previsionnel-container" class="space-y-3">
+                    <p class="text-xs text-slate-400 italic text-center py-3">Aucun budget configuré. Cliquez sur ⚙️ Configurer pour commencer.</p>
+                </div>
+            </div>
+
             <!-- Config IA -->
             <div class="card-flat p-3" style="background:rgba(248,250,252,.9)">
                 <button onclick="document.getElementById('ia-config-panel').classList.toggle('hidden')" class="w-full flex justify-between items-center">
@@ -514,6 +563,7 @@
                             </tr>
                         </thead>
                         <tbody id="pc-table-body"></tbody>
+                        <tfoot id="pc-table-foot" class="tfoot-row"></tfoot>
                     </table>
                 </div>
                 <div class="block md:hidden">
@@ -525,7 +575,65 @@
                 </div>
             </div>
         </section>
+
+        <!-- ========= VUE ANNUELLE ========= -->
+        <section id="tab-annual" class="tabs-content space-y-4 fade-in pt-1">
+            <div class="card p-4">
+                <div class="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                    <div>
+                        <p class="section-label mb-0.5">📊 Récap annuel par catégorie</p>
+                        <p class="text-[11px] text-slate-400">Solde net mensuel par catégorie et poste</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select id="annual-year-select" onchange="renderAnnualView()" class="field" style="width:auto;min-width:100px"></select>
+                        <select id="annual-mode-select" onchange="renderAnnualView()" class="field" style="width:auto;min-width:120px">
+                            <option value="categorie">Par catégorie</option>
+                            <option value="poste">Par poste</option>
+                            <option value="description">Par description</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="card overflow-hidden">
+                <div class="overflow-x-auto" style="max-height:70vh">
+                    <table class="annual-table w-full border-collapse" id="annual-table">
+                        <thead id="annual-thead"></thead>
+                        <tbody id="annual-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
     </main>
+</div>
+
+<!-- ===================== MODAL BUDGET PRÉVISIONNEL ===================== -->
+<div id="budget-modal" class="fixed inset-0 flex items-center justify-center z-[60] hidden"
+     style="background:rgba(15,23,42,.45);backdrop-filter:blur(6px)" onclick="closeBudgetModal()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full mx-4 overflow-hidden modal-scroll" style="max-width:480px" onclick="event.stopPropagation()">
+        <div class="px-5 py-4 flex justify-between items-center sticky top-0 z-10" style="background:linear-gradient(135deg,#0f172a,#1e3a5f)">
+            <p class="font-semibold text-xs text-white uppercase tracking-widest">🎯 Budget prévisionnel</p>
+            <button onclick="closeBudgetModal()" class="text-white/50 hover:text-white text-2xl font-light leading-none">&times;</button>
+        </div>
+        <div class="p-5 space-y-4">
+            <p class="text-[11px] text-slate-500">Définissez un plafond mensuel par poste. L'app vous avertira visuellement si vous dépassez 80 % ou 100 % du budget.</p>
+            <!-- Ajouter une entrée budget -->
+            <div class="flex gap-2 items-end">
+                <div class="flex-1">
+                    <label class="section-label mb-1 block">Poste</label>
+                    <select id="budget-poste-select" class="field"></select>
+                </div>
+                <div style="width:110px">
+                    <label class="section-label mb-1 block">Plafond (€/mois)</label>
+                    <input type="number" id="budget-amount-input" min="0" step="10" placeholder="ex: 500" class="field mono">
+                </div>
+                <button onclick="addBudgetLine()" class="px-4 py-2 text-white font-semibold text-xs rounded-xl transition hover:opacity-90 shrink-0"
+                    style="background:linear-gradient(135deg,#0f172a,#334155)">Ajouter</button>
+            </div>
+            <!-- Liste des budgets -->
+            <div id="budget-lines-list" class="space-y-2 max-h-80 overflow-y-auto pr-1"></div>
+            <p id="budget-lines-empty" class="text-xs text-slate-400 italic text-center py-4 hidden">Aucun budget défini.</p>
+        </div>
+    </div>
 </div>
 
 <!-- ===================== MODAL COMPTES BANCAIRES ===================== -->
@@ -946,6 +1054,7 @@ function switchTab(tabId) {
     document.getElementById(tabId).classList.add('active');
     document.getElementById('btn-' + tabId).classList.add('active-tab');
     if (tabId === 'tab-dashboard') { buildMonthDropdown(); renderMainBudgetChart(); }
+    if (tabId === 'tab-annual') { buildAnnualYearSelect(); renderAnnualView(); }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1229,6 +1338,9 @@ function calculateDashboardMetrics() {
         descTotals,
         (key, v) => v < 0 ? '#fce7f3' : '#d1fae5'
     );
+
+    // Budget prévisionnel
+    renderBudgetPrevisionnel(activeMonth);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1306,8 +1418,10 @@ function renderResponsiveTransactions() {
             && (!compteF|| cCp === compteF);
     });
 
-    if (!filtered.length) { emptyState.classList.remove('hidden'); return; }
+    if (!filtered.length) { emptyState.classList.remove('hidden'); renderTableFooter([]); return; }
     emptyState.classList.add('hidden');
+
+    const dupSet = buildDuplicateSet(filtered);
 
     filtered.forEach(t => {
         const idx        = transactions.indexOf(t);
@@ -1318,6 +1432,8 @@ function renderResponsiveTransactions() {
         const mText      = (amt > 0 ? '+' : '') + fmt(amt);
         const affect     = t.mois_affectation || getYearMonthString(t.date);
         const excluBadge = t.exclu_dashboard ? `<span class="badge badge-exclu ml-1.5">⊘</span>` : '';
+        const dupKey = `${t.date}|${parseFloat(t.montant).toFixed(2)}`;
+        const dupBadge = dupSet.has(dupKey) ? `<span class="badge-dup ml-1.5">⚠️ doublon?</span>` : '';
 
         const pointBtn = `
             <button onclick="togglePointage(${idx},event)" title="${t.pointe?'Dé-pointer':'Pointer'}"
@@ -1332,12 +1448,20 @@ function renderResponsiveTransactions() {
             <td class="p-3 text-center"><div class="flex justify-center">${pointBtn}</div></td>
             <td class="p-3 mono text-[11px] text-slate-400 whitespace-nowrap">${t.date}</td>
             <td class="p-3 mono text-[11px] text-slate-400 whitespace-nowrap">${affect}</td>
-            <td class="p-3"><span class="${badgeClass}">${t.categorie||'—'}</span></td>
-            <td class="p-3 text-[11px] font-semibold uppercase tracking-tight text-slate-600 whitespace-nowrap">${t.poste||''}</td>
-            <td class="p-3 text-[11px] max-w-[160px] truncate ${t.pointe?'line-through text-slate-400':'text-slate-700'}" title="${(t.description||'')+((t.exclu_dashboard)?' ⊘':'')}">${t.description||''}${excluBadge}</td>
-            <td class="p-3 text-[11px] max-w-[130px] truncate text-slate-400 italic" title="${t.details||''}">${t.details||''}</td>
+            <td class="p-3"><span class="${badgeClass}">${t.categorie||'—'}</span>${dupBadge}</td>
+            <td class="p-3 text-[11px] font-semibold uppercase tracking-tight text-slate-600 whitespace-nowrap inline-edit-cell"
+                ondblclick="event.stopPropagation();startInlineEdit(this,${idx},'poste','${(t.poste||'').replace(/'/g,"\\'")}',true,${JSON.stringify(t.categorie&&budgetStructure[t.categorie]?Object.keys(budgetStructure[t.categorie]):[t.poste||''])})"
+                title="Double-cliquer pour éditer">${t.poste||''}</td>
+            <td class="p-3 text-[11px] max-w-[160px] truncate ${t.pointe?'line-through text-slate-400':'text-slate-700'} inline-edit-cell"
+                ondblclick="event.stopPropagation();startInlineEdit(this,${idx},'description','${(t.description||'').replace(/'/g,"\\'")}',false,null)"
+                title="${(t.description||'')} — Double-cliquer pour éditer">${t.description||''}${excluBadge}</td>
+            <td class="p-3 text-[11px] max-w-[130px] truncate text-slate-400 italic inline-edit-cell"
+                ondblclick="event.stopPropagation();startInlineEdit(this,${idx},'details','${(t.details||'').replace(/'/g,"\\'")}',false,null)"
+                title="${t.details||''} — Double-cliquer pour éditer">${t.details||''}</td>
             <td class="p-3 text-[11px] text-slate-500 whitespace-nowrap">${t.compte_bancaire?`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style="background:#f0f9ff;color:#0369a1">🏦 ${t.compte_bancaire}</span>`:'—'}</td>
-            <td class="p-3 text-right text-xs font-bold mono whitespace-nowrap" style="color:${mColor}">${mText}</td>
+            <td class="p-3 text-right text-xs font-bold mono whitespace-nowrap inline-edit-cell"
+                ondblclick="event.stopPropagation();startInlineEdit(this,${idx},'montant',${t.montant||0},false,null)"
+                style="color:${mColor}" title="Double-cliquer pour éditer">${mText}</td>
             <td class="p-3 text-center whitespace-nowrap" style="position:sticky;right:0;background:inherit;box-shadow:-2px 0 6px rgba(15,23,42,.06)">
                 <button onclick="event.stopPropagation();openTransactionModal(${idx})" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-[11px] font-semibold transition mr-1">✏️ Éditer</button>
                 <button onclick="event.stopPropagation();deleteTransaction(${idx})" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-500 hover:bg-rose-100 text-[11px] font-semibold transition">🗑 Suppr.</button>
@@ -1365,6 +1489,8 @@ function renderResponsiveTransactions() {
             </div>`;
         mobileContainer.appendChild(card);
     });
+
+    renderTableFooter(filtered);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1964,6 +2090,312 @@ function removeImportRow(index) {
     tempImportedTransactions.splice(index, 1);
     renderCSVPreview(tempImportedTransactions);
 }
+
+// ═══════════════════════════════════════════════════════════
+// FEATURE 1 — TOTAUX EN PIED DE TABLEAU
+// ═══════════════════════════════════════════════════════════
+function renderTableFooter(filtered) {
+    const tfoot = document.getElementById('pc-table-foot');
+    if (!tfoot) return;
+    let totalIn = 0, totalOut = 0;
+    filtered.forEach(t => {
+        const amt = parseFloat(t.montant) || 0;
+        if (amt > 0) totalIn += amt;
+        else totalOut += Math.abs(amt);
+    });
+    const solde = totalIn - totalOut;
+    const soldeColor = solde >= 0 ? '#059669' : '#e11d48';
+    tfoot.innerHTML = `
+        <tr>
+            <td colspan="8" class="p-3 text-right text-[11px] text-slate-400 font-semibold">${filtered.length} transaction${filtered.length>1?'s':''}</td>
+            <td class="p-3 text-right whitespace-nowrap">
+                <div class="flex flex-col items-end gap-0.5">
+                    <span class="text-[10px] text-emerald-600 mono font-semibold">+${fmt(totalIn)}</span>
+                    <span class="text-[10px] text-rose-500 mono font-semibold">-${fmt(totalOut)}</span>
+                    <span class="text-xs mono font-bold border-t border-slate-200 pt-0.5" style="color:${soldeColor}">${solde>=0?'+':''}${fmt(solde)}</span>
+                </div>
+            </td>
+            <td style="position:sticky;right:0;background:#f8fafc;box-shadow:-2px 0 6px rgba(15,23,42,.06)"></td>
+        </tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// FEATURE 2 — ÉDITION INLINE
+// ═══════════════════════════════════════════════════════════
+function startInlineEdit(td, index, field, currentValue, isSelect, options) {
+    if (td.querySelector('input,select')) return; // déjà en cours
+    td.dataset.orig = td.innerHTML;
+    let input;
+    if (isSelect) {
+        input = document.createElement('select');
+        input.className = 'inline-edit-input';
+        options.forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o; opt.textContent = o;
+            if (o === currentValue) opt.selected = true;
+            input.appendChild(opt);
+        });
+    } else {
+        input = document.createElement('input');
+        input.type = field === 'montant' ? 'number' : 'text';
+        if (field === 'montant') input.step = '0.01';
+        input.value = currentValue;
+        input.className = 'inline-edit-input';
+    }
+    td.innerHTML = '';
+    td.appendChild(input);
+    input.focus();
+    if (!isSelect) input.select();
+
+    const save = async () => {
+        const val = isSelect ? input.value : (field === 'montant' ? parseFloat(input.value) : input.value.trim());
+        if (val === currentValue || (field === 'montant' && val === parseFloat(currentValue))) {
+            renderResponsiveTransactions(); return;
+        }
+        try {
+            const payload = {};
+            payload[field] = val;
+            const { error } = await _supabase.from('transactions').update(payload).eq('id', transactions[index].id);
+            if (error) throw error;
+            transactions[index][field] = val;
+            renderResponsiveTransactions();
+            renderMainBudgetChart();
+            refreshDashboard();
+        } catch(err) { alert('Erreur inline : ' + err.message); renderResponsiveTransactions(); }
+    };
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { td.innerHTML = td.dataset.orig; }
+    });
+}
+
+// ═══════════════════════════════════════════════════════════
+// FEATURE 3 — DÉTECTION DOUBLONS DANS LE TABLEAU
+// ═══════════════════════════════════════════════════════════
+function buildDuplicateSet(list) {
+    const seen = new Set();
+    const dups = new Set();
+    list.forEach(t => {
+        const key = `${t.date}|${parseFloat(t.montant).toFixed(2)}`;
+        if (seen.has(key)) dups.add(key);
+        else seen.add(key);
+    });
+    return dups;
+}
+
+// ═══════════════════════════════════════════════════════════
+// FEATURE 4 — BUDGET PRÉVISIONNEL
+// ═══════════════════════════════════════════════════════════
+let budgetLines = JSON.parse(localStorage.getItem('budget_lines') || '[]');
+
+function saveBudgetLines() {
+    localStorage.setItem('budget_lines', JSON.stringify(budgetLines));
+}
+
+function openBudgetModal() {
+    // Peupler le select des postes
+    const sel = document.getElementById('budget-poste-select');
+    sel.innerHTML = '';
+    const allPostes = [...new Set(Object.values(budgetStructure).flatMap(c => Object.keys(c)))].sort();
+    allPostes.forEach(p => {
+        const o = document.createElement('option');
+        o.value = p; o.textContent = p;
+        sel.appendChild(o);
+    });
+    renderBudgetLinesList();
+    document.getElementById('budget-modal').classList.remove('hidden');
+}
+function closeBudgetModal() {
+    document.getElementById('budget-modal').classList.add('hidden');
+    refreshDashboard();
+}
+
+function addBudgetLine() {
+    const poste = document.getElementById('budget-poste-select').value;
+    const amount = parseFloat(document.getElementById('budget-amount-input').value);
+    if (!poste || isNaN(amount) || amount <= 0) { alert('Sélectionnez un poste et un montant valide.'); return; }
+    const existing = budgetLines.findIndex(b => b.poste === poste);
+    if (existing >= 0) budgetLines[existing].amount = amount;
+    else budgetLines.push({ poste, amount });
+    document.getElementById('budget-amount-input').value = '';
+    saveBudgetLines();
+    renderBudgetLinesList();
+}
+
+function deleteBudgetLine(index) {
+    budgetLines.splice(index, 1);
+    saveBudgetLines();
+    renderBudgetLinesList();
+}
+
+function renderBudgetLinesList() {
+    const list  = document.getElementById('budget-lines-list');
+    const empty = document.getElementById('budget-lines-empty');
+    list.innerHTML = '';
+    if (!budgetLines.length) { empty.classList.remove('hidden'); return; }
+    empty.classList.add('hidden');
+    budgetLines.forEach((b, i) => {
+        const item = document.createElement('div');
+        item.className = 'flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50';
+        item.innerHTML = `
+            <div class="flex-1">
+                <p class="text-xs font-semibold text-slate-700">${b.poste}</p>
+            </div>
+            <input type="number" min="0" step="10" value="${b.amount}"
+                class="field mono text-right w-24 text-xs"
+                onchange="budgetLines[${i}].amount=parseFloat(this.value)||0;saveBudgetLines()">
+            <span class="text-[11px] text-slate-400">€/mois</span>
+            <button onclick="deleteBudgetLine(${i})" class="text-rose-400 hover:text-rose-600 text-lg font-light leading-none transition">×</button>`;
+        list.appendChild(item);
+    });
+}
+
+function renderBudgetPrevisionnel(activeMonth) {
+    const container = document.getElementById('budget-previsionnel-container');
+    if (!container) return;
+    if (!budgetLines.length) {
+        container.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-3">Aucun budget configuré. Cliquez sur ⚙️ Configurer pour commencer.</p>';
+        return;
+    }
+    // Calculer les dépenses réelles du mois par poste
+    const spent = {};
+    transactions.forEach(t => {
+        if (t.exclu_dashboard) return;
+        const m = t.mois_affectation || getYearMonthString(t.date);
+        if (m !== activeMonth) return;
+        const p = (t.poste || '').toUpperCase().trim();
+        const amt = parseFloat(t.montant) || 0;
+        if (amt < 0) spent[p] = (spent[p] || 0) + Math.abs(amt);
+    });
+    container.innerHTML = '';
+    budgetLines.forEach(b => {
+        const key = b.poste.toUpperCase().trim();
+        const actual = spent[key] || 0;
+        const pct = Math.min(Math.round(actual / b.amount * 100), 100);
+        const over = actual > b.amount;
+        const warn = pct >= 80 && !over;
+        const barClass = over ? 'budget-over' : (warn ? 'budget-warn' : 'budget-ok');
+        const statusColor = over ? '#e11d48' : (warn ? '#d97706' : '#059669');
+        const statusIcon  = over ? '🔴' : (warn ? '🟡' : '🟢');
+        const item = document.createElement('div');
+        item.className = 'space-y-1.5';
+        item.innerHTML = `
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5">
+                    <span>${statusIcon}</span>
+                    <span class="text-[11px] font-semibold text-slate-700 uppercase tracking-tight">${b.poste}</span>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <span class="mono text-[11px] font-bold" style="color:${statusColor}">${fmt(actual)}</span>
+                    <span class="text-[10px] text-slate-400">/ ${fmt(b.amount)}</span>
+                    <span class="text-[10px] font-bold mono" style="color:${statusColor}">${pct}%</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="budget-prog-track"><div class="budget-prog-fill ${barClass}" style="width:${pct}%"></div></div>
+            </div>`;
+        container.appendChild(item);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════
+// FEATURE 5 — VUE ANNUELLE
+// ═══════════════════════════════════════════════════════════
+function buildAnnualYearSelect() {
+    const sel = document.getElementById('annual-year-select');
+    if (!sel) return;
+    const years = [...new Set(transactions.map(t => {
+        const m = t.mois_affectation || getYearMonthString(t.date);
+        return m ? m.substring(0,4) : null;
+    }).filter(Boolean))].sort().reverse();
+    const current = sel.value;
+    sel.innerHTML = '';
+    years.forEach(y => { const o = document.createElement('option'); o.value = y; o.textContent = y; sel.appendChild(o); });
+    if (current && years.includes(current)) sel.value = current;
+    else if (years.length) sel.value = years[0];
+}
+
+function renderAnnualView() {
+    buildAnnualYearSelect();
+    const year = document.getElementById('annual-year-select')?.value;
+    const mode = document.getElementById('annual-mode-select')?.value || 'categorie';
+    if (!year) return;
+
+    // Trouver tous les mois de l'année
+    const months = [];
+    for (let m = 1; m <= 12; m++) {
+        months.push(`${year}-${String(m).padStart(2,'0')}`);
+    }
+    const monthLabels = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+
+    // Agréger les données
+    const data = {}; // data[rowKey][month] = amount
+    transactions.forEach(t => {
+        const m = t.mois_affectation || getYearMonthString(t.date);
+        if (!m || !m.startsWith(year)) return;
+        let key;
+        if (mode === 'categorie') key = (t.categorie || 'NON CLASSÉ').toUpperCase().trim();
+        else if (mode === 'poste') key = (t.poste || 'AUTRE').toUpperCase().trim();
+        else key = t.description || '—';
+        if (!data[key]) data[key] = {};
+        data[key][m] = (data[key][m] || 0) + (parseFloat(t.montant) || 0);
+    });
+
+    const keys = Object.keys(data).sort();
+
+    // Thead
+    const thead = document.getElementById('annual-thead');
+    thead.innerHTML = `<tr>
+        <th class="row-label" style="left:0;z-index:3;background:#fafbfc">${mode === 'categorie' ? 'Catégorie' : mode === 'poste' ? 'Poste' : 'Description'}</th>
+        ${months.map((m,i) => `<th class="text-right">${monthLabels[i]}</th>`).join('')}
+        <th class="text-right" style="background:#f0f9ff">Total</th>
+    </tr>`;
+
+    // Tbody
+    const tbody = document.getElementById('annual-tbody');
+    tbody.innerHTML = '';
+
+    // Column totals
+    const colTotals = {};
+    months.forEach(m => colTotals[m] = 0);
+    let grandTotal = 0;
+
+    keys.forEach(key => {
+        const row = document.createElement('tr');
+        let rowTotal = 0;
+        const cells = months.map(m => {
+            const v = data[key][m] || 0;
+            rowTotal += v;
+            colTotals[m] += v;
+            if (v === 0) return `<td class="text-right annual-cell-zero">—</td>`;
+            return `<td class="text-right ${v>0?'annual-cell-pos':'annual-cell-neg'}">${v>0?'+':''}${fmt(v)}</td>`;
+        }).join('');
+        grandTotal += rowTotal;
+        const badgeCls = mode === 'categorie' ? (categoryBadgeClass[key] || 'badge badge-default') : '';
+        const label = mode === 'categorie' ? `<span class="${badgeCls}">${key}</span>` : `<span class="text-[11px] font-semibold uppercase tracking-tight text-slate-600">${key}</span>`;
+        row.innerHTML = `
+            <td class="row-label ${mode==='categorie'?'cat-row':''}">${label}</td>
+            ${cells}
+            <td class="text-right font-bold mono text-[11px] ${rowTotal>0?'annual-cell-pos':rowTotal<0?'annual-cell-neg':'annual-cell-zero'}" style="background:#f0f9ff">${rowTotal!==0?(rowTotal>0?'+':'')+fmt(rowTotal):'—'}</td>`;
+        tbody.appendChild(row);
+    });
+
+    // Row de totaux
+    const totalRow = document.createElement('tr');
+    totalRow.className = 'row-total';
+    const totalCells = months.map(m => {
+        const v = colTotals[m];
+        if (v === 0) return `<td class="text-right annual-cell-zero font-bold">—</td>`;
+        return `<td class="text-right ${v>0?'annual-cell-pos':'annual-cell-neg'}">${v>0?'+':''}${fmt(v)}</td>`;
+    }).join('');
+    totalRow.innerHTML = `
+        <td class="row-label" style="background:#f0f9ff;font-size:11px;color:#0f172a">TOTAL</td>
+        ${totalCells}
+        <td class="text-right font-bold mono text-[11px] ${grandTotal>0?'annual-cell-pos':grandTotal<0?'annual-cell-neg':'annual-cell-zero'}" style="background:#dbeafe">${grandTotal!==0?(grandTotal>0?'+':'')+fmt(grandTotal):'—'}</td>`;
+    tbody.appendChild(totalRow);
+}
+
 
 /* ── Étape 3 : Sauvegarder ──────────────────────────────── */
 async function saveImportedTransactions() {
