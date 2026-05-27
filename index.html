@@ -408,11 +408,14 @@
 
             <!-- Filtres transactions -->
             <div class="card p-3.5">
-                <div class="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <input type="text" id="search-input" oninput="renderResponsiveTransactions()" placeholder="🔍 Rechercher…" class="field">
                     <select id="filter-categorie" onchange="populateFilterPostes(); renderResponsiveTransactions()" class="field"></select>
                     <select id="filter-poste" onchange="renderResponsiveTransactions()" class="field">
                         <option value="">🏷️ Tous les postes</option>
+                    </select>
+                    <select id="filter-mois" onchange="renderResponsiveTransactions()" class="field">
+                        <option value="">📅 Tous les mois</option>
                     </select>
                     <select id="filter-compte" onchange="renderResponsiveTransactions()" class="field">
                         <option value="">🏦 Tous les comptes</option>
@@ -954,6 +957,7 @@ async function fetchTransactionsFromCloud() {
         const { data, error } = await _supabase.from('transactions').select('*').order('date', { ascending: false });
         if (error) throw error;
         transactions = data || [];
+        populateFilterMois();
         renderResponsiveTransactions();
         buildMonthDropdown();
         renderMainBudgetChart();
@@ -1284,18 +1288,21 @@ function renderResponsiveTransactions() {
     const q       = (document.getElementById('search-input')?.value    || '').toLowerCase().trim();
     const catF    = (document.getElementById('filter-categorie')?.value || '').toUpperCase().trim();
     const posteF  = (document.getElementById('filter-poste')?.value     || '').toUpperCase().trim();
+    const moisF   = (document.getElementById('filter-mois')?.value      || '');
     const compteF = (document.getElementById('filter-compte')?.value    || '');
 
     const filtered = transactions.filter(t => {
         if (isHidePointedActive && t.pointe) return false;
-        const cC = (t.categorie      ||'').toUpperCase().trim();
-        const cP = (t.poste          ||'').toUpperCase().trim();
-        const cD = (t.description    ||'').toLowerCase();
-        const cN = (t.details        ||'').toLowerCase();
-        const cCp= (t.compte_bancaire||'');
+        const cC  = (t.categorie      ||'').toUpperCase().trim();
+        const cP  = (t.poste          ||'').toUpperCase().trim();
+        const cD  = (t.description    ||'').toLowerCase();
+        const cN  = (t.details        ||'').toLowerCase();
+        const cCp = (t.compte_bancaire||'');
+        const cM  = t.mois_affectation || getYearMonthString(t.date);
         return (!q      || cP.toLowerCase().includes(q) || cD.includes(q) || cN.includes(q))
             && (!catF   || cC  === catF)
             && (!posteF || cP  === posteF)
+            && (!moisF  || cM  === moisF)
             && (!compteF|| cCp === compteF);
     });
 
@@ -1385,6 +1392,22 @@ function populateFilterPostes() {
         ? Object.keys(budgetStructure[catVal])
         : [...new Set(Object.values(budgetStructure).flatMap(c => Object.keys(c)))].sort();
     postes.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; el.appendChild(o); });
+}
+
+function populateFilterMois() {
+    const el = document.getElementById('filter-mois');
+    if (!el) return;
+    const current = el.value;
+    const months = [...new Set(
+        transactions.map(t => t.mois_affectation || getYearMonthString(t.date)).filter(Boolean)
+    )].sort().reverse();
+    el.innerHTML = '<option value="">📅 Tous les mois</option>';
+    months.forEach(m => {
+        const o = document.createElement('option');
+        o.value = m; o.textContent = m;
+        el.appendChild(o);
+    });
+    if (current && months.includes(current)) el.value = current;
 }
 function updatePosteDropdown() {
     const cat = document.getElementById('form-categorie').value;
