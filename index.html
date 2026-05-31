@@ -1363,8 +1363,17 @@ function buildMonthDropdown() {
     const sel = document.getElementById('dashboard-month-select');
     if (!sel) return;
     const months = [...new Set(transactions.map(t => t.mois_affectation || getYearMonthString(t.date)).filter(Boolean))].sort().reverse();
+    const previousValue = sel.value;
     sel.innerHTML = '';
     months.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; sel.appendChild(o); });
+    // Sélectionner le mois en cours par défaut, sinon conserver la sélection précédente
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    if (months.includes(currentMonth)) {
+        sel.value = currentMonth;
+    } else if (previousValue && months.includes(previousValue)) {
+        sel.value = previousValue;
+    }
     updateKpiSoldeVisibility();
     calculateDashboardMetrics();
 }
