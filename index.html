@@ -1035,6 +1035,7 @@ const categoryBarColor = {
 function initApp() {
     loadComptesBancaires();
     fetchTransactionsFromCloud();
+    fetchBudgetLinesFromCloud();
     populateCategorieDropdown();
     populateFilterCategorieDropdown();
     populateFilterPostes();
@@ -1060,6 +1061,18 @@ function switchTab(tabId) {
 // ═══════════════════════════════════════════════════════════
 // CLOUD
 // ═══════════════════════════════════════════════════════════
+async function fetchBudgetLinesFromCloud() {
+    if (!_supabase || !currentUser) return;
+    try {
+        const { data, error } = await _supabase.from('budget_lines').select('*').order('id', { ascending: true });
+        if (error) throw error;
+        budgetLines = (data || []).map(r => ({ poste: r.poste, amount: r.amount }));
+        renderBudgetLinesList();
+        calculateDashboardMetrics();
+        renderMainBudgetChart();
+    } catch(err) { console.error('Erreur fetch budget_lines:', err.message); }
+}
+
 async function fetchTransactionsFromCloud() {
     if (!_supabase || !currentUser) return;
     try {
@@ -2293,10 +2306,17 @@ function buildDuplicateSet(list) {
 // ═══════════════════════════════════════════════════════════
 // FEATURE 4 — BUDGET PRÉVISIONNEL
 // ═══════════════════════════════════════════════════════════
-let budgetLines = JSON.parse(localStorage.getItem('budget_lines') || '[]');
+let budgetLines = [];
 
-function saveBudgetLines() {
-    localStorage.setItem('budget_lines', JSON.stringify(budgetLines));
+async function saveBudgetLines() {
+    if (!_supabase || !currentUser) return;
+    // Remplace toutes les lignes de l'utilisateur
+    await _supabase.from('budget_lines').delete().neq('id', 0);
+    if (budgetLines.length) {
+        const rows = budgetLines.map(b => ({ poste: b.poste, amount: b.amount }));
+        const { error } = await _supabase.from('budget_lines').insert(rows);
+        if (error) console.error('Erreur save budget_lines:', error.message);
+    }
 }
 
 function openBudgetModal() {
@@ -2350,7 +2370,7 @@ function renderBudgetLinesList() {
             </div>
             <input type="number" min="0" step="10" value="${b.amount}"
                 class="field mono text-right w-24 text-xs"
-                onchange="budgetLines[${i}].amount=parseFloat(this.value)||0;saveBudgetLines()">
+                onchange="budgetLines[${i}].amount=parseFloat(this.value)||0;saveBudgetLines();renderBudgetLinesList()">
             <span class="text-[11px] text-slate-400">€/mois</span>
             <button onclick="deleteBudgetLine(${i})" class="text-rose-400 hover:text-rose-600 text-lg font-light leading-none transition">×</button>`;
         list.appendChild(item);
