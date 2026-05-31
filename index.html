@@ -1313,14 +1313,23 @@ function calculateDashboardMetrics() {
             const barColor  = categoryBarColor[cat] || '#94a3b8';
             const valColor  = v < 0 ? '#f43f5e' : (v > 0 ? '#10b981' : '#94a3b8');
             const sign      = v > 0 ? '+' : '';
+            const isSelected = fCat === cat.toUpperCase().trim();
             const item = document.createElement('div');
-            item.className = 'space-y-1.5';
+            item.className = 'space-y-1.5 rounded-xl px-2 py-1.5 transition cursor-pointer ' + (isSelected ? 'ring-2 ring-indigo-300 bg-indigo-50/60' : 'hover:bg-slate-50');
+            item.title = isSelected ? 'Cliquer pour retirer le filtre' : `Filtrer sur ${cat}`;
             item.innerHTML = `
                 <div class="flex items-center justify-between gap-2">
                     <span class="${badgeClass}">${cat}</span>
                     <span class="text-xs font-bold mono" style="color:${valColor}">${v !== 0 ? sign+fmt(v) : '—'}</span>
                 </div>
                 <div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:${barColor}"></div></div>`;
+            item.addEventListener('click', () => {
+                const sel = document.getElementById('dash-filter-categorie');
+                if (!sel) return;
+                sel.value = isSelected ? '' : cat;
+                populateDashFilterPostes();
+                applyDashboardFilters();
+            });
             catContainer.appendChild(item);
         });
     }
