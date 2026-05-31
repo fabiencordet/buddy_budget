@@ -1180,11 +1180,14 @@ function renderMainBudgetChart() {
     const ctx = document.getElementById('mainBudgetChart');
     if (!ctx) return;
 
-    // Lecture directe du DOM — évite les couches d'abstraction
     const catVal   = document.getElementById('dash-filter-categorie')?.value  || '';
     const posteVal = document.getElementById('dash-filter-poste')?.value      || '';
     const descVal  = document.getElementById('dash-filter-description')?.value || '';
     const showSolde = (catVal === '' && posteVal === '' && descVal === '');
+
+    // Mois en cours au format YYYY-MM
+    const now = new Date();
+    const currentMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
 
     const monthlyData = {};
     transactions.forEach(t => {
@@ -1197,11 +1200,46 @@ function renderMainBudgetChart() {
         else         monthlyData[m].depenses += Math.abs(amt);
     });
 
-    const months   = Object.keys(monthlyData).sort();
+    const months = Object.keys(monthlyData).sort();
+
+    // Calcul budget restant pour le mois en cours (poste par poste)
+    let budgetRestant = 0;
+    if (budgetLines.length && months.includes(currentMonth)) {
+        // Dépenses réalisées par poste sur le mois en cours (sans filtre dashboard)
+        const spentByPoste = {};
+        transactions.forEach(t => {
+            if (t.exclu_dashboard) return;
+            const m = t.mois_affectation || getYearMonthString(t.date);
+            if (m !== currentMonth) return;
+            const p = (t.poste || '').toUpperCase().trim();
+            const amt = parseFloat(t.montant) || 0;
+            if (amt < 0) spentByPoste[p] = (spentByPoste[p] || 0) + Math.abs(amt);
+        });
+        budgetLines.forEach(b => {
+            const key = b.poste.toUpperCase().trim();
+            const reste = b.amount - (spentByPoste[key] || 0);
+            if (reste > 0) budgetRestant += reste;
+        });
+    }
+
     const datasets = [
         { label:'Entrées',  data:months.map(m => monthlyData[m].entrees),  backgroundColor:'rgba(16,185,129,.85)', borderRadius:6, order:2 },
         { label:'Dépenses', data:months.map(m => monthlyData[m].depenses), backgroundColor:'rgba(244,63,94,.80)',  borderRadius:6, order:2 }
     ];
+
+    // Colonne budget prévu : uniquement sur le mois en cours, empilée sur les dépenses
+    if (budgetRestant > 0 && months.includes(currentMonth)) {
+        datasets.push({
+            label: 'Budget restant prévu',
+            data: months.map(m => m === currentMonth ? budgetRestant : 0),
+            backgroundColor: 'rgba(251,146,60,.75)',
+            borderRadius: 6,
+            order: 2,
+            stack: 'depenses'
+        });
+        // Rattacher aussi les dépenses à la même stack pour superposition
+        datasets[1].stack = 'depenses';
+    }
 
     if (showSolde) {
         datasets.unshift({
@@ -1220,7 +1258,16 @@ function renderMainBudgetChart() {
             responsive:true, maintainAspectRatio:false,
             plugins:{
                 legend:{ labels:{ font:{ size:10,family:'DM Sans' }, padding:14, usePointStyle:true } },
-                tooltip:{ bodyFont:{ size:11,family:'DM Mono' }, titleFont:{ size:10 }, padding:10, cornerRadius:10 }
+                tooltip:{
+                    bodyFont:{ size:11,family:'DM Mono' }, titleFont:{ size:10 }, padding:10, cornerRadius:10,
+                    callbacks:{
+                        label: ctx => {
+                            const v = ctx.raw;
+                            if (!v) return null;
+                            return ' ' + ctx.dataset.label + ' : ' + v.toFixed(2).replace('.', ',') + ' €';
+                        }
+                    }
+                }
             },
             scales:{
                 y:{ beginAtZero:true, ticks:{ font:{size:9}, callback:v=>v.toLocaleString('fr')+' €' }, grid:{ color:'#f1f5f9' }, border:{ dash:[3,3] } },
