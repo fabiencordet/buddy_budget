@@ -1239,26 +1239,32 @@ function renderMainBudgetChart() {
 // ═══════════════════════════════════════════════════════════
 function refreshDashboard() { calculateDashboardMetrics(); }
 
-function renderPanel(container, totals, colorFn) {
+function renderPanel(container, totals, colorFn, filterSelId, onClickFn) {
     if (!container) return;
     container.innerHTML = '';
     const sorted = Object.keys(totals).sort((a,b) => Math.abs(totals[b]) - Math.abs(totals[a]));
     if (!sorted.length) { container.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-4">Aucune donnée.</p>'; return; }
     const maxAbs = Math.max(...sorted.map(k => Math.abs(totals[k])), 1);
+    const activeVal = filterSelId ? (document.getElementById(filterSelId)?.value || '') : '';
     sorted.forEach(key => {
         const v    = totals[key];
         const pct  = Math.round(Math.abs(v) / maxAbs * 100);
         const col  = v < 0 ? '#f43f5e' : (v > 0 ? '#10b981' : '#94a3b8');
         const barC = colorFn ? colorFn(key, v) : (v < 0 ? '#fecdd3' : '#a7f3d0');
         const sign = v > 0 ? '+' : '';
+        const isSelected = filterSelId && activeVal === key;
         const item = document.createElement('div');
-        item.className = 'space-y-1';
+        item.className = 'space-y-1 rounded-xl px-2 py-1.5 transition ' + (filterSelId ? 'cursor-pointer ' : '') + (isSelected ? 'ring-2 ring-indigo-300 bg-indigo-50/60' : (filterSelId ? 'hover:bg-slate-50' : ''));
+        if (filterSelId) item.title = isSelected ? 'Cliquer pour retirer le filtre' : ('Filtrer sur ' + key);
         item.innerHTML = `
             <div class="flex items-center justify-between gap-2">
                 <span class="text-[11px] font-semibold text-slate-600 uppercase tracking-tight truncate">${key}</span>
                 <span class="text-[11px] font-bold mono shrink-0" style="color:${col}">${v !== 0 ? sign + fmt(v) : '—'}</span>
             </div>
             <div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:${barC}"></div></div>`;
+        if (filterSelId && onClickFn) {
+            item.addEventListener('click', () => onClickFn(key, isSelected));
+        }
         container.appendChild(item);
     });
 }
@@ -1338,14 +1344,29 @@ function calculateDashboardMetrics() {
     renderPanel(
         document.getElementById('postes-chart-container'),
         posteTotals,
-        (key, v) => v < 0 ? '#fecdd3' : '#a7f3d0'
+        (key, v) => v < 0 ? '#fecdd3' : '#a7f3d0',
+        'dash-filter-poste',
+        (key, isSelected) => {
+            const sel = document.getElementById('dash-filter-poste');
+            if (!sel) return;
+            sel.value = isSelected ? '' : key;
+            populateDashFilterDescriptions();
+            applyDashboardFilters();
+        }
     );
 
     // Panel Descriptions
     renderPanel(
         document.getElementById('descriptions-chart-container'),
         descTotals,
-        (key, v) => v < 0 ? '#fce7f3' : '#d1fae5'
+        (key, v) => v < 0 ? '#fce7f3' : '#d1fae5',
+        'dash-filter-description',
+        (key, isSelected) => {
+            const sel = document.getElementById('dash-filter-description');
+            if (!sel) return;
+            sel.value = isSelected ? '' : key;
+            applyDashboardFilters();
+        }
     );
 
     // Budget prévisionnel
