@@ -82,6 +82,22 @@ function setBudgetAmount(poste, description, amount) {
     saveBudgetLines();
 }
 
+function getBudgetSeverity(actual, budget) {
+    if (!budget || budget <= 0) return 'none';
+    const ratio = actual / budget;
+    if (ratio > 1.1) return 'over';
+    if (ratio >= 0.9) return 'warn';
+    return 'ok';
+}
+
+function getBudgetVisuals(actual, budget) {
+    const severity = getBudgetSeverity(actual, budget);
+    if (severity === 'over') return { color: '#e11d48', icon: '🔴', barClass: 'budget-over' };
+    if (severity === 'warn') return { color: '#d97706', icon: '🟡', barClass: 'budget-warn' };
+    if (severity === 'ok')   return { color: '#059669', icon: '🟢', barClass: 'budget-ok' };
+    return { color: '#0f172a', icon: '', barClass: 'budget-ok' };
+}
+
 // ── Rendu accordéon prévisionnel ────────────────────────
 function renderBudgetPrevisionnel(activeMonth) {
     const container = document.getElementById('budget-previsionnel-container');
@@ -107,15 +123,19 @@ function renderBudgetPrevisionnel(activeMonth) {
         const spent = b.description
             ? (spentByDesc[b.poste + '||' + b.description] || 0)
             : (spentByPoste[b.poste] || 0);
-        totalActual += Math.min(spent, b.amount);
+        totalActual += spent;
     });
 
     container.innerHTML = '';
 
     // Ligne total
-    const totalOver = totalActual > totalBudget;
-    const totalPct  = totalBudget > 0 ? Math.min(Math.round(totalActual / totalBudget * 100), 100) : 0;
-    const totalColor = totalOver ? '#e11d48' : '#0f172a';
+    const totalSeverity = getBudgetSeverity(totalActual, totalBudget);
+    const totalPct  = totalBudget > 0 ? Math.round(totalActual / totalBudget * 100) : 0;
+    const totalColor = totalSeverity === 'over'
+        ? '#e11d48'
+        : totalSeverity === 'warn'
+            ? '#d97706'
+            : '#059669';
     const totalRow = document.createElement('div');
     totalRow.className = 'flex items-center justify-between gap-2 px-1 pb-3 mb-2 border-b border-slate-200';
     totalRow.innerHTML = `
@@ -134,13 +154,12 @@ function renderBudgetPrevisionnel(activeMonth) {
             descs.forEach(desc => {
                 const dk = pk + '||' + desc.toUpperCase().trim();
                 const b = budgetLines.find(x => x.key === dk);
-                if (b) { catBudget += b.amount; catActual += Math.min(spentByDesc[dk] || 0, b.amount); }
+                if (b) { catBudget += b.amount; catActual += (spentByDesc[dk] || 0); }
             });
         });
-        const catOver  = catActual > catBudget && catBudget > 0;
-        const catWarn  = catBudget > 0 && Math.round(catActual / catBudget * 100) >= 80 && !catOver;
-        const catColor = catOver ? '#e11d48' : (catWarn ? '#d97706' : '#059669');
-        const catIcon  = catOver ? '🔴' : (catWarn ? '🟡' : '🟢');
+        const catVisuals = getBudgetVisuals(catActual, catBudget);
+        const catColor = catVisuals.color;
+        const catIcon  = catVisuals.icon;
 
         const catWrap   = document.createElement('div');
         catWrap.className = 'border border-slate-100 rounded-xl mb-2 overflow-hidden';
@@ -167,12 +186,11 @@ function renderBudgetPrevisionnel(activeMonth) {
             descs.forEach(desc => {
                 const dk = pk + '||' + desc.toUpperCase().trim();
                 const b = budgetLines.find(x => x.key === dk);
-                if (b) { posteBudget += b.amount; posteActual += Math.min(spentByDesc[dk] || 0, b.amount); }
+                if (b) { posteBudget += b.amount; posteActual += (spentByDesc[dk] || 0); }
             });
-            const posteOver  = posteActual > posteBudget && posteBudget > 0;
-            const posteWarn  = posteBudget > 0 && Math.round(posteActual / posteBudget * 100) >= 80 && !posteOver;
-            const posteColor = posteOver ? '#e11d48' : (posteWarn ? '#d97706' : '#059669');
-            const posteIcon  = posteOver ? '🔴' : (posteWarn ? '🟡' : '🟢');
+            const posteVisuals = getBudgetVisuals(posteActual, posteBudget);
+            const posteColor = posteVisuals.color;
+            const posteIcon  = posteVisuals.icon;
 
             const posteWrap   = document.createElement('div');
             posteWrap.className = 'border border-slate-100 rounded-lg overflow-hidden';
@@ -197,13 +215,12 @@ function renderBudgetPrevisionnel(activeMonth) {
                 const dk     = pk + '||' + desc.toUpperCase().trim();
                 const b      = budgetLines.find(x => x.key === dk);
                 const budget = b ? b.amount : 0;
-                const actual = Math.min(spentByDesc[dk] || 0, budget);
+                const actual = spentByDesc[dk] || 0;
                 const pct    = budget > 0 ? Math.min(Math.round(actual / budget * 100), 100) : 0;
-                const over   = (spentByDesc[dk] || 0) > budget && budget > 0;
-                const warn   = pct >= 80 && !over;
-                const dColor = over ? '#e11d48' : (warn ? '#d97706' : '#059669');
-                const dIcon  = over ? '🔴' : (warn ? '🟡' : '🟢');
-                const barClass = over ? 'budget-over' : (warn ? 'budget-warn' : 'budget-ok');
+                const descVisuals = getBudgetVisuals(actual, budget);
+                const dColor = descVisuals.color;
+                const dIcon  = descVisuals.icon;
+                const barClass = descVisuals.barClass;
 
                 const descWrap = document.createElement('div');
                 descWrap.className = 'rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 space-y-1.5';
