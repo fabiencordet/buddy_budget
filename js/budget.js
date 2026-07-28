@@ -4,6 +4,8 @@
  * sauvegarde Supabase, rendu accordéon catégorie > poste > description.
  */
 
+const DEFAULT_FORECAST_BUDGET = 1;
+
 async function saveBudgetLines() {
     if (!_supabase || !currentUser) return;
     await _supabase.from('budget_lines').delete().neq('id', 0);
@@ -121,12 +123,16 @@ function renderBudgetPrevisionnel(activeMonth) {
     });
 
     let totalBudget = 0, totalActual = 0;
-    budgetLines.forEach(b => {
-        totalBudget += b.amount;
-        const spent = b.description
-            ? (spentByDesc[b.poste + '||' + b.description] || 0)
-            : (spentByPoste[b.poste] || 0);
-        totalActual += spent;
+    Object.entries(budgetStructure).forEach(([, postes]) => {
+        Object.entries(postes).forEach(([poste, descs]) => {
+            const pk = poste.toUpperCase().trim();
+            descs.forEach(desc => {
+                const dk = pk + '||' + desc.toUpperCase().trim();
+                const b = budgetLines.find(x => x.key === dk);
+                totalBudget += b ? b.amount : DEFAULT_FORECAST_BUDGET;
+                totalActual += (spentByDesc[dk] || 0);
+            });
+        });
     });
 
     container.innerHTML = '';
@@ -153,7 +159,7 @@ function renderBudgetPrevisionnel(activeMonth) {
             descs.forEach(desc => {
                 const dk = pk + '||' + desc.toUpperCase().trim();
                 const b = budgetLines.find(x => x.key === dk);
-                catBudget += b ? b.amount : 0;
+                catBudget += b ? b.amount : DEFAULT_FORECAST_BUDGET;
                 catActual += (spentByDesc[dk] || 0);
             });
         });
@@ -184,7 +190,7 @@ function renderBudgetPrevisionnel(activeMonth) {
             descs.forEach(desc => {
                 const dk = pk + '||' + desc.toUpperCase().trim();
                 const b = budgetLines.find(x => x.key === dk);
-                posteBudget += b ? b.amount : 0;
+                posteBudget += b ? b.amount : DEFAULT_FORECAST_BUDGET;
                 posteActual += (spentByDesc[dk] || 0);
             });
             const posteVisuals = getBudgetVisuals(posteActual, posteBudget);
@@ -211,7 +217,7 @@ function renderBudgetPrevisionnel(activeMonth) {
             descs.forEach(desc => {
                 const dk     = pk + '||' + desc.toUpperCase().trim();
                 const b      = budgetLines.find(x => x.key === dk);
-                const budget = b ? b.amount : 0;
+                const budget = b ? b.amount : DEFAULT_FORECAST_BUDGET;
                 const actual = spentByDesc[dk] || 0;
                 const pct    = budget > 0 ? Math.min(Math.round(actual / budget * 100), 100) : 0;
                 const descVisuals = getBudgetVisuals(actual, budget);
@@ -230,7 +236,7 @@ function renderBudgetPrevisionnel(activeMonth) {
                         <span class="text-[11px] text-slate-600 truncate">${desc}</span>
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
-                        <span class="mono text-[11px] font-bold" style="color:${budget > 0 ? dColor : '#64748b'}">${fmt(actual)}</span>
+                        <span class="mono text-[11px] font-bold" style="color:${dColor}">${fmt(actual)}</span>
                         <span class="text-[10px] text-slate-400">/ ${fmt(budget)}</span>
                         <input type="number" min="0" step="10" value="${budget}"
                             class="field mono text-right w-20 text-[11px] py-0.5 px-1.5"
