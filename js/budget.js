@@ -142,10 +142,10 @@ function renderBudgetPrevisionnel(activeMonth) {
     const totalPct  = totalBudget > 0 ? Math.round(totalActual / totalBudget * 100) : 0;
     const totalColor = totalVisuals.color;
     const totalRow = document.createElement('div');
-    totalRow.className = 'flex items-center justify-between gap-2 px-1 pb-3 mb-2 border-b border-slate-200';
+    totalRow.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-1 pb-3 mb-2 border-b border-slate-200';
     totalRow.innerHTML = `
         <span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Total prévu</span>
-        <div class="flex items-center gap-2 shrink-0">
+        <div class="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
             <span class="mono text-sm font-bold" style="color:${totalColor}">${fmt(totalActual)}</span>
             <span class="text-[10px] text-slate-400">/ ${fmt(totalBudget)}</span>
             <span class="text-[10px] font-bold mono" style="color:${totalColor}">${totalPct}%</span>
@@ -171,13 +171,13 @@ function renderBudgetPrevisionnel(activeMonth) {
         catWrap.className = 'border border-slate-100 rounded-xl mb-2 overflow-hidden';
 
         const catHeader = document.createElement('div');
-        catHeader.className = 'flex items-center justify-between gap-2 px-3 py-2.5 cursor-pointer bg-slate-50 hover:bg-slate-100 transition select-none';
+        catHeader.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-2.5 cursor-pointer bg-slate-50 hover:bg-slate-100 transition select-none';
         catHeader.innerHTML = `
             <div class="flex items-center gap-2 min-w-0">
                 <span class="text-base transition-transform duration-200 accordion-arrow">▶</span>
                 <span class="text-[11px] font-bold text-slate-700 uppercase tracking-tight truncate">${cat}</span>
             </div>
-            <div class="flex items-center gap-2 shrink-0">
+            <div class="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
                 <span>${catIcon}</span><span class="mono text-[11px] font-bold" style="color:${catColor}">${fmt(catActual)}</span><span class="text-[10px] text-slate-400">/ ${fmt(catBudget)}</span>
             </div>`;
 
@@ -201,13 +201,13 @@ function renderBudgetPrevisionnel(activeMonth) {
             posteWrap.className = 'border border-slate-100 rounded-lg overflow-hidden';
 
             const posteHeader = document.createElement('div');
-            posteHeader.className = 'flex items-center justify-between gap-2 px-3 py-2 cursor-pointer bg-white hover:bg-slate-50 transition select-none';
+            posteHeader.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-2 cursor-pointer bg-white hover:bg-slate-50 transition select-none';
             posteHeader.innerHTML = `
                 <div class="flex items-center gap-2 min-w-0">
                     <span class="text-xs transition-transform duration-200 accordion-arrow">▶</span>
                     <span class="text-[11px] font-semibold text-slate-600 uppercase tracking-tight truncate">${poste}</span>
                 </div>
-                <div class="flex items-center gap-2 shrink-0">
+                <div class="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
                     <span>${posteIcon}</span><span class="mono text-[11px] font-bold" style="color:${posteColor}">${fmt(posteActual)}</span><span class="text-[10px] text-slate-400">/ ${fmt(posteBudget)}</span>
                 </div>`;
 
@@ -226,20 +226,20 @@ function renderBudgetPrevisionnel(activeMonth) {
                 const barClass = descVisuals.barClass;
 
                 const descWrap = document.createElement('div');
-                descWrap.className = 'rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 space-y-1.5';
+                descWrap.className = 'rounded-lg border border-slate-100 bg-slate-50 px-2.5 sm:px-3 py-2 space-y-1.5';
 
                 const descTop = document.createElement('div');
-                descTop.className = 'flex items-center justify-between gap-2';
+                descTop.className = 'flex flex-col sm:flex-row sm:items-center gap-2';
                 descTop.innerHTML = `
-                    <div class="flex items-center gap-1.5 min-w-0">
+                    <div class="flex items-center gap-1.5 min-w-0 flex-1">
                         <span class="text-xs">${dIcon}</span>
-                        <span class="text-[11px] text-slate-600 truncate">${desc}</span>
+                        <span class="text-[11px] text-slate-600 truncate leading-tight">${desc}</span>
                     </div>
-                    <div class="flex items-center gap-1.5 shrink-0">
+                    <div class="flex items-center flex-wrap sm:flex-nowrap justify-between sm:justify-end gap-1.5 w-full sm:w-auto">
                         <span class="mono text-[11px] font-bold" style="color:${dColor}">${fmt(actual)}</span>
                         <span class="text-[10px] text-slate-400">/ ${fmt(budget)}</span>
                         <input type="number" min="0" step="10" value="${budget}"
-                            class="field mono text-right w-20 text-[11px] py-0.5 px-1.5"
+                            class="field mono text-right w-24 sm:w-20 text-[11px] py-0.5 px-1.5"
                             title="Budget mensuel pour ${desc}"
                             onchange="setBudgetAmount('${poste.replace(/'/g,"\\'")}','${desc.replace(/'/g,"\\'")}',parseFloat(this.value)||0);renderBudgetPrevisionnel(document.getElementById('dashboard-month-select')?.value||'');renderMainBudgetChart();">
                         <span class="text-[10px] text-slate-400">€</span>
