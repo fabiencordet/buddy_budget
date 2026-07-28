@@ -174,7 +174,7 @@ function renderBudgetPrevisionnel(activeMonth) {
             <div class="flex items-center gap-2 shrink-0">
                 ${catBudget > 0
                     ? `<span>${catIcon}</span><span class="mono text-[11px] font-bold" style="color:${catColor}">${fmt(catActual)}</span><span class="text-[10px] text-slate-400">/ ${fmt(catBudget)}</span>`
-                    : '<span class="text-[10px] text-slate-400 italic">non budgété</span>'}
+                    : `<span class="mono text-[11px] font-bold" style="color:#64748b">${fmt(0)}</span><span class="text-[10px] text-slate-400">/ ${fmt(0)}</span>`}
             </div>`;
 
         const catBody = document.createElement('div');
@@ -205,7 +205,7 @@ function renderBudgetPrevisionnel(activeMonth) {
                 <div class="flex items-center gap-2 shrink-0">
                     ${posteBudget > 0
                         ? `<span>${posteIcon}</span><span class="mono text-[11px] font-bold" style="color:${posteColor}">${fmt(posteActual)}</span><span class="text-[10px] text-slate-400">/ ${fmt(posteBudget)}</span>`
-                        : '<span class="text-[10px] text-slate-400 italic">—</span>'}
+                        : `<span class="mono text-[11px] font-bold" style="color:#64748b">${fmt(0)}</span><span class="text-[10px] text-slate-400">/ ${fmt(0)}</span>`}
                 </div>`;
 
             const posteBody = document.createElement('div');
@@ -233,8 +233,9 @@ function renderBudgetPrevisionnel(activeMonth) {
                         <span class="text-[11px] text-slate-600 truncate">${desc}</span>
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
-                        ${budget > 0 ? `<span class="mono text-[11px] font-bold" style="color:${dColor}">${fmt(actual)}</span><span class="text-[10px] text-slate-400">/ </span>` : ''}
-                        <input type="number" min="0" step="10" value="${budget || ''}" placeholder="0"
+                        <span class="mono text-[11px] font-bold" style="color:${budget > 0 ? dColor : '#64748b'}">${fmt(actual)}</span>
+                        <span class="text-[10px] text-slate-400">/ ${fmt(budget)}</span>
+                        <input type="number" min="0" step="10" value="${budget}"
                             class="field mono text-right w-20 text-[11px] py-0.5 px-1.5"
                             title="Budget mensuel pour ${desc}"
                             onchange="setBudgetAmount('${poste.replace(/'/g,"\\'")}','${desc.replace(/'/g,"\\'")}',parseFloat(this.value)||0);renderBudgetPrevisionnel(document.getElementById('dashboard-month-select')?.value||'');renderMainBudgetChart();">
