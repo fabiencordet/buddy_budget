@@ -11,7 +11,7 @@ const budgetStructure = {
         "CAF": ["Prestations familiales","Remboursement"],
     },
     "PRÉLEVÈMENTS (FIXES)": {
-        "ABONNEMENTS TV": ["Disney Plus","Netflix","Deezer","Remboursement"],
+        "ABONNEMENTS TV": ["Deezer","Disney Plus","Molotov","Netflix","Autres","Remboursement"],
         "ASSURANCES": ["Juridique","Maison / Auto","Prévoyance","Mutuelle","Remboursement"],
         "BANQUE": ["SG","Fortuneo","Boursobank","Remboursement"],
         "ECOLE": ["Collège"],
