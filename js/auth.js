@@ -3,10 +3,29 @@
  * Gestion de l'authentification Supabase (connexion, inscription, déconnexion).
  */
 
-_supabase.auth.onAuthStateChange((event, session) => {
-    currentUser = session?.user || null;
-    currentUser ? showApp() : showAuth();
-});
+function getFriendlyAuthErrorMessage(err) {
+    const msg = (err?.message || '').toLowerCase();
+    if (!msg) return "Une erreur d'authentification est survenue.";
+    if (msg.includes('invalid login credentials')) return 'Email ou mot de passe incorrect.';
+    if (msg.includes('email not confirmed') || msg.includes('not confirmed')) {
+        return "Votre e-mail n'est pas confirmé. Vérifiez votre boîte mail puis réessayez.";
+    }
+    if (msg.includes('failed to fetch') || msg.includes('network') || msg.includes('fetch')) {
+        return 'Connexion impossible au serveur. Vérifiez votre réseau et la configuration Supabase.';
+    }
+    return err.message;
+}
+
+if (_supabase?.auth) {
+    _supabase.auth.onAuthStateChange((event, session) => {
+        currentUser = session?.user || null;
+        currentUser ? showApp() : showAuth();
+    });
+} else {
+    // Permet d'afficher un message explicite quand config.js est absent ou invalide.
+    showAuth();
+    showAuthMessage('Configuration Supabase manquante ou invalide (config.js).');
+}
 
 function showAuth() {
     document.getElementById('auth-page').classList.remove('hidden');
@@ -51,6 +70,10 @@ function setAuthLoading(btnId, loading) {
 }
 
 async function signIn() {
+    if (!_supabase?.auth) {
+        showAuthMessage('Configuration Supabase manquante ou invalide (config.js).');
+        return;
+    }
     const email = document.getElementById('login-email').value.trim();
     const pwd   = document.getElementById('login-password').value;
     if (!email || !pwd) { showAuthMessage('Veuillez remplir tous les champs.'); return; }
@@ -59,12 +82,16 @@ async function signIn() {
         const { error } = await _supabase.auth.signInWithPassword({ email, password: pwd });
         if (error) throw error;
     } catch(err) {
-        showAuthMessage(err.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect.' : err.message);
+        showAuthMessage(getFriendlyAuthErrorMessage(err));
         setAuthLoading('btn-signin', false);
     }
 }
 
 async function signUp() {
+    if (!_supabase?.auth) {
+        showAuthMessage('Configuration Supabase manquante ou invalide (config.js).');
+        return;
+    }
     const email   = document.getElementById('signup-email').value.trim();
     const pwd     = document.getElementById('signup-password').value;
     const confirm = document.getElementById('signup-confirm').value;
@@ -78,11 +105,12 @@ async function signUp() {
         showAuthMessage('Compte créé ! Vérifiez votre e-mail pour confirmer votre inscription.', false);
         setAuthLoading('btn-signup', false);
     } catch(err) {
-        showAuthMessage(err.message);
+        showAuthMessage(getFriendlyAuthErrorMessage(err));
         setAuthLoading('btn-signup', false);
     }
 }
 
 async function signOut() {
+    if (!_supabase?.auth) return;
     await _supabase.auth.signOut();
 }
