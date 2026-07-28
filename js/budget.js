@@ -91,7 +91,7 @@ function getBudgetSeverity(actual, budget) {
     }
     const ratio = actual / budget;
     if (ratio > 1.1) return 'over';
-    if (ratio >= 0.9) return 'warn';
+    if (ratio >= 1) return 'warn';
     return 'ok';
 }
 
