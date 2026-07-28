@@ -83,7 +83,10 @@ function setBudgetAmount(poste, description, amount) {
 }
 
 function getBudgetSeverity(actual, budget) {
-    if (!budget || budget <= 0) return 'none';
+    if (!budget || budget <= 0) {
+        // Budget implicite à 0€ : toute dépense est un dépassement.
+        return actual > 0 ? 'over' : 'ok';
+    }
     const ratio = actual / budget;
     if (ratio > 1.1) return 'over';
     if (ratio >= 0.9) return 'warn';
@@ -129,13 +132,9 @@ function renderBudgetPrevisionnel(activeMonth) {
     container.innerHTML = '';
 
     // Ligne total
-    const totalSeverity = getBudgetSeverity(totalActual, totalBudget);
+    const totalVisuals = getBudgetVisuals(totalActual, totalBudget);
     const totalPct  = totalBudget > 0 ? Math.round(totalActual / totalBudget * 100) : 0;
-    const totalColor = totalSeverity === 'over'
-        ? '#e11d48'
-        : totalSeverity === 'warn'
-            ? '#d97706'
-            : '#059669';
+    const totalColor = totalVisuals.color;
     const totalRow = document.createElement('div');
     totalRow.className = 'flex items-center justify-between gap-2 px-1 pb-3 mb-2 border-b border-slate-200';
     totalRow.innerHTML = `
@@ -154,7 +153,8 @@ function renderBudgetPrevisionnel(activeMonth) {
             descs.forEach(desc => {
                 const dk = pk + '||' + desc.toUpperCase().trim();
                 const b = budgetLines.find(x => x.key === dk);
-                if (b) { catBudget += b.amount; catActual += (spentByDesc[dk] || 0); }
+                catBudget += b ? b.amount : 0;
+                catActual += (spentByDesc[dk] || 0);
             });
         });
         const catVisuals = getBudgetVisuals(catActual, catBudget);
@@ -172,9 +172,7 @@ function renderBudgetPrevisionnel(activeMonth) {
                 <span class="text-[11px] font-bold text-slate-700 uppercase tracking-tight truncate">${cat}</span>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-                ${catBudget > 0
-                    ? `<span>${catIcon}</span><span class="mono text-[11px] font-bold" style="color:${catColor}">${fmt(catActual)}</span><span class="text-[10px] text-slate-400">/ ${fmt(catBudget)}</span>`
-                    : `<span class="mono text-[11px] font-bold" style="color:#64748b">${fmt(0)}</span><span class="text-[10px] text-slate-400">/ ${fmt(0)}</span>`}
+                <span>${catIcon}</span><span class="mono text-[11px] font-bold" style="color:${catColor}">${fmt(catActual)}</span><span class="text-[10px] text-slate-400">/ ${fmt(catBudget)}</span>
             </div>`;
 
         const catBody = document.createElement('div');
@@ -186,7 +184,8 @@ function renderBudgetPrevisionnel(activeMonth) {
             descs.forEach(desc => {
                 const dk = pk + '||' + desc.toUpperCase().trim();
                 const b = budgetLines.find(x => x.key === dk);
-                if (b) { posteBudget += b.amount; posteActual += (spentByDesc[dk] || 0); }
+                posteBudget += b ? b.amount : 0;
+                posteActual += (spentByDesc[dk] || 0);
             });
             const posteVisuals = getBudgetVisuals(posteActual, posteBudget);
             const posteColor = posteVisuals.color;
@@ -203,9 +202,7 @@ function renderBudgetPrevisionnel(activeMonth) {
                     <span class="text-[11px] font-semibold text-slate-600 uppercase tracking-tight truncate">${poste}</span>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
-                    ${posteBudget > 0
-                        ? `<span>${posteIcon}</span><span class="mono text-[11px] font-bold" style="color:${posteColor}">${fmt(posteActual)}</span><span class="text-[10px] text-slate-400">/ ${fmt(posteBudget)}</span>`
-                        : `<span class="mono text-[11px] font-bold" style="color:#64748b">${fmt(0)}</span><span class="text-[10px] text-slate-400">/ ${fmt(0)}</span>`}
+                    <span>${posteIcon}</span><span class="mono text-[11px] font-bold" style="color:${posteColor}">${fmt(posteActual)}</span><span class="text-[10px] text-slate-400">/ ${fmt(posteBudget)}</span>
                 </div>`;
 
             const posteBody = document.createElement('div');
@@ -229,7 +226,7 @@ function renderBudgetPrevisionnel(activeMonth) {
                 descTop.className = 'flex items-center justify-between gap-2';
                 descTop.innerHTML = `
                     <div class="flex items-center gap-1.5 min-w-0">
-                        ${budget > 0 ? `<span class="text-xs">${dIcon}</span>` : ''}
+                        <span class="text-xs">${dIcon}</span>
                         <span class="text-[11px] text-slate-600 truncate">${desc}</span>
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
