@@ -109,6 +109,32 @@ body::before {
     padding: 8px 10px;
 }
 
+.stats-toggle-group {
+    display: inline-flex;
+    gap: 4px;
+    padding: 3px;
+    border-radius: 10px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+}
+
+.stats-toggle {
+    border: none;
+    border-radius: 8px;
+    padding: 6px 9px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748b;
+    background: transparent;
+    transition: all .16s;
+}
+
+.stats-toggle.active {
+    background: #ffffff;
+    color: #0f172a;
+    box-shadow: 0 1px 6px rgba(15,23,42,.1);
+}
+
 .dashboard-mobile-tab.active {
     background: #ffffff;
     color: #0f172a;
@@ -150,6 +176,8 @@ body::before {
     .stats-chart-wrap {
         height: 270px;
     }
+
+    .stats-toggle { padding: 5px 8px; }
 }
 
 .auth-tab { flex:1; padding:8px; font-size:12px; font-weight:500; border-radius:8px; color:#94a3b8; transition:all .18s; cursor:pointer; border:none; background:transparent; }

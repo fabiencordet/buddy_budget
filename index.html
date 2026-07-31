@@ -252,7 +252,15 @@
                             <p class="section-label mb-0.5">📊 Statistiques</p>
                             <p id="stats-level-subtitle" class="text-[11px] text-slate-400">Répartition des dépenses par catégorie (hors revenus)</p>
                         </div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex flex-wrap items-center justify-end gap-2">
+                            <div class="stats-toggle-group" role="group" aria-label="Type de flux">
+                                <button id="stats-metric-depenses" type="button" class="stats-toggle active" onclick="setStatsMetric('depenses')">Dépenses</button>
+                                <button id="stats-metric-entrees" type="button" class="stats-toggle" onclick="setStatsMetric('entrees')">Entrées</button>
+                            </div>
+                            <div class="stats-toggle-group" role="group" aria-label="Période">
+                                <button id="stats-period-mensuel" type="button" class="stats-toggle active" onclick="setStatsPeriod('mensuel')">Mensuel</button>
+                                <button id="stats-period-annuel" type="button" class="stats-toggle" onclick="setStatsPeriod('annuel')">Annuel</button>
+                            </div>
                             <select id="stats-month-select" onchange="onStatsMonthChange()" class="field text-[11px]" style="width:auto;min-width:110px"></select>
                             <button onclick="resetStatsDrilldown()" class="px-3 py-2 text-[11px] font-semibold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition">Réinitialiser</button>
                         </div>
@@ -267,7 +275,10 @@
                     <div id="stats-empty" class="hidden text-center text-xs text-slate-400 italic py-8">Aucune donnée sur ce niveau pour le mois sélectionné.</div>
 
                     <div id="stats-details-block" class="hidden border-t border-slate-100 pt-3 space-y-2">
-                        <p class="section-label">🧾 Dépenses de la description</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p id="stats-details-title" class="section-label">🧾 Dépenses de la description</p>
+                            <button id="stats-export-btn" type="button" onclick="exportStatsDetailsCSV()" class="hidden px-2.5 py-1.5 text-[10px] font-semibold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition">Exporter CSV</button>
+                        </div>
                         <div id="stats-details-list" class="space-y-2"></div>
                     </div>
                 </div>

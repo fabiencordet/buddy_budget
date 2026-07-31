@@ -12,8 +12,11 @@ const statsDrillState = {
     category: '',
     poste: '',
     description: '',
-    month: ''
+    month: '',
+    metric: 'depenses',
+    period: 'mensuel'
 };
+let statsDetailRows = [];
 
 function switchDashboardSubtab(subtabId) {
     const tabDashboard = document.getElementById('tab-dashboard');
@@ -75,6 +78,33 @@ function onStatsMonthChange() {
     renderStatsView();
 }
 
+function updateStatsControlButtons() {
+    const metricBtns = {
+        depenses: document.getElementById('stats-metric-depenses'),
+        entrees: document.getElementById('stats-metric-entrees')
+    };
+    const periodBtns = {
+        mensuel: document.getElementById('stats-period-mensuel'),
+        annuel: document.getElementById('stats-period-annuel')
+    };
+    Object.entries(metricBtns).forEach(([key, btn]) => btn?.classList.toggle('active', statsDrillState.metric === key));
+    Object.entries(periodBtns).forEach(([key, btn]) => btn?.classList.toggle('active', statsDrillState.period === key));
+    const monthSel = document.getElementById('stats-month-select');
+    if (monthSel) monthSel.classList.toggle('hidden', statsDrillState.period === 'annuel');
+}
+
+function setStatsMetric(metric) {
+    if (!['depenses', 'entrees'].includes(metric)) return;
+    statsDrillState.metric = metric;
+    resetStatsDrilldown();
+}
+
+function setStatsPeriod(period) {
+    if (!['mensuel', 'annuel'].includes(period)) return;
+    statsDrillState.period = period;
+    renderStatsView();
+}
+
 function resetStatsDrilldown() {
     statsDrillState.level = 'categories';
     statsDrillState.category = '';
@@ -108,13 +138,21 @@ function statsMoney(v) {
     return (Math.round(v * 100) / 100).toFixed(2).replace('.', ',') + ' €';
 }
 
+function getStatsAmountForMetric(t) {
+    const amt = parseFloat(t.montant) || 0;
+    if (statsDrillState.metric === 'depenses') return amt < 0 ? Math.abs(amt) : 0;
+    return amt > 0 ? amt : 0;
+}
+
 function getStatsTransactionsForMonth(month) {
+    const monthPrefix = month?.slice(0, 4) || '';
     return transactions.filter(t => {
         if (t.exclu_dashboard) return false;
         const m = t.mois_affectation || getYearMonthString(t.date);
-        if (m !== month) return false;
-        const amt = parseFloat(t.montant) || 0;
-        return amt < 0;
+        if (!m) return false;
+        if (statsDrillState.period === 'mensuel' && m !== month) return false;
+        if (statsDrillState.period === 'annuel' && (!monthPrefix || !m.startsWith(monthPrefix))) return false;
+        return getStatsAmountForMetric(t) > 0;
     });
 }
 
@@ -123,7 +161,8 @@ function aggregateTotalsBy(list, keyBuilder) {
     list.forEach(t => {
         const key = keyBuilder(t);
         if (!key) return;
-        const amount = Math.abs(parseFloat(t.montant) || 0);
+        const amount = getStatsAmountForMetric(t);
+        if (!amount) return;
         totals[key] = (totals[key] || 0) + amount;
     });
     return Object.entries(totals)
@@ -183,18 +222,34 @@ function buildStatsColors(items, level) {
 function renderStatsDetailsForDescription() {
     const detailsBlock = document.getElementById('stats-details-block');
     const list = document.getElementById('stats-details-list');
-    if (!detailsBlock || !list) return;
+    const title = document.getElementById('stats-details-title');
+    const exportBtn = document.getElementById('stats-export-btn');
+    if (!detailsBlock || !list || !title || !exportBtn) return;
+    const metricLabel = statsDrillState.metric === 'depenses' ? 'Dépenses' : 'Entrées';
+    title.textContent = `🧾 ${metricLabel} de la description`;
 
     if (statsDrillState.level !== 'timeline') {
         detailsBlock.classList.add('hidden');
+        exportBtn.classList.add('hidden');
         list.innerHTML = '';
+        statsDetailRows = [];
         return;
     }
 
     const rows = transactions
         .filter(t => {
             if (t.exclu_dashboard) return false;
-            if ((parseFloat(t.montant) || 0) >= 0) return false;
+            const amount = getStatsAmountForMetric(t);
+            if (amount <= 0) return false;
+            if (statsDrillState.period === 'mensuel') {
+                const month = t.mois_affectation || getYearMonthString(t.date);
+                if (month !== statsDrillState.month) return false;
+            }
+            if (statsDrillState.period === 'annuel') {
+                const month = t.mois_affectation || getYearMonthString(t.date);
+                const year = statsDrillState.month?.slice(0, 4) || '';
+                if (!year || !month.startsWith(year)) return false;
+            }
             return (t.categorie || '').toUpperCase().trim() === statsDrillState.category
                 && (t.poste || '').toUpperCase().trim() === statsDrillState.poste
                 && (t.description || '').toUpperCase().trim() === statsDrillState.description;
@@ -202,24 +257,59 @@ function renderStatsDetailsForDescription() {
         .sort((a, b) => (a.date < b.date ? 1 : -1));
 
     detailsBlock.classList.remove('hidden');
+    exportBtn.classList.toggle('hidden', !rows.length);
+    statsDetailRows = rows.slice();
     list.innerHTML = '';
     if (!rows.length) {
-        list.innerHTML = '<p class="text-xs text-slate-400 italic">Aucune dépense pour cette description.</p>';
+        list.innerHTML = `<p class="text-xs text-slate-400 italic">Aucune ${statsDrillState.metric === 'depenses' ? 'dépense' : 'entrée'} pour cette description.</p>`;
         return;
     }
 
     rows.forEach(t => {
-        const amount = Math.abs(parseFloat(t.montant) || 0);
+        const amount = getStatsAmountForMetric(t);
         const item = document.createElement('div');
         item.className = 'stats-detail-item';
         item.innerHTML = `
             <div class="flex items-center justify-between gap-2">
                 <span class="text-[11px] font-semibold text-slate-700 mono">${t.date}</span>
-                <span class="text-[11px] font-bold mono text-rose-600">${statsMoney(amount)}</span>
+                <span class="text-[11px] font-bold mono ${statsDrillState.metric === 'depenses' ? 'text-rose-600' : 'text-emerald-600'}">${statsMoney(amount)}</span>
             </div>
             <div class="text-[10px] text-slate-500 mt-0.5">${t.details || 'Sans détail bancaire'} · ${t.compte_bancaire || 'Compte non renseigné'}</div>`;
         list.appendChild(item);
     });
+}
+
+function exportStatsDetailsCSV() {
+    if (!statsDetailRows.length) return;
+    const escapeCsv = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const rows = [
+        ['date', 'mois_affectation', 'categorie', 'poste', 'description', 'details', 'compte_bancaire', 'montant']
+    ];
+    statsDetailRows.forEach(t => {
+        rows.push([
+            t.date || '',
+            t.mois_affectation || getYearMonthString(t.date) || '',
+            t.categorie || '',
+            t.poste || '',
+            t.description || '',
+            t.details || '',
+            t.compte_bancaire || '',
+            getStatsAmountForMetric(t).toFixed(2)
+        ]);
+    });
+    const csv = rows.map(r => r.map(escapeCsv).join(';')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const metric = statsDrillState.metric === 'depenses' ? 'depenses' : 'entrees';
+    const period = statsDrillState.period === 'annuel' ? 'annuel' : 'mensuel';
+    const stamp = statsDrillState.period === 'annuel' ? (statsDrillState.month || 'all').slice(0, 4) : (statsDrillState.month || 'all');
+    a.href = url;
+    a.download = `stats_${metric}_${period}_${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 function renderStatsView() {
@@ -231,6 +321,7 @@ function renderStatsView() {
     const months = getDashboardAvailableMonths();
     const preferredMonth = document.getElementById('dashboard-month-select')?.value || statsDrillState.month;
     syncStatsMonthSelect(months, preferredMonth);
+    updateStatsControlButtons();
     renderStatsBreadcrumbs();
 
     if (!statsDrillState.month) {
@@ -243,17 +334,21 @@ function renderStatsView() {
     const monthData = getStatsTransactionsForMonth(statsDrillState.month);
     let items = [];
     let chartType = 'pie';
+    const isDepenses = statsDrillState.metric === 'depenses';
+    const periodLabel = statsDrillState.period === 'annuel' ? 'annuelle' : 'mensuelle';
 
     if (statsDrillState.level === 'categories') {
-        subtitle.textContent = 'Répartition des dépenses par catégorie (hors revenus)';
+        subtitle.textContent = isDepenses
+            ? `Répartition ${periodLabel} des dépenses par catégorie (hors revenus)`
+            : `Répartition ${periodLabel} des entrées par catégorie`;
         items = aggregateTotalsBy(
-            monthData.filter(t => (t.categorie || '').toUpperCase().trim() !== 'REVENUS'),
+            monthData.filter(t => (isDepenses ? (t.categorie || '').toUpperCase().trim() !== 'REVENUS' : true)),
             t => (t.categorie || '').toUpperCase().trim()
         );
     }
 
     if (statsDrillState.level === 'postes') {
-        subtitle.textContent = `Catégorie ${statsDrillState.category} — répartition par poste`;
+        subtitle.textContent = `Catégorie ${statsDrillState.category} — répartition ${periodLabel} par poste`;
         items = aggregateTotalsBy(
             monthData.filter(t => (t.categorie || '').toUpperCase().trim() === statsDrillState.category),
             t => (t.poste || '').toUpperCase().trim()
@@ -261,7 +356,7 @@ function renderStatsView() {
     }
 
     if (statsDrillState.level === 'descriptions') {
-        subtitle.textContent = `${statsDrillState.poste} — répartition par description`;
+        subtitle.textContent = `${statsDrillState.poste} — répartition ${periodLabel} par description`;
         items = aggregateTotalsBy(
             monthData.filter(t => (t.categorie || '').toUpperCase().trim() === statsDrillState.category && (t.poste || '').toUpperCase().trim() === statsDrillState.poste),
             t => (t.description || '').toUpperCase().trim()
@@ -269,19 +364,23 @@ function renderStatsView() {
     }
 
     if (statsDrillState.level === 'timeline') {
-        subtitle.textContent = `${statsDrillState.description} — évolution mensuelle`;
+        subtitle.textContent = `${statsDrillState.description} — évolution mensuelle (${isDepenses ? 'dépenses' : 'entrées'})`;
         chartType = 'line';
         const byMonth = {};
         transactions.forEach(t => {
             if (t.exclu_dashboard) return;
-            const amt = parseFloat(t.montant) || 0;
-            if (amt >= 0) return;
+            const amount = getStatsAmountForMetric(t);
+            if (!amount) return;
             if ((t.categorie || '').toUpperCase().trim() !== statsDrillState.category) return;
             if ((t.poste || '').toUpperCase().trim() !== statsDrillState.poste) return;
             if ((t.description || '').toUpperCase().trim() !== statsDrillState.description) return;
             const month = t.mois_affectation || getYearMonthString(t.date);
             if (!month) return;
-            byMonth[month] = (byMonth[month] || 0) + Math.abs(amt);
+            if (statsDrillState.period === 'annuel') {
+                const year = statsDrillState.month?.slice(0, 4) || '';
+                if (!year || !month.startsWith(year)) return;
+            }
+            byMonth[month] = (byMonth[month] || 0) + amount;
         });
         items = Object.keys(byMonth).sort().map(m => ({ label: m, value: byMonth[m] }));
     }
@@ -306,7 +405,7 @@ function renderStatsView() {
             ? {
                 labels,
                 datasets: [{
-                    label: 'Dépenses',
+                    label: isDepenses ? 'Dépenses' : 'Entrées',
                     data: values,
                     borderColor: categoryBarColor[statsDrillState.category] || '#0f172a',
                     backgroundColor: 'rgba(15,23,42,.08)',
@@ -336,8 +435,9 @@ function renderStatsView() {
                 tooltip: {
                     callbacks: {
                         label: ctx => {
-                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
                             const val = ctx.raw || 0;
+                            if (chartType === 'line') return ` ${ctx.label} : ${statsMoney(val)}`;
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
                             const pct = total ? Math.round(val / total * 100) : 0;
                             return ` ${ctx.label} : ${statsMoney(val)} (${pct}%)`;
                         }
