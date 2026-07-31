@@ -34,6 +34,7 @@ const statsInSliceLabelsPlugin = {
         const ctx = chart.ctx;
         const outsideLeft = [];
         const outsideRight = [];
+        chart.$statsCalloutHitboxes = [];
         ctx.save();
 
         meta.data.forEach((arc, idx) => {
@@ -79,6 +80,7 @@ const statsInSliceLabelsPlugin = {
             const pointY = p.y + sinA * (p.outerRadius + (isMobile ? 5 : 6));
             const textX = p.x + (side === 'right' ? (p.outerRadius + (isMobile ? 20 : 22)) : -(p.outerRadius + (isMobile ? 20 : 22)));
             const entry = {
+                idx,
                 side,
                 y: pointY,
                 pointX,
@@ -130,6 +132,27 @@ const statsInSliceLabelsPlugin = {
                 ctx.fillStyle = '#334155';
                 ctx.font = `700 ${isMobile ? 8 : 9}px DM Sans`;
                 ctx.fillText(item.text, item.textX, item.y);
+
+                const metrics = ctx.measureText(item.text);
+                const h = isMobile ? 10 : 11;
+                const halfW = metrics.width / 2;
+                const box = align === 'left'
+                    ? {
+                        x1: item.textX - 1,
+                        x2: item.textX + metrics.width + 3,
+                        y1: item.y - h,
+                        y2: item.y + h,
+                        idx: item.idx
+                    }
+                    : {
+                        x1: item.textX - metrics.width - 3,
+                        x2: item.textX + 1,
+                        y1: item.y - h,
+                        y2: item.y + h,
+                        idx: item.idx
+                    };
+
+                if (Number.isFinite(halfW)) chart.$statsCalloutHitboxes.push(box);
             });
         };
 
@@ -142,6 +165,46 @@ const statsInSliceLabelsPlugin = {
 
 if (typeof Chart !== 'undefined') {
     Chart.register(statsInSliceLabelsPlugin);
+}
+
+function tryHandleStatsCalloutTap(chart, nativeEvent) {
+    if (!chart || chart.config.type !== 'pie') return false;
+    const boxes = chart.$statsCalloutHitboxes || [];
+    if (!boxes.length) return false;
+
+    const e = nativeEvent || {};
+    const x = Number(e.offsetX);
+    const y = Number(e.offsetY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+
+    const hit = boxes.find(b => x >= b.x1 && x <= b.x2 && y >= b.y1 && y <= b.y2);
+    if (!hit) return false;
+    return handleStatsDrilldownFromLabelIndex(hit.idx, chart.data.labels || []);
+}
+
+function handleStatsDrilldownFromLabelIndex(idx, labels) {
+    if (statsDrillState.level === 'timeline') return false;
+    const label = labels[idx];
+    if (!label) return false;
+
+    if (statsDrillState.level === 'categories') {
+        statsDrillState.level = 'postes';
+        statsDrillState.category = label;
+        statsDrillState.poste = '';
+        statsDrillState.description = '';
+    } else if (statsDrillState.level === 'postes') {
+        statsDrillState.level = 'descriptions';
+        statsDrillState.poste = label;
+        statsDrillState.description = '';
+    } else if (statsDrillState.level === 'descriptions') {
+        statsDrillState.level = 'timeline';
+        statsDrillState.description = label;
+    } else {
+        return false;
+    }
+
+    renderStatsView();
+    return true;
 }
 
 function switchDashboardSubtab(subtabId, options = {}) {
@@ -745,24 +808,8 @@ function renderStatsView() {
                 }
                 : undefined,
             onClick: (evt, elements) => {
-                if (!elements?.length || statsDrillState.level === 'timeline') return;
-                const idx = elements[0].index;
-                const label = labels[idx];
-                if (!label) return;
-                if (statsDrillState.level === 'categories') {
-                    statsDrillState.level = 'postes';
-                    statsDrillState.category = label;
-                    statsDrillState.poste = '';
-                    statsDrillState.description = '';
-                } else if (statsDrillState.level === 'postes') {
-                    statsDrillState.level = 'descriptions';
-                    statsDrillState.poste = label;
-                    statsDrillState.description = '';
-                } else if (statsDrillState.level === 'descriptions') {
-                    statsDrillState.level = 'timeline';
-                    statsDrillState.description = label;
-                }
-                renderStatsView();
+                if (elements?.length && handleStatsDrilldownFromLabelIndex(elements[0].index, labels)) return;
+                tryHandleStatsCalloutTap(statsChartInstance, evt?.native);
             }
         }
     });
