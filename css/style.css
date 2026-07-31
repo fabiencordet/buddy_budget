@@ -157,6 +157,20 @@ body::before {
     white-space: nowrap;
 }
 
+.stats-legend-value-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stats-legend-pct {
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748b;
+    min-width: 30px;
+    text-align: right;
+}
+
 .stats-toggle-group {
     display: inline-flex;
     gap: 4px;

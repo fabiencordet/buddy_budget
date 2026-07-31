@@ -259,8 +259,10 @@ function renderStatsLegend(items, colors, showLegend) {
     legend.innerHTML = '';
     legend.classList.toggle('hidden', !showLegend);
     if (!showLegend || !items.length) return;
+    const total = items.reduce((sum, i) => sum + i.value, 0);
 
     items.forEach((item, idx) => {
+        const pct = total ? Math.round((item.value / total) * 100) : 0;
         const row = document.createElement('div');
         row.className = 'stats-legend-item';
         row.innerHTML = `
@@ -268,7 +270,10 @@ function renderStatsLegend(items, colors, showLegend) {
                 <span class="stats-legend-dot" style="background:${colors[idx] || '#94a3b8'}"></span>
                 <span class="stats-legend-name">${item.label}</span>
             </span>
-            <span class="stats-legend-value">${statsMoney(item.value)}</span>`;
+            <span class="stats-legend-value-wrap">
+                <span class="stats-legend-value">${statsMoney(item.value)}</span>
+                <span class="stats-legend-pct">${pct}%</span>
+            </span>`;
         legend.appendChild(row);
     });
 }
