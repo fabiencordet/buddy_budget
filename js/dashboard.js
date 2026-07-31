@@ -105,6 +105,24 @@ function setStatsPeriod(period) {
     renderStatsView();
 }
 
+function updateStatsPeriodIndicator() {
+    const el = document.getElementById('stats-period-indicator');
+    if (!el) return;
+    if (statsDrillState.period !== 'annuel') {
+        el.classList.add('hidden');
+        el.textContent = '';
+        return;
+    }
+    const year = (statsDrillState.month || '').slice(0, 4);
+    if (!year) {
+        el.classList.add('hidden');
+        el.textContent = '';
+        return;
+    }
+    el.textContent = `Année active : ${year}`;
+    el.classList.remove('hidden');
+}
+
 function resetStatsDrilldown() {
     statsDrillState.level = 'categories';
     statsDrillState.category = '';
@@ -322,6 +340,7 @@ function renderStatsView() {
     const preferredMonth = document.getElementById('dashboard-month-select')?.value || statsDrillState.month;
     syncStatsMonthSelect(months, preferredMonth);
     updateStatsControlButtons();
+    updateStatsPeriodIndicator();
     renderStatsBreadcrumbs();
 
     if (!statsDrillState.month) {
