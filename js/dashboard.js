@@ -152,6 +152,21 @@ function shiftColor(hex, idx, total) {
     return rgbToHex(r + (255 - r) * mix, g + (255 - g) * mix, b + (255 - b) * mix);
 }
 
+function getStringHash(str) {
+    let h = 0;
+    const s = String(str || '');
+    for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i);
+    return Math.abs(h);
+}
+
+function getVividPalette() {
+    return [
+        '#ef4444', '#f97316', '#f59e0b', '#eab308', '#22c55e',
+        '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6',
+        '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899'
+    ];
+}
+
 function statsMoney(v) {
     return (Math.round(v * 100) / 100).toFixed(2).replace('.', ',') + ' €';
 }
@@ -233,8 +248,29 @@ function renderStatsBreadcrumbs() {
 
 function buildStatsColors(items, level) {
     if (level === 'categories') return items.map(i => categoryBarColor[i.label] || '#94a3b8');
-    const base = categoryBarColor[statsDrillState.category] || '#6366f1';
-    return items.map((_, idx) => shiftColor(base, idx, items.length));
+    const palette = getVividPalette();
+    const offset = getStringHash(statsDrillState.category + '|' + statsDrillState.poste) % palette.length;
+    return items.map((_, idx) => palette[(offset + idx) % palette.length]);
+}
+
+function renderStatsLegend(items, colors, showLegend) {
+    const legend = document.getElementById('stats-chart-legend');
+    if (!legend) return;
+    legend.innerHTML = '';
+    legend.classList.toggle('hidden', !showLegend);
+    if (!showLegend || !items.length) return;
+
+    items.forEach((item, idx) => {
+        const row = document.createElement('div');
+        row.className = 'stats-legend-item';
+        row.innerHTML = `
+            <span class="stats-legend-label">
+                <span class="stats-legend-dot" style="background:${colors[idx] || '#94a3b8'}"></span>
+                <span class="stats-legend-name">${item.label}</span>
+            </span>
+            <span class="stats-legend-value">${statsMoney(item.value)}</span>`;
+        legend.appendChild(row);
+    });
 }
 
 function renderStatsDetailsForDescription() {
@@ -334,6 +370,7 @@ function renderStatsView() {
     const canvas = document.getElementById('stats-main-chart');
     const empty = document.getElementById('stats-empty');
     const subtitle = document.getElementById('stats-level-subtitle');
+    const legend = document.getElementById('stats-chart-legend');
     if (!canvas || !empty || !subtitle) return;
 
     const months = getDashboardAvailableMonths();
@@ -345,6 +382,7 @@ function renderStatsView() {
 
     if (!statsDrillState.month) {
         if (statsChartInstance) { statsChartInstance.destroy(); statsChartInstance = null; }
+        if (legend) { legend.innerHTML = ''; legend.classList.add('hidden'); }
         empty.classList.remove('hidden');
         renderStatsDetailsForDescription();
         return;
@@ -406,6 +444,7 @@ function renderStatsView() {
 
     if (!items.length) {
         if (statsChartInstance) { statsChartInstance.destroy(); statsChartInstance = null; }
+        if (legend) { legend.innerHTML = ''; legend.classList.add('hidden'); }
         empty.classList.remove('hidden');
         renderStatsDetailsForDescription();
         return;
@@ -416,6 +455,8 @@ function renderStatsView() {
     const labels = items.map(i => i.label);
     const values = items.map(i => i.value);
     const colors = buildStatsColors(items, statsDrillState.level);
+    const showPieLegend = chartType !== 'line';
+    renderStatsLegend(items, colors, showPieLegend);
 
     if (statsChartInstance) { statsChartInstance.destroy(); statsChartInstance = null; }
     statsChartInstance = new Chart(canvas, {
@@ -450,7 +491,11 @@ function renderStatsView() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10, family: 'DM Sans' } } },
+                legend: {
+                    display: chartType === 'line',
+                    position: 'bottom',
+                    labels: { boxWidth: 12, font: { size: 10, family: 'DM Sans' } }
+                },
                 tooltip: {
                     callbacks: {
                         label: ctx => {
