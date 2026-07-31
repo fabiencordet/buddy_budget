@@ -103,6 +103,19 @@ function getBudgetVisuals(actual, budget) {
     return { color: '#0f172a', barClass: 'budget-ok' };
 }
 
+function hexToRgba(hex, alpha) {
+    const raw = (hex || '').replace('#', '');
+    if (raw.length !== 6) return `rgba(148,163,184,${alpha})`;
+    const r = parseInt(raw.slice(0, 2), 16);
+    const g = parseInt(raw.slice(2, 4), 16);
+    const b = parseInt(raw.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function getForecastAccentColor(category) {
+    return categoryBarColor?.[category] || '#64748b';
+}
+
 // ── Rendu accordéon prévisionnel ────────────────────────
 function renderBudgetPrevisionnel(activeMonth) {
     const container = document.getElementById('budget-previsionnel-container');
@@ -142,13 +155,17 @@ function renderBudgetPrevisionnel(activeMonth) {
     const totalPct  = totalBudget > 0 ? Math.round(totalActual / totalBudget * 100) : 0;
     const totalColor = totalVisuals.color;
     const totalRow = document.createElement('div');
-    totalRow.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-1 pb-3 mb-2 border-b border-slate-200';
+    totalRow.className = 'forecast-total-card';
     totalRow.innerHTML = `
-        <span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Total prévu</span>
-        <div class="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
-            <span class="mono text-sm font-bold" style="color:${totalColor}">${fmt(totalActual)}</span>
-            <span class="text-[10px] text-slate-400">/ ${fmt(totalBudget)}</span>
-            <span class="text-[10px] font-bold mono" style="color:${totalColor}">${totalPct}%</span>
+        <div class="forecast-total-title-wrap">
+            <span class="forecast-total-label">Vue prévisionnelle</span>
+            <span class="forecast-total-sub">Dépensé vs objectif global</span>
+        </div>
+        <div class="forecast-values forecast-values-total">
+            <span class="forecast-spent mono" style="color:${totalColor}">${fmt(totalActual)}</span>
+            <span class="forecast-divider">/</span>
+            <span class="forecast-target mono">${fmt(totalBudget)}</span>
+            <span class="forecast-ratio mono" style="color:${totalColor}">${totalPct}%</span>
         </div>`;
     container.appendChild(totalRow);
 
@@ -165,24 +182,28 @@ function renderBudgetPrevisionnel(activeMonth) {
         });
         const catVisuals = getBudgetVisuals(catActual, catBudget);
         const catColor = catVisuals.color;
+        const catAccent = getForecastAccentColor(cat);
 
         const catWrap   = document.createElement('div');
-        catWrap.className = 'border border-slate-100 rounded-xl mb-2 overflow-hidden';
+        catWrap.className = 'forecast-cat-wrap';
+        catWrap.style.borderColor = hexToRgba(catAccent, 0.35);
+        catWrap.style.background = `linear-gradient(180deg, ${hexToRgba(catAccent, 0.07)} 0%, rgba(255,255,255,0.96) 72%)`;
 
         const catHeader = document.createElement('div');
-        catHeader.className = 'flex items-center justify-between gap-2 px-3 py-2 cursor-pointer bg-slate-50 hover:bg-slate-100 transition select-none';
+        catHeader.className = 'forecast-head forecast-head-cat';
         catHeader.innerHTML = `
             <div class="flex items-center gap-2 min-w-0">
                 <span class="text-base transition-transform duration-200 accordion-arrow">▶</span>
                 <span class="text-[11px] font-bold text-slate-700 uppercase tracking-tight truncate">${cat}</span>
             </div>
-            <div class="flex items-center justify-end gap-1.5 shrink-0">
-                <span class="mono text-[11px] font-bold" style="color:${catColor}">${fmt(catActual)}</span>
-                <span class="text-[10px] text-slate-400">/ ${fmt(catBudget)}</span>
+            <div class="forecast-values">
+                <span class="forecast-spent mono" style="color:${catColor}">${fmt(catActual)}</span>
+                <span class="forecast-divider">/</span>
+                <span class="forecast-target mono">${fmt(catBudget)}</span>
             </div>`;
 
         const catBody = document.createElement('div');
-        catBody.className = 'hidden px-2 pb-2 pt-1 space-y-1';
+        catBody.className = 'hidden forecast-cat-body';
 
         Object.entries(postes).forEach(([poste, descs]) => {
             const pk = poste.toUpperCase().trim();
@@ -197,22 +218,24 @@ function renderBudgetPrevisionnel(activeMonth) {
             const posteColor = posteVisuals.color;
 
             const posteWrap   = document.createElement('div');
-            posteWrap.className = 'border border-slate-100 rounded-lg overflow-hidden';
+            posteWrap.className = 'forecast-poste-wrap';
+            posteWrap.style.borderColor = hexToRgba(catAccent, 0.22);
 
             const posteHeader = document.createElement('div');
-            posteHeader.className = 'flex items-center justify-between gap-2 px-3 py-2 cursor-pointer bg-white hover:bg-slate-50 transition select-none';
+            posteHeader.className = 'forecast-head forecast-head-poste';
             posteHeader.innerHTML = `
                 <div class="flex items-center gap-2 min-w-0">
                     <span class="text-xs transition-transform duration-200 accordion-arrow">▶</span>
                     <span class="text-[11px] font-semibold text-slate-600 uppercase tracking-tight truncate">${poste}</span>
                 </div>
-                <div class="flex items-center justify-end gap-1.5 shrink-0">
-                    <span class="mono text-[11px] font-bold" style="color:${posteColor}">${fmt(posteActual)}</span>
-                    <span class="text-[10px] text-slate-400">/ ${fmt(posteBudget)}</span>
+                <div class="forecast-values">
+                    <span class="forecast-spent mono" style="color:${posteColor}">${fmt(posteActual)}</span>
+                    <span class="forecast-divider">/</span>
+                    <span class="forecast-target mono">${fmt(posteBudget)}</span>
                 </div>`;
 
             const posteBody = document.createElement('div');
-            posteBody.className = 'hidden px-2 pb-2 pt-1 space-y-1';
+            posteBody.className = 'hidden forecast-poste-body';
 
             descs.forEach(desc => {
                 const dk     = pk + '||' + desc.toUpperCase().trim();
@@ -222,20 +245,21 @@ function renderBudgetPrevisionnel(activeMonth) {
                 const pct    = budget > 0 ? Math.min(Math.round(actual / budget * 100), 100) : 0;
                 const descVisuals = getBudgetVisuals(actual, budget);
                 const dColor = descVisuals.color;
-                const barClass = descVisuals.barClass;
 
                 const descWrap = document.createElement('div');
-                descWrap.className = 'rounded-lg border border-slate-100 bg-slate-50 px-2.5 sm:px-3 py-1.5 sm:py-2 space-y-1';
+                descWrap.className = 'forecast-desc-wrap';
+                descWrap.style.borderColor = hexToRgba(catAccent, 0.2);
 
                 const descTop = document.createElement('div');
-                descTop.className = 'flex items-center justify-between gap-2';
+                descTop.className = 'forecast-head forecast-head-desc';
                 descTop.innerHTML = `
                     <div class="min-w-0 flex-1">
                         <span class="text-[11px] text-slate-600 truncate leading-tight block">${desc}</span>
                     </div>
-                    <div class="flex items-center justify-end gap-1.5 shrink-0">
-                        <span class="mono text-[11px] font-bold" style="color:${dColor}">${fmt(actual)}</span>
-                        <span class="text-[10px] text-slate-400">/ ${fmt(budget)}</span>
+                    <div class="forecast-values">
+                        <span class="forecast-spent mono" style="color:${dColor}">${fmt(actual)}</span>
+                        <span class="forecast-divider">/</span>
+                        <span class="forecast-target mono">${fmt(budget)}</span>
                         <input type="number" min="0" step="10" value="${budget}"
                             class="field mono text-right w-20 text-[11px] py-0.5 px-1.5 hidden sm:block"
                             title="Budget mensuel pour ${desc}"
@@ -246,7 +270,7 @@ function renderBudgetPrevisionnel(activeMonth) {
                 if (budget > 0) {
                     const barRow = document.createElement('div');
                     barRow.className = 'budget-desc-progress';
-                    barRow.innerHTML = `<div class="budget-prog-track"><div class="budget-prog-fill ${barClass}" style="width:${pct}%"></div></div>`;
+                    barRow.innerHTML = `<div class="budget-prog-track"><div class="budget-prog-fill" style="width:${pct}%;background:${catAccent}"></div></div>`;
                     descWrap.appendChild(barRow);
                 }
                 posteBody.appendChild(descWrap);
