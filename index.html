@@ -271,8 +271,21 @@
 
                     <div id="stats-breadcrumbs" class="flex flex-wrap items-center gap-1.5 text-[10px]"></div>
 
+                    <div id="stats-total-bar" class="stats-total-bar hidden">
+                        <span id="stats-total-label" class="stats-total-label">Total dépenses</span>
+                        <span id="stats-total-value" class="stats-total-value">—</span>
+                    </div>
+
                     <div class="stats-chart-wrap">
                         <canvas id="stats-main-chart"></canvas>
+                    </div>
+
+                    <div id="stats-name-list" class="stats-name-list hidden"></div>
+
+                    <div id="stats-slice-info" class="stats-slice-info hidden">
+                        <span id="stats-slice-name" class="stats-slice-name">—</span>
+                        <span id="stats-slice-amount" class="stats-slice-amount">—</span>
+                        <span id="stats-slice-percent" class="stats-slice-percent">—</span>
                     </div>
 
                     <div id="stats-empty" class="hidden text-center text-xs text-slate-400 italic py-8">Aucune donnée sur ce niveau pour le mois sélectionné.</div>

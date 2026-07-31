@@ -19,168 +19,8 @@ const statsDrillState = {
     period: 'mensuel'
 };
 let statsDetailRows = [];
-
-const statsInSliceLabelsPlugin = {
-    id: 'statsInSliceLabels',
-    afterDatasetsDraw(chart) {
-        if (chart?.canvas?.id !== 'stats-main-chart') return;
-        if (chart.config.type !== 'pie') return;
-
-        const dataset = chart.data.datasets?.[0];
-        const meta = chart.getDatasetMeta(0);
-        if (!dataset || !meta?.data?.length) return;
-        const isMobile = window.innerWidth <= 767;
-
-        const ctx = chart.ctx;
-        const outsideLeft = [];
-        const outsideRight = [];
-        chart.$statsCalloutHitboxes = [];
-        ctx.save();
-
-        meta.data.forEach((arc, idx) => {
-            const value = Number(dataset.data[idx] || 0);
-            if (!value) return;
-
-            const p = arc.getProps(['x', 'y', 'startAngle', 'endAngle', 'innerRadius', 'outerRadius'], true);
-            const span = p.endAngle - p.startAngle;
-
-            const angle = (p.startAngle + p.endAngle) / 2;
-            const cosA = Math.cos(angle);
-            const sinA = Math.sin(angle);
-
-            const rawLabel = String(chart.data.labels?.[idx] || '').trim();
-            const amount = isMobile ? statsMoneyCompact(value) : statsMoney(value);
-            const shortMax = isMobile ? 10 : 14;
-            const longMax = isMobile ? 14 : 22;
-            const shortLabel = rawLabel.length > shortMax ? rawLabel.slice(0, shortMax - 1) + '…' : rawLabel;
-            const longLabel = rawLabel.length > longMax ? rawLabel.slice(0, longMax - 1) + '…' : rawLabel;
-            const bg = Array.isArray(dataset.backgroundColor)
-                ? (dataset.backgroundColor[idx] || '#334155')
-                : (dataset.backgroundColor || '#334155');
-            const textColor = getReadableTextColor(bg);
-
-            if (span >= (isMobile ? 0.48 : 0.34)) {
-                const radius = p.innerRadius + (p.outerRadius - p.innerRadius) * (isMobile ? 0.54 : 0.58);
-                const x = p.x + cosA * radius;
-                const y = p.y + sinA * radius;
-                const fontSize = isMobile ? (span > 0.78 ? 9 : 8) : (span > 0.5 ? 10 : 9);
-
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = textColor;
-                ctx.font = `700 ${fontSize}px DM Sans`;
-                ctx.fillText(shortLabel, x, y - (isMobile ? 6 : 7));
-                ctx.font = `700 ${Math.max(7, fontSize - 1)}px DM Mono`;
-                ctx.fillText(amount, x, y + (isMobile ? 6 : 7));
-                return;
-            }
-
-            const side = cosA >= 0 ? 'right' : 'left';
-            const pointX = p.x + cosA * (p.outerRadius + (isMobile ? 5 : 6));
-            const pointY = p.y + sinA * (p.outerRadius + (isMobile ? 5 : 6));
-            const textX = p.x + (side === 'right' ? (p.outerRadius + (isMobile ? 20 : 22)) : -(p.outerRadius + (isMobile ? 20 : 22)));
-            const entry = {
-                idx,
-                side,
-                y: pointY,
-                pointX,
-                pointY,
-                textX,
-                text: `${longLabel} ${amount}`,
-                color: bg
-            };
-            if (side === 'right') outsideRight.push(entry);
-            else outsideLeft.push(entry);
-        });
-
-        const drawOutside = (arr, align) => {
-            if (!arr.length) return;
-            arr.sort((a, b) => a.y - b.y);
-            const minGap = isMobile ? 12 : 14;
-            const topLimit = chart.chartArea.top + (isMobile ? 6 : 10);
-            const bottomLimit = chart.chartArea.bottom - (isMobile ? 6 : 10);
-
-            arr[0].y = Math.max(arr[0].y, topLimit);
-            for (let i = 1; i < arr.length; i++) {
-                arr[i].y = Math.max(arr[i].y, arr[i - 1].y + minGap);
-            }
-            if (arr[arr.length - 1].y > bottomLimit) {
-                arr[arr.length - 1].y = bottomLimit;
-                for (let i = arr.length - 2; i >= 0; i--) {
-                    arr[i].y = Math.min(arr[i].y, arr[i + 1].y - minGap);
-                }
-            }
-            if (arr[0].y < topLimit) {
-                arr[0].y = topLimit;
-                for (let i = 1; i < arr.length; i++) {
-                    arr[i].y = Math.max(arr[i].y, arr[i - 1].y + minGap);
-                }
-            }
-
-            arr.forEach(item => {
-                const elbowX = item.textX + (align === 'right' ? -8 : 8);
-                ctx.beginPath();
-                ctx.moveTo(item.pointX, item.pointY);
-                ctx.lineTo(elbowX, item.y);
-                ctx.lineTo(item.textX, item.y);
-                ctx.strokeStyle = item.color;
-                ctx.lineWidth = 1.2;
-                ctx.stroke();
-
-                ctx.textAlign = align;
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = '#334155';
-                ctx.font = `700 ${isMobile ? 8 : 9}px DM Sans`;
-                ctx.fillText(item.text, item.textX, item.y);
-
-                const metrics = ctx.measureText(item.text);
-                const h = isMobile ? 10 : 11;
-                const halfW = metrics.width / 2;
-                const box = align === 'left'
-                    ? {
-                        x1: item.textX - 1,
-                        x2: item.textX + metrics.width + 3,
-                        y1: item.y - h,
-                        y2: item.y + h,
-                        idx: item.idx
-                    }
-                    : {
-                        x1: item.textX - metrics.width - 3,
-                        x2: item.textX + 1,
-                        y1: item.y - h,
-                        y2: item.y + h,
-                        idx: item.idx
-                    };
-
-                if (Number.isFinite(halfW)) chart.$statsCalloutHitboxes.push(box);
-            });
-        };
-
-        drawOutside(outsideRight, 'left');
-        drawOutside(outsideLeft, 'right');
-
-        ctx.restore();
-    }
-};
-
-if (typeof Chart !== 'undefined') {
-    Chart.register(statsInSliceLabelsPlugin);
-}
-
-function tryHandleStatsCalloutTap(chart, nativeEvent) {
-    if (!chart || chart.config.type !== 'pie') return false;
-    const boxes = chart.$statsCalloutHitboxes || [];
-    if (!boxes.length) return false;
-
-    const e = nativeEvent || {};
-    const x = Number(e.offsetX);
-    const y = Number(e.offsetY);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
-
-    const hit = boxes.find(b => x >= b.x1 && x <= b.x2 && y >= b.y1 && y <= b.y2);
-    if (!hit) return false;
-    return handleStatsDrilldownFromLabelIndex(hit.idx, chart.data.labels || []);
-}
+let statsCurrentSliceIndex = -1;
+let statsLastSliceTap = { idx: -1, at: 0 };
 
 function handleStatsDrilldownFromLabelIndex(idx, labels) {
     if (statsDrillState.level === 'timeline') return false;
@@ -436,16 +276,6 @@ function rgbToHex(r, g, b) {
     return '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
 }
 
-function getReadableTextColor(color) {
-    const hex = String(color || '').replace('#', '');
-    if (hex.length !== 6) return '#ffffff';
-    const r = parseInt(hex.slice(0, 2), 16);
-    const g = parseInt(hex.slice(2, 4), 16);
-    const b = parseInt(hex.slice(4, 6), 16);
-    const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-    return luminance > 0.62 ? '#0f172a' : '#ffffff';
-}
-
 function shiftColor(hex, idx, total) {
     const { r, g, b } = hexToRgb(hex);
     const ratio = total > 1 ? (idx / (total - 1)) : 0;
@@ -470,13 +300,6 @@ function getVividPalette() {
 
 function statsMoney(v) {
     return (Math.round(v * 100) / 100).toFixed(2).replace('.', ',') + ' €';
-}
-
-function statsMoneyCompact(v) {
-    const n = Math.abs(Number(v) || 0);
-    if (n >= 1000000) return (n / 1000000).toFixed(1).replace('.', ',') + ' M€';
-    if (n >= 1000) return (n / 1000).toFixed(1).replace('.', ',') + ' k€';
-    return statsMoney(n);
 }
 
 function getStatsAmountForMetric(t) {
@@ -559,6 +382,73 @@ function buildStatsColors(items, level) {
     const palette = getVividPalette();
     const offset = getStringHash(statsDrillState.category + '|' + statsDrillState.poste) % palette.length;
     return items.map((_, idx) => palette[(offset + idx) % palette.length]);
+}
+
+function updateStatsTotalBar(values) {
+    const bar = document.getElementById('stats-total-bar');
+    const label = document.getElementById('stats-total-label');
+    const value = document.getElementById('stats-total-value');
+    if (!bar || !label || !value) return;
+    const total = values.reduce((sum, v) => sum + v, 0);
+    const metricWord = statsDrillState.metric === 'depenses' ? 'dépenses' : 'entrées';
+    const periodWord = statsDrillState.period === 'annuel' ? 'annuel' : 'mensuel';
+    label.textContent = `Total ${metricWord} ${periodWord}`;
+    value.textContent = statsMoney(total);
+    bar.classList.remove('hidden');
+}
+
+function hideStatsTotalBar() {
+    const bar = document.getElementById('stats-total-bar');
+    if (bar) bar.classList.add('hidden');
+}
+
+function renderStatsNameList(labels, colors) {
+    const wrap = document.getElementById('stats-name-list');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    if (!labels.length) {
+        wrap.classList.add('hidden');
+        return;
+    }
+    labels.forEach((name, idx) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'stats-name-item' + (idx === statsCurrentSliceIndex ? ' active' : '');
+        item.innerHTML = `<span class="stats-name-dot" style="background:${colors[idx] || '#94a3b8'}"></span><span>${name}</span>`;
+        item.addEventListener('click', () => {
+            statsCurrentSliceIndex = idx;
+            renderStatsNameList(labels, colors);
+            updateStatsSliceInfo(labels, [], idx, true);
+        });
+        wrap.appendChild(item);
+    });
+    wrap.classList.remove('hidden');
+}
+
+function updateStatsSliceInfo(labels, values, idx, keepValues = false) {
+    const block = document.getElementById('stats-slice-info');
+    const nameEl = document.getElementById('stats-slice-name');
+    const amountEl = document.getElementById('stats-slice-amount');
+    const pctEl = document.getElementById('stats-slice-percent');
+    if (!block || !nameEl || !amountEl || !pctEl) return;
+    if (idx < 0 || idx >= labels.length) {
+        block.classList.add('hidden');
+        return;
+    }
+    const vals = keepValues ? (statsChartInstance?.data?.datasets?.[0]?.data || []) : values;
+    const amount = Number(vals[idx] || 0);
+    const total = vals.reduce((sum, v) => sum + Number(v || 0), 0);
+    const pct = total ? Math.round(amount / total * 100) : 0;
+    nameEl.textContent = labels[idx];
+    amountEl.textContent = statsMoney(amount);
+    pctEl.textContent = `${pct}% du total`;
+    block.classList.remove('hidden');
+}
+
+function clearStatsSliceInfo() {
+    statsCurrentSliceIndex = -1;
+    const block = document.getElementById('stats-slice-info');
+    if (block) block.classList.add('hidden');
 }
 
 function renderStatsDetailsForDescription() {
@@ -669,6 +559,9 @@ function renderStatsView() {
 
     if (!statsDrillState.month) {
         if (statsChartInstance) { statsChartInstance.destroy(); statsChartInstance = null; }
+        hideStatsTotalBar();
+        renderStatsNameList([], []);
+        clearStatsSliceInfo();
         empty.classList.remove('hidden');
         renderStatsDetailsForDescription();
         return;
@@ -730,6 +623,9 @@ function renderStatsView() {
 
     if (!items.length) {
         if (statsChartInstance) { statsChartInstance.destroy(); statsChartInstance = null; }
+        hideStatsTotalBar();
+        renderStatsNameList([], []);
+        clearStatsSliceInfo();
         empty.classList.remove('hidden');
         renderStatsDetailsForDescription();
         return;
@@ -740,6 +636,17 @@ function renderStatsView() {
     const labels = items.map(i => i.label);
     const values = items.map(i => i.value);
     const colors = buildStatsColors(items, statsDrillState.level);
+    if (chartType === 'line') {
+        hideStatsTotalBar();
+        renderStatsNameList([], []);
+        clearStatsSliceInfo();
+    } else {
+        updateStatsTotalBar(values);
+        if (statsCurrentSliceIndex >= labels.length) statsCurrentSliceIndex = -1;
+        renderStatsNameList(labels, colors);
+        if (statsCurrentSliceIndex >= 0) updateStatsSliceInfo(labels, values, statsCurrentSliceIndex);
+        else clearStatsSliceInfo();
+    }
 
     if (statsChartInstance) { statsChartInstance.destroy(); statsChartInstance = null; }
     statsChartInstance = new Chart(canvas, {
@@ -773,16 +680,7 @@ function renderStatsView() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: chartType === 'line'
-                ? undefined
-                : {
-                    padding: {
-                        top: 16,
-                        right: window.innerWidth <= 767 ? 58 : 44,
-                        bottom: 16,
-                        left: window.innerWidth <= 767 ? 58 : 44
-                    }
-                },
+            layout: chartType === 'line' ? undefined : { padding: { top: 12, right: 16, bottom: 12, left: 16 } },
             plugins: {
                 legend: {
                     display: chartType === 'line',
@@ -808,8 +706,19 @@ function renderStatsView() {
                 }
                 : undefined,
             onClick: (evt, elements) => {
-                if (elements?.length && handleStatsDrilldownFromLabelIndex(elements[0].index, labels)) return;
-                tryHandleStatsCalloutTap(statsChartInstance, evt?.native);
+                if (chartType !== 'pie') return;
+                if (!elements?.length) return;
+                const idx = elements[0].index;
+                const now = Date.now();
+                if (statsLastSliceTap.idx === idx && (now - statsLastSliceTap.at) < 350) {
+                    statsLastSliceTap = { idx: -1, at: 0 };
+                    handleStatsDrilldownFromLabelIndex(idx, labels);
+                    return;
+                }
+                statsLastSliceTap = { idx, at: now };
+                statsCurrentSliceIndex = idx;
+                renderStatsNameList(labels, colors);
+                updateStatsSliceInfo(labels, values, idx);
             }
         }
     });
