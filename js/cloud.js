@@ -11,6 +11,7 @@ function initApp() {
     populateFilterCategorieDropdown();
     populateFilterPostes();
     populateDashFilterCategories();
+    if (typeof initDashboardSubtabs === 'function') initDashboardSubtabs();
     document.getElementById('api-key-input').value = localStorage.getItem('gemini_api_key') || '';
 }
 
@@ -28,7 +29,7 @@ function switchTab(tabId) {
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active-tab'));
     document.getElementById(tabId).classList.add('active');
     document.getElementById('btn-' + tabId).classList.add('active-tab');
-    if (tabId === 'tab-dashboard') { buildMonthDropdown(); renderMainBudgetChart(); }
+    if (tabId === 'tab-dashboard') { initDashboardSubtabs(); buildMonthDropdown(); renderMainBudgetChart(); }
     if (tabId === 'tab-annual')    { buildAnnualYearSelect(); renderAnnualView(); }
 }
 

@@ -4,6 +4,31 @@
  * Catégories / Postes / Descriptions, navigation entre mois.
  */
 
+let activeDashboardSubtab = 'suivi';
+
+function switchDashboardSubtab(subtabId) {
+    const tabDashboard = document.getElementById('tab-dashboard');
+    if (!tabDashboard) return;
+
+    const target = subtabId === 'previsionnel' ? 'previsionnel' : 'suivi';
+    activeDashboardSubtab = target;
+
+    tabDashboard.querySelectorAll('.dashboard-subtab-pane').forEach(pane => {
+        pane.classList.toggle('active', pane.dataset.dashboardSubtab === target);
+    });
+
+    tabDashboard.querySelectorAll('[data-dashboard-subtab-btn]').forEach(btn => {
+        const isActive = btn.dataset.dashboardSubtabBtn === target;
+        btn.classList.toggle('active', isActive);
+        if (isActive) btn.setAttribute('aria-current', 'page');
+        else btn.removeAttribute('aria-current');
+    });
+}
+
+function initDashboardSubtabs() {
+    switchDashboardSubtab(activeDashboardSubtab);
+}
+
 // ── Filtres dashboard ────────────────────────────────────
 function getDashFiltersRaw() {
     return {

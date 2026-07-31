@@ -143,6 +143,7 @@
 
         <!-- ========= DASHBOARD ========= -->
         <section id="tab-dashboard" class="tabs-content active space-y-4 fade-in">
+            <div id="dashboard-subtab-suivi" class="dashboard-subtab-pane active" data-dashboard-subtab="suivi">
             <div class="flex flex-col sm:flex-row gap-3 items-stretch">
                 <div class="card flex items-center gap-1 px-2 py-2 sm:w-52 shrink-0" style="height:64px">
                     <button onclick="navigateMonth('prev')" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition text-base font-bold shrink-0">‹</button>
@@ -215,19 +216,6 @@
                 </div>
             </div>
 
-            <div class="card p-5">
-                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-                    <div>
-                        <p class="section-label mb-0.5">🎯 Budget prévisionnel</p>
-                        <p class="text-[11px] text-slate-400">Consommation par poste vs. objectif fixé</p>
-                    </div>
-                    <button onclick="openBudgetModal()" class="px-3 py-1.5 text-[11px] font-semibold text-slate-400 bg-slate-50 hover:bg-slate-100 rounded-lg transition">⚙️</button>
-                </div>
-                <div id="budget-previsionnel-container" class="space-y-3">
-                    <p class="text-xs text-slate-400 italic text-center py-3">Aucun budget configuré. Cliquez sur ⚙️ Configurer pour commencer.</p>
-                </div>
-            </div>
-
             <div class="card-flat p-3" style="background:rgba(248,250,252,.9)">
                 <button onclick="document.getElementById('ia-config-panel').classList.toggle('hidden')" class="w-full flex justify-between items-center">
                     <span class="section-label">⚙️ Configuration clé IA (Gemini)</span>
@@ -238,6 +226,44 @@
                     <button onclick="saveApiKey()" class="bg-slate-900 text-white font-semibold py-2 px-4 rounded-lg text-xs transition hover:bg-slate-700">Sauvegarder</button>
                 </div>
             </div>
+            </div>
+
+            <div id="dashboard-subtab-previsionnel" class="dashboard-subtab-pane" data-dashboard-subtab="previsionnel">
+                <div class="card p-5">
+                    <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                        <div>
+                            <p class="section-label mb-0.5">🎯 Budget prévisionnel</p>
+                            <p class="text-[11px] text-slate-400">Consommation par poste vs. objectif fixé</p>
+                        </div>
+                        <button onclick="openBudgetModal()" class="px-3 py-1.5 text-[11px] font-semibold text-slate-400 bg-slate-50 hover:bg-slate-100 rounded-lg transition">⚙️</button>
+                    </div>
+                    <div id="budget-previsionnel-container" class="space-y-3">
+                        <p class="text-xs text-slate-400 italic text-center py-3">Aucun budget configuré. Cliquez sur ⚙️ Configurer pour commencer.</p>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="dashboard-mobile-tabbar" aria-label="Sous-onglets du dashboard">
+                <button
+                    id="btn-dashboard-subtab-suivi"
+                    class="dashboard-mobile-tab active"
+                    type="button"
+                    onclick="switchDashboardSubtab('suivi')"
+                    data-dashboard-subtab-btn="suivi"
+                    aria-current="page">
+                    <span>📊</span>
+                    <span>Suivi</span>
+                </button>
+                <button
+                    id="btn-dashboard-subtab-previsionnel"
+                    class="dashboard-mobile-tab"
+                    type="button"
+                    onclick="switchDashboardSubtab('previsionnel')"
+                    data-dashboard-subtab-btn="previsionnel">
+                    <span>🎯</span>
+                    <span>Prévisionnel</span>
+                </button>
+            </nav>
         </section>
 
         <!-- ========= TRANSACTIONS ========= -->
