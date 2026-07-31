@@ -18,6 +18,58 @@ const statsDrillState = {
 };
 let statsDetailRows = [];
 
+const statsInSliceLabelsPlugin = {
+    id: 'statsInSliceLabels',
+    afterDatasetsDraw(chart) {
+        if (chart?.canvas?.id !== 'stats-main-chart') return;
+        if (chart.config.type !== 'pie') return;
+
+        const dataset = chart.data.datasets?.[0];
+        const meta = chart.getDatasetMeta(0);
+        if (!dataset || !meta?.data?.length) return;
+
+        const ctx = chart.ctx;
+        ctx.save();
+
+        meta.data.forEach((arc, idx) => {
+            const value = Number(dataset.data[idx] || 0);
+            if (!value) return;
+
+            const p = arc.getProps(['x', 'y', 'startAngle', 'endAngle', 'innerRadius', 'outerRadius'], true);
+            const span = p.endAngle - p.startAngle;
+            if (span < 0.22) return;
+
+            const angle = (p.startAngle + p.endAngle) / 2;
+            const radius = p.innerRadius + (p.outerRadius - p.innerRadius) * 0.58;
+            const x = p.x + Math.cos(angle) * radius;
+            const y = p.y + Math.sin(angle) * radius;
+
+            const rawLabel = String(chart.data.labels?.[idx] || '').trim();
+            const label = rawLabel.length > 14 ? rawLabel.slice(0, 13) + '…' : rawLabel;
+            const amount = statsMoney(value);
+            const bg = Array.isArray(dataset.backgroundColor)
+                ? (dataset.backgroundColor[idx] || '#334155')
+                : (dataset.backgroundColor || '#334155');
+            const textColor = getReadableTextColor(bg);
+            const fontSize = span > 0.5 ? 10 : 9;
+
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = textColor;
+            ctx.font = `700 ${fontSize}px DM Sans`;
+            ctx.fillText(label, x, y - 7);
+            ctx.font = `700 ${Math.max(8, fontSize - 1)}px DM Mono`;
+            ctx.fillText(amount, x, y + 7);
+        });
+
+        ctx.restore();
+    }
+};
+
+if (typeof Chart !== 'undefined') {
+    Chart.register(statsInSliceLabelsPlugin);
+}
+
 function switchDashboardSubtab(subtabId) {
     const tabDashboard = document.getElementById('tab-dashboard');
     if (!tabDashboard) return;
@@ -145,6 +197,16 @@ function rgbToHex(r, g, b) {
     return '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
 }
 
+function getReadableTextColor(color) {
+    const hex = String(color || '').replace('#', '');
+    if (hex.length !== 6) return '#ffffff';
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    return luminance > 0.62 ? '#0f172a' : '#ffffff';
+}
+
 function shiftColor(hex, idx, total) {
     const { r, g, b } = hexToRgb(hex);
     const ratio = total > 1 ? (idx / (total - 1)) : 0;
@@ -253,31 +315,6 @@ function buildStatsColors(items, level) {
     return items.map((_, idx) => palette[(offset + idx) % palette.length]);
 }
 
-function renderStatsLegend(items, colors, showLegend) {
-    const legend = document.getElementById('stats-chart-legend');
-    if (!legend) return;
-    legend.innerHTML = '';
-    legend.classList.toggle('hidden', !showLegend);
-    if (!showLegend || !items.length) return;
-    const total = items.reduce((sum, i) => sum + i.value, 0);
-
-    items.forEach((item, idx) => {
-        const pct = total ? Math.round((item.value / total) * 100) : 0;
-        const row = document.createElement('div');
-        row.className = 'stats-legend-item';
-        row.innerHTML = `
-            <span class="stats-legend-label">
-                <span class="stats-legend-dot" style="background:${colors[idx] || '#94a3b8'}"></span>
-                <span class="stats-legend-name">${item.label}</span>
-            </span>
-            <span class="stats-legend-value-wrap">
-                <span class="stats-legend-value">${statsMoney(item.value)}</span>
-                <span class="stats-legend-pct">${pct}%</span>
-            </span>`;
-        legend.appendChild(row);
-    });
-}
-
 function renderStatsDetailsForDescription() {
     const detailsBlock = document.getElementById('stats-details-block');
     const list = document.getElementById('stats-details-list');
@@ -375,7 +412,6 @@ function renderStatsView() {
     const canvas = document.getElementById('stats-main-chart');
     const empty = document.getElementById('stats-empty');
     const subtitle = document.getElementById('stats-level-subtitle');
-    const legend = document.getElementById('stats-chart-legend');
     if (!canvas || !empty || !subtitle) return;
 
     const months = getDashboardAvailableMonths();
@@ -387,7 +423,6 @@ function renderStatsView() {
 
     if (!statsDrillState.month) {
         if (statsChartInstance) { statsChartInstance.destroy(); statsChartInstance = null; }
-        if (legend) { legend.innerHTML = ''; legend.classList.add('hidden'); }
         empty.classList.remove('hidden');
         renderStatsDetailsForDescription();
         return;
@@ -449,7 +484,6 @@ function renderStatsView() {
 
     if (!items.length) {
         if (statsChartInstance) { statsChartInstance.destroy(); statsChartInstance = null; }
-        if (legend) { legend.innerHTML = ''; legend.classList.add('hidden'); }
         empty.classList.remove('hidden');
         renderStatsDetailsForDescription();
         return;
@@ -460,8 +494,6 @@ function renderStatsView() {
     const labels = items.map(i => i.label);
     const values = items.map(i => i.value);
     const colors = buildStatsColors(items, statsDrillState.level);
-    const showPieLegend = chartType !== 'line';
-    renderStatsLegend(items, colors, showPieLegend);
 
     if (statsChartInstance) { statsChartInstance.destroy(); statsChartInstance = null; }
     statsChartInstance = new Chart(canvas, {
