@@ -29,6 +29,7 @@ const statsInSliceLabelsPlugin = {
         const dataset = chart.data.datasets?.[0];
         const meta = chart.getDatasetMeta(0);
         if (!dataset || !meta?.data?.length) return;
+        const isMobile = window.innerWidth <= 767;
 
         const ctx = chart.ctx;
         const outsideLeft = [];
@@ -47,34 +48,36 @@ const statsInSliceLabelsPlugin = {
             const sinA = Math.sin(angle);
 
             const rawLabel = String(chart.data.labels?.[idx] || '').trim();
-            const amount = statsMoney(value);
-            const shortLabel = rawLabel.length > 14 ? rawLabel.slice(0, 13) + '…' : rawLabel;
-            const longLabel = rawLabel.length > 22 ? rawLabel.slice(0, 21) + '…' : rawLabel;
+            const amount = isMobile ? statsMoneyCompact(value) : statsMoney(value);
+            const shortMax = isMobile ? 10 : 14;
+            const longMax = isMobile ? 14 : 22;
+            const shortLabel = rawLabel.length > shortMax ? rawLabel.slice(0, shortMax - 1) + '…' : rawLabel;
+            const longLabel = rawLabel.length > longMax ? rawLabel.slice(0, longMax - 1) + '…' : rawLabel;
             const bg = Array.isArray(dataset.backgroundColor)
                 ? (dataset.backgroundColor[idx] || '#334155')
                 : (dataset.backgroundColor || '#334155');
             const textColor = getReadableTextColor(bg);
 
-            if (span >= 0.34) {
-                const radius = p.innerRadius + (p.outerRadius - p.innerRadius) * 0.58;
+            if (span >= (isMobile ? 0.48 : 0.34)) {
+                const radius = p.innerRadius + (p.outerRadius - p.innerRadius) * (isMobile ? 0.54 : 0.58);
                 const x = p.x + cosA * radius;
                 const y = p.y + sinA * radius;
-                const fontSize = span > 0.5 ? 10 : 9;
+                const fontSize = isMobile ? (span > 0.78 ? 9 : 8) : (span > 0.5 ? 10 : 9);
 
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillStyle = textColor;
                 ctx.font = `700 ${fontSize}px DM Sans`;
-                ctx.fillText(shortLabel, x, y - 7);
-                ctx.font = `700 ${Math.max(8, fontSize - 1)}px DM Mono`;
-                ctx.fillText(amount, x, y + 7);
+                ctx.fillText(shortLabel, x, y - (isMobile ? 6 : 7));
+                ctx.font = `700 ${Math.max(7, fontSize - 1)}px DM Mono`;
+                ctx.fillText(amount, x, y + (isMobile ? 6 : 7));
                 return;
             }
 
             const side = cosA >= 0 ? 'right' : 'left';
-            const pointX = p.x + cosA * (p.outerRadius + 6);
-            const pointY = p.y + sinA * (p.outerRadius + 6);
-            const textX = p.x + (side === 'right' ? (p.outerRadius + 22) : -(p.outerRadius + 22));
+            const pointX = p.x + cosA * (p.outerRadius + (isMobile ? 5 : 6));
+            const pointY = p.y + sinA * (p.outerRadius + (isMobile ? 5 : 6));
+            const textX = p.x + (side === 'right' ? (p.outerRadius + (isMobile ? 20 : 22)) : -(p.outerRadius + (isMobile ? 20 : 22)));
             const entry = {
                 side,
                 y: pointY,
@@ -91,12 +94,25 @@ const statsInSliceLabelsPlugin = {
         const drawOutside = (arr, align) => {
             if (!arr.length) return;
             arr.sort((a, b) => a.y - b.y);
-            const minGap = 14;
+            const minGap = isMobile ? 12 : 14;
+            const topLimit = chart.chartArea.top + (isMobile ? 6 : 10);
+            const bottomLimit = chart.chartArea.bottom - (isMobile ? 6 : 10);
+
+            arr[0].y = Math.max(arr[0].y, topLimit);
             for (let i = 1; i < arr.length; i++) {
-                if ((arr[i].y - arr[i - 1].y) < minGap) arr[i].y = arr[i - 1].y + minGap;
+                arr[i].y = Math.max(arr[i].y, arr[i - 1].y + minGap);
             }
-            for (let i = arr.length - 2; i >= 0; i--) {
-                if ((arr[i + 1].y - arr[i].y) < minGap) arr[i].y = arr[i + 1].y - minGap;
+            if (arr[arr.length - 1].y > bottomLimit) {
+                arr[arr.length - 1].y = bottomLimit;
+                for (let i = arr.length - 2; i >= 0; i--) {
+                    arr[i].y = Math.min(arr[i].y, arr[i + 1].y - minGap);
+                }
+            }
+            if (arr[0].y < topLimit) {
+                arr[0].y = topLimit;
+                for (let i = 1; i < arr.length; i++) {
+                    arr[i].y = Math.max(arr[i].y, arr[i - 1].y + minGap);
+                }
             }
 
             arr.forEach(item => {
@@ -112,7 +128,7 @@ const statsInSliceLabelsPlugin = {
                 ctx.textAlign = align;
                 ctx.textBaseline = 'middle';
                 ctx.fillStyle = '#334155';
-                ctx.font = '700 9px DM Sans';
+                ctx.font = `700 ${isMobile ? 8 : 9}px DM Sans`;
                 ctx.fillText(item.text, item.textX, item.y);
             });
         };
@@ -391,6 +407,13 @@ function getVividPalette() {
 
 function statsMoney(v) {
     return (Math.round(v * 100) / 100).toFixed(2).replace('.', ',') + ' €';
+}
+
+function statsMoneyCompact(v) {
+    const n = Math.abs(Number(v) || 0);
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace('.', ',') + ' M€';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace('.', ',') + ' k€';
+    return statsMoney(n);
 }
 
 function getStatsAmountForMetric(t) {
@@ -687,7 +710,16 @@ function renderStatsView() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: chartType === 'line' ? undefined : { padding: { top: 16, right: 44, bottom: 16, left: 44 } },
+            layout: chartType === 'line'
+                ? undefined
+                : {
+                    padding: {
+                        top: 16,
+                        right: window.innerWidth <= 767 ? 58 : 44,
+                        bottom: 16,
+                        left: window.innerWidth <= 767 ? 58 : 44
+                    }
+                },
             plugins: {
                 legend: {
                     display: chartType === 'line',
