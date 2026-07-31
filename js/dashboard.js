@@ -5,12 +5,21 @@
  */
 
 let activeDashboardSubtab = 'suivi';
+let statsChartInstance = null;
+const DASHBOARD_SUBTABS = new Set(['suivi', 'previsionnel', 'statistiques']);
+const statsDrillState = {
+    level: 'categories',
+    category: '',
+    poste: '',
+    description: '',
+    month: ''
+};
 
 function switchDashboardSubtab(subtabId) {
     const tabDashboard = document.getElementById('tab-dashboard');
     if (!tabDashboard) return;
 
-    const target = subtabId === 'previsionnel' ? 'previsionnel' : 'suivi';
+    const target = DASHBOARD_SUBTABS.has(subtabId) ? subtabId : 'suivi';
     activeDashboardSubtab = target;
 
     tabDashboard.querySelectorAll('.dashboard-subtab-pane').forEach(pane => {
@@ -23,10 +32,348 @@ function switchDashboardSubtab(subtabId) {
         if (isActive) btn.setAttribute('aria-current', 'page');
         else btn.removeAttribute('aria-current');
     });
+
+    if (target === 'statistiques') renderStatsView();
 }
 
 function initDashboardSubtabs() {
     switchDashboardSubtab(activeDashboardSubtab);
+}
+
+function getDashboardAvailableMonths() {
+    return [...new Set(
+        transactions.map(t => t.mois_affectation || getYearMonthString(t.date)).filter(Boolean)
+    )].sort().reverse();
+}
+
+function syncStatsMonthSelect(months = [], preferred = '') {
+    const sel = document.getElementById('stats-month-select');
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '';
+    months.forEach(m => {
+        const o = document.createElement('option');
+        o.value = m;
+        o.textContent = m;
+        sel.appendChild(o);
+    });
+    if (!months.length) {
+        statsDrillState.month = '';
+        return;
+    }
+    if (preferred && months.includes(preferred)) sel.value = preferred;
+    else if (statsDrillState.month && months.includes(statsDrillState.month)) sel.value = statsDrillState.month;
+    else if (current && months.includes(current)) sel.value = current;
+    else sel.value = months[0];
+    statsDrillState.month = sel.value;
+}
+
+function onStatsMonthChange() {
+    const sel = document.getElementById('stats-month-select');
+    if (!sel) return;
+    statsDrillState.month = sel.value;
+    renderStatsView();
+}
+
+function resetStatsDrilldown() {
+    statsDrillState.level = 'categories';
+    statsDrillState.category = '';
+    statsDrillState.poste = '';
+    statsDrillState.description = '';
+    renderStatsView();
+}
+
+function hexToRgb(hex) {
+    const raw = (hex || '').replace('#', '');
+    if (raw.length !== 6) return { r: 100, g: 116, b: 139 };
+    return {
+        r: parseInt(raw.slice(0, 2), 16),
+        g: parseInt(raw.slice(2, 4), 16),
+        b: parseInt(raw.slice(4, 6), 16)
+    };
+}
+
+function rgbToHex(r, g, b) {
+    return '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+}
+
+function shiftColor(hex, idx, total) {
+    const { r, g, b } = hexToRgb(hex);
+    const ratio = total > 1 ? (idx / (total - 1)) : 0;
+    const mix = 0.2 + ratio * 0.42;
+    return rgbToHex(r + (255 - r) * mix, g + (255 - g) * mix, b + (255 - b) * mix);
+}
+
+function statsMoney(v) {
+    return (Math.round(v * 100) / 100).toFixed(2).replace('.', ',') + ' €';
+}
+
+function getStatsTransactionsForMonth(month) {
+    return transactions.filter(t => {
+        if (t.exclu_dashboard) return false;
+        const m = t.mois_affectation || getYearMonthString(t.date);
+        if (m !== month) return false;
+        const amt = parseFloat(t.montant) || 0;
+        return amt < 0;
+    });
+}
+
+function aggregateTotalsBy(list, keyBuilder) {
+    const totals = {};
+    list.forEach(t => {
+        const key = keyBuilder(t);
+        if (!key) return;
+        const amount = Math.abs(parseFloat(t.montant) || 0);
+        totals[key] = (totals[key] || 0) + amount;
+    });
+    return Object.entries(totals)
+        .map(([label, value]) => ({ label, value }))
+        .sort((a, b) => b.value - a.value);
+}
+
+function renderStatsBreadcrumbs() {
+    const wrap = document.getElementById('stats-breadcrumbs');
+    if (!wrap) return;
+    const crumbs = [{ label: 'Catégories', level: 'categories' }];
+    if (statsDrillState.category) crumbs.push({ label: statsDrillState.category, level: 'postes' });
+    if (statsDrillState.poste) crumbs.push({ label: statsDrillState.poste, level: 'descriptions' });
+    if (statsDrillState.description) crumbs.push({ label: statsDrillState.description, level: 'timeline' });
+
+    wrap.innerHTML = '';
+    crumbs.forEach((c, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'crumb-btn';
+        btn.textContent = c.label;
+        btn.addEventListener('click', () => {
+            if (c.level === 'categories') {
+                statsDrillState.level = 'categories';
+                statsDrillState.category = '';
+                statsDrillState.poste = '';
+                statsDrillState.description = '';
+            }
+            if (c.level === 'postes') {
+                statsDrillState.level = 'postes';
+                statsDrillState.poste = '';
+                statsDrillState.description = '';
+            }
+            if (c.level === 'descriptions') {
+                statsDrillState.level = 'descriptions';
+                statsDrillState.description = '';
+            }
+            if (c.level === 'timeline') statsDrillState.level = 'timeline';
+            renderStatsView();
+        });
+        wrap.appendChild(btn);
+        if (idx < crumbs.length - 1) {
+            const sep = document.createElement('span');
+            sep.className = 'crumb-sep';
+            sep.textContent = '›';
+            wrap.appendChild(sep);
+        }
+    });
+}
+
+function buildStatsColors(items, level) {
+    if (level === 'categories') return items.map(i => categoryBarColor[i.label] || '#94a3b8');
+    const base = categoryBarColor[statsDrillState.category] || '#6366f1';
+    return items.map((_, idx) => shiftColor(base, idx, items.length));
+}
+
+function renderStatsDetailsForDescription() {
+    const detailsBlock = document.getElementById('stats-details-block');
+    const list = document.getElementById('stats-details-list');
+    if (!detailsBlock || !list) return;
+
+    if (statsDrillState.level !== 'timeline') {
+        detailsBlock.classList.add('hidden');
+        list.innerHTML = '';
+        return;
+    }
+
+    const rows = transactions
+        .filter(t => {
+            if (t.exclu_dashboard) return false;
+            if ((parseFloat(t.montant) || 0) >= 0) return false;
+            return (t.categorie || '').toUpperCase().trim() === statsDrillState.category
+                && (t.poste || '').toUpperCase().trim() === statsDrillState.poste
+                && (t.description || '').toUpperCase().trim() === statsDrillState.description;
+        })
+        .sort((a, b) => (a.date < b.date ? 1 : -1));
+
+    detailsBlock.classList.remove('hidden');
+    list.innerHTML = '';
+    if (!rows.length) {
+        list.innerHTML = '<p class="text-xs text-slate-400 italic">Aucune dépense pour cette description.</p>';
+        return;
+    }
+
+    rows.forEach(t => {
+        const amount = Math.abs(parseFloat(t.montant) || 0);
+        const item = document.createElement('div');
+        item.className = 'stats-detail-item';
+        item.innerHTML = `
+            <div class="flex items-center justify-between gap-2">
+                <span class="text-[11px] font-semibold text-slate-700 mono">${t.date}</span>
+                <span class="text-[11px] font-bold mono text-rose-600">${statsMoney(amount)}</span>
+            </div>
+            <div class="text-[10px] text-slate-500 mt-0.5">${t.details || 'Sans détail bancaire'} · ${t.compte_bancaire || 'Compte non renseigné'}</div>`;
+        list.appendChild(item);
+    });
+}
+
+function renderStatsView() {
+    const canvas = document.getElementById('stats-main-chart');
+    const empty = document.getElementById('stats-empty');
+    const subtitle = document.getElementById('stats-level-subtitle');
+    if (!canvas || !empty || !subtitle) return;
+
+    const months = getDashboardAvailableMonths();
+    const preferredMonth = document.getElementById('dashboard-month-select')?.value || statsDrillState.month;
+    syncStatsMonthSelect(months, preferredMonth);
+    renderStatsBreadcrumbs();
+
+    if (!statsDrillState.month) {
+        if (statsChartInstance) { statsChartInstance.destroy(); statsChartInstance = null; }
+        empty.classList.remove('hidden');
+        renderStatsDetailsForDescription();
+        return;
+    }
+
+    const monthData = getStatsTransactionsForMonth(statsDrillState.month);
+    let items = [];
+    let chartType = 'pie';
+
+    if (statsDrillState.level === 'categories') {
+        subtitle.textContent = 'Répartition des dépenses par catégorie (hors revenus)';
+        items = aggregateTotalsBy(
+            monthData.filter(t => (t.categorie || '').toUpperCase().trim() !== 'REVENUS'),
+            t => (t.categorie || '').toUpperCase().trim()
+        );
+    }
+
+    if (statsDrillState.level === 'postes') {
+        subtitle.textContent = `Catégorie ${statsDrillState.category} — répartition par poste`;
+        items = aggregateTotalsBy(
+            monthData.filter(t => (t.categorie || '').toUpperCase().trim() === statsDrillState.category),
+            t => (t.poste || '').toUpperCase().trim()
+        );
+    }
+
+    if (statsDrillState.level === 'descriptions') {
+        subtitle.textContent = `${statsDrillState.poste} — répartition par description`;
+        items = aggregateTotalsBy(
+            monthData.filter(t => (t.categorie || '').toUpperCase().trim() === statsDrillState.category && (t.poste || '').toUpperCase().trim() === statsDrillState.poste),
+            t => (t.description || '').toUpperCase().trim()
+        );
+    }
+
+    if (statsDrillState.level === 'timeline') {
+        subtitle.textContent = `${statsDrillState.description} — évolution mensuelle`;
+        chartType = 'line';
+        const byMonth = {};
+        transactions.forEach(t => {
+            if (t.exclu_dashboard) return;
+            const amt = parseFloat(t.montant) || 0;
+            if (amt >= 0) return;
+            if ((t.categorie || '').toUpperCase().trim() !== statsDrillState.category) return;
+            if ((t.poste || '').toUpperCase().trim() !== statsDrillState.poste) return;
+            if ((t.description || '').toUpperCase().trim() !== statsDrillState.description) return;
+            const month = t.mois_affectation || getYearMonthString(t.date);
+            if (!month) return;
+            byMonth[month] = (byMonth[month] || 0) + Math.abs(amt);
+        });
+        items = Object.keys(byMonth).sort().map(m => ({ label: m, value: byMonth[m] }));
+    }
+
+    if (!items.length) {
+        if (statsChartInstance) { statsChartInstance.destroy(); statsChartInstance = null; }
+        empty.classList.remove('hidden');
+        renderStatsDetailsForDescription();
+        return;
+    }
+
+    empty.classList.add('hidden');
+
+    const labels = items.map(i => i.label);
+    const values = items.map(i => i.value);
+    const colors = buildStatsColors(items, statsDrillState.level);
+
+    if (statsChartInstance) { statsChartInstance.destroy(); statsChartInstance = null; }
+    statsChartInstance = new Chart(canvas, {
+        type: chartType,
+        data: chartType === 'line'
+            ? {
+                labels,
+                datasets: [{
+                    label: 'Dépenses',
+                    data: values,
+                    borderColor: categoryBarColor[statsDrillState.category] || '#0f172a',
+                    backgroundColor: 'rgba(15,23,42,.08)',
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: categoryBarColor[statsDrillState.category] || '#0f172a',
+                    pointRadius: 4,
+                    pointBorderWidth: 2,
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                }]
+            }
+            : {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }]
+            },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10, family: 'DM Sans' } } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const val = ctx.raw || 0;
+                            const pct = total ? Math.round(val / total * 100) : 0;
+                            return ` ${ctx.label} : ${statsMoney(val)} (${pct}%)`;
+                        }
+                    }
+                }
+            },
+            scales: chartType === 'line'
+                ? {
+                    y: { beginAtZero: true, ticks: { font: { size: 9 }, callback: v => Number(v).toLocaleString('fr') + ' €' }, grid: { color: '#f1f5f9' } },
+                    x: { ticks: { font: { size: 9 } }, grid: { display: false } }
+                }
+                : undefined,
+            onClick: (evt, elements) => {
+                if (!elements?.length || statsDrillState.level === 'timeline') return;
+                const idx = elements[0].index;
+                const label = labels[idx];
+                if (!label) return;
+                if (statsDrillState.level === 'categories') {
+                    statsDrillState.level = 'postes';
+                    statsDrillState.category = label;
+                    statsDrillState.poste = '';
+                    statsDrillState.description = '';
+                } else if (statsDrillState.level === 'postes') {
+                    statsDrillState.level = 'descriptions';
+                    statsDrillState.poste = label;
+                    statsDrillState.description = '';
+                } else if (statsDrillState.level === 'descriptions') {
+                    statsDrillState.level = 'timeline';
+                    statsDrillState.description = label;
+                }
+                renderStatsView();
+            }
+        }
+    });
+
+    renderStatsDetailsForDescription();
 }
 
 // ── Filtres dashboard ────────────────────────────────────
@@ -61,9 +408,11 @@ function populateDashFilterCategories() {
     });
 }
 function populateDashFilterPostes() {
-    const catVal = document.getElementById('dash-filter-categorie').value;
+    const catSel = document.getElementById('dash-filter-categorie');
+    const catVal = catSel?.value || '';
     const ps = document.getElementById('dash-filter-poste');
     const ds = document.getElementById('dash-filter-description');
+    if (!ps || !ds) return;
     ps.innerHTML = '<option value="">🏷️ Tous postes</option>';
     ds.innerHTML = '<option value="">📝 Toutes descriptions</option>';
     const postes = catVal && budgetStructure[catVal]
@@ -76,9 +425,10 @@ function populateDashFilterPostes() {
     });
 }
 function populateDashFilterDescriptions() {
-    const catVal   = document.getElementById('dash-filter-categorie').value;
-    const posteVal = document.getElementById('dash-filter-poste').value;
+    const catVal   = document.getElementById('dash-filter-categorie')?.value || '';
+    const posteVal = document.getElementById('dash-filter-poste')?.value || '';
     const ds = document.getElementById('dash-filter-description');
+    if (!ds) return;
     ds.innerHTML = '<option value="">📝 Toutes descriptions</option>';
     if (catVal && posteVal && budgetStructure[catVal]?.[posteVal]) {
         budgetStructure[catVal][posteVal].forEach(d => {
@@ -96,7 +446,12 @@ function applyDashboardFilters() {
     renderMainBudgetChart();
 }
 function resetDashboardFilters() {
-    document.getElementById('dash-filter-categorie').value = '';
+    const catSel = document.getElementById('dash-filter-categorie');
+    if (catSel) catSel.value = '';
+    const posteSel = document.getElementById('dash-filter-poste');
+    if (posteSel) posteSel.value = '';
+    const descSel = document.getElementById('dash-filter-description');
+    if (descSel) descSel.value = '';
     populateDashFilterPostes();
     applyDashboardFilters();
 }
@@ -107,14 +462,17 @@ function updateKpiSoldeVisibility() {
 function updateDashPills() {
     const f = getDashFiltersRaw();
     const active = !!(f.cat || f.poste || f.desc);
-    document.getElementById('dash-active-filter-indicator').classList.toggle('hidden', !active);
+    const indicator = document.getElementById('dash-active-filter-indicator');
+    if (indicator) indicator.classList.toggle('hidden', !active);
     ['cat','poste','desc'].forEach(k => {
         const el = document.getElementById(`dash-filter-pill-${k}`);
         const icons = { cat:'📁 ', poste:'🏷️ ', desc:'📝 ' };
+        if (!el) return;
         el.classList.toggle('hidden', !f[k]);
         if (f[k]) el.textContent = icons[k] + f[k];
     });
     const badge = document.getElementById('chart-filter-badge');
+    if (!badge) return;
     if (active) {
         badge.textContent = '⚡ ' + [f.cat,f.poste,f.desc].filter(Boolean).join(' › ');
         badge.classList.remove('hidden');
@@ -344,6 +702,7 @@ function calculateDashboardMetrics() {
     );
 
     renderBudgetPrevisionnel(activeMonth);
+    renderStatsView();
 }
 
 // ── Navigation mois ──────────────────────────────────────
@@ -360,9 +719,7 @@ function navigateMonth(direction) {
 function buildMonthDropdown() {
     const sel = document.getElementById('dashboard-month-select');
     if (!sel) return;
-    const months = [...new Set(
-        transactions.map(t => t.mois_affectation || getYearMonthString(t.date)).filter(Boolean)
-    )].sort().reverse();
+    const months = getDashboardAvailableMonths();
     const previousValue = sel.value;
     sel.innerHTML = '';
     months.forEach(m => {
@@ -374,6 +731,7 @@ function buildMonthDropdown() {
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     if (months.includes(currentMonth)) sel.value = currentMonth;
     else if (previousValue && months.includes(previousValue)) sel.value = previousValue;
+    syncStatsMonthSelect(months, sel.value);
     updateKpiSoldeVisibility();
     calculateDashboardMetrics();
 }

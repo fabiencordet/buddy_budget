@@ -143,7 +143,7 @@
 
         <!-- ========= DASHBOARD ========= -->
         <section id="tab-dashboard" class="tabs-content active space-y-4">
-            <div id="dashboard-subtab-suivi" class="dashboard-subtab-pane active" data-dashboard-subtab="suivi">
+            <div id="dashboard-subtab-suivi" class="dashboard-subtab-pane active space-y-5" data-dashboard-subtab="suivi">
             <div class="flex flex-col sm:flex-row gap-3 items-stretch">
                 <div class="card flex items-center gap-1 px-2 py-2 sm:w-52 shrink-0" style="height:64px">
                     <button onclick="navigateMonth('prev')" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition text-base font-bold shrink-0">‹</button>
@@ -177,15 +177,17 @@
                 <div class="relative h-52 w-full"><canvas id="mainBudgetChart"></canvas></div>
             </div>
 
-            <div class="card p-4">
-                <div class="flex flex-wrap gap-2 items-center">
-                    <p class="section-label shrink-0 mr-1">Filtres graphiques</p>
-                    <select id="dash-filter-categorie" onchange="populateDashFilterPostes(); applyDashboardFilters()" class="field flex-1 min-w-[130px]"><option value="">📁 Toutes catégories</option></select>
-                    <select id="dash-filter-poste" onchange="populateDashFilterDescriptions(); applyDashboardFilters()" class="field flex-1 min-w-[130px]"><option value="">🏷️ Tous postes</option></select>
-                    <select id="dash-filter-description" onchange="applyDashboardFilters()" class="field flex-1 min-w-[130px]"><option value="">📝 Toutes descriptions</option></select>
-                    <button onclick="resetDashboardFilters()" class="px-3 py-2 text-[11px] font-semibold text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition shrink-0">✕</button>
+            <div class="card-flat px-3 py-2.5" style="background:rgba(248,250,252,.9)">
+                <div class="hidden" aria-hidden="true">
+                    <select id="dash-filter-categorie" onchange="populateDashFilterPostes(); applyDashboardFilters()"><option value="">📁 Toutes catégories</option></select>
+                    <select id="dash-filter-poste" onchange="populateDashFilterDescriptions(); applyDashboardFilters()"><option value="">🏷️ Tous postes</option></select>
+                    <select id="dash-filter-description" onchange="applyDashboardFilters()"><option value="">📝 Toutes descriptions</option></select>
                 </div>
-                <div id="dash-active-filter-indicator" class="hidden mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-2 items-center">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <p class="text-[10px] text-slate-500 font-semibold tracking-wide uppercase">Filtrage direct depuis les blocs</p>
+                    <button onclick="resetDashboardFilters()" class="px-2.5 py-1.5 text-[10px] font-semibold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition shrink-0">Réinitialiser</button>
+                </div>
+                <div id="dash-active-filter-indicator" class="hidden mt-2 pt-2 border-t border-slate-100 flex flex-wrap gap-2 items-center">
                     <span class="section-label">Actifs :</span>
                     <span id="dash-filter-pill-cat"   class="filter-pill hidden"></span>
                     <span id="dash-filter-pill-poste" class="filter-pill hidden"></span>
@@ -243,6 +245,34 @@
                 </div>
             </div>
 
+            <div id="dashboard-subtab-statistiques" class="dashboard-subtab-pane" data-dashboard-subtab="statistiques">
+                <div class="card p-4 sm:p-5 space-y-3">
+                    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                        <div>
+                            <p class="section-label mb-0.5">📊 Statistiques</p>
+                            <p id="stats-level-subtitle" class="text-[11px] text-slate-400">Répartition des dépenses par catégorie (hors revenus)</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <select id="stats-month-select" onchange="onStatsMonthChange()" class="field text-[11px]" style="width:auto;min-width:110px"></select>
+                            <button onclick="resetStatsDrilldown()" class="px-3 py-2 text-[11px] font-semibold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition">Réinitialiser</button>
+                        </div>
+                    </div>
+
+                    <div id="stats-breadcrumbs" class="flex flex-wrap items-center gap-1.5 text-[10px]"></div>
+
+                    <div class="stats-chart-wrap">
+                        <canvas id="stats-main-chart"></canvas>
+                    </div>
+
+                    <div id="stats-empty" class="hidden text-center text-xs text-slate-400 italic py-8">Aucune donnée sur ce niveau pour le mois sélectionné.</div>
+
+                    <div id="stats-details-block" class="hidden border-t border-slate-100 pt-3 space-y-2">
+                        <p class="section-label">🧾 Dépenses de la description</p>
+                        <div id="stats-details-list" class="space-y-2"></div>
+                    </div>
+                </div>
+            </div>
+
             <nav class="dashboard-mobile-tabbar" aria-label="Sous-onglets du dashboard">
                 <button
                     id="btn-dashboard-subtab-suivi"
@@ -262,6 +292,15 @@
                     data-dashboard-subtab-btn="previsionnel">
                     <span>🎯</span>
                     <span>Prévisionnel</span>
+                </button>
+                <button
+                    id="btn-dashboard-subtab-statistiques"
+                    class="dashboard-mobile-tab"
+                    type="button"
+                    onclick="switchDashboardSubtab('statistiques')"
+                    data-dashboard-subtab-btn="statistiques">
+                    <span>📊</span>
+                    <span>Stats</span>
                 </button>
             </nav>
         </section>
