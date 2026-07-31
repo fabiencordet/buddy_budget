@@ -69,5 +69,5 @@ const categoryBarColor = {
     "ÉPARGNE":                  "#f59e0b",
     "DÉPENSES QUOTIDIENNES":    "#3b82f6",
     "PATIN":                    "#8b5cf6",
-    "VACANCES":                 "#8b5cf6",
+    "VACANCES":                 "#06b6d4",
 };

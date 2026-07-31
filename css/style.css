@@ -201,6 +201,10 @@ body::before {
 .budget-warn       { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
 .budget-ok         { background:linear-gradient(90deg,#10b981,#34d399); }
 
+@media (max-width: 767px) {
+    .budget-desc-progress { display: none; }
+}
+
 /* Annual table */
 .annual-table th, .annual-table td { padding:6px 10px; font-size:11px; white-space:nowrap; border-bottom:1px solid #f1f5f9; }
 .annual-table thead th { background:#fafbfc; font-weight:700; letter-spacing:.04em; color:#94a3b8; font-size:10px; text-transform:uppercase; position:sticky; top:0; z-index:2; }
