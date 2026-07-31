@@ -7,6 +7,8 @@
 let activeDashboardSubtab = 'suivi';
 let statsChartInstance = null;
 const DASHBOARD_SUBTABS = new Set(['suivi', 'previsionnel', 'statistiques']);
+const dashboardSubtabHistory = [];
+let dashboardSwipeGestureBound = false;
 const statsDrillState = {
     level: 'categories',
     category: '',
@@ -70,11 +72,18 @@ if (typeof Chart !== 'undefined') {
     Chart.register(statsInSliceLabelsPlugin);
 }
 
-function switchDashboardSubtab(subtabId) {
+function switchDashboardSubtab(subtabId, options = {}) {
     const tabDashboard = document.getElementById('tab-dashboard');
     if (!tabDashboard) return;
 
     const target = DASHBOARD_SUBTABS.has(subtabId) ? subtabId : 'suivi';
+    const previous = activeDashboardSubtab;
+
+    if (options.recordHistory !== false && previous !== target) {
+        dashboardSubtabHistory.push(previous);
+        if (dashboardSubtabHistory.length > 12) dashboardSubtabHistory.shift();
+    }
+
     activeDashboardSubtab = target;
 
     tabDashboard.querySelectorAll('.dashboard-subtab-pane').forEach(pane => {
@@ -92,7 +101,102 @@ function switchDashboardSubtab(subtabId) {
 }
 
 function initDashboardSubtabs() {
+    bindDashboardSwipeBackGesture();
     switchDashboardSubtab(activeDashboardSubtab);
+}
+
+function stepBackStatsDrilldown() {
+    if (statsDrillState.level === 'timeline') {
+        statsDrillState.level = 'descriptions';
+        statsDrillState.description = '';
+        return true;
+    }
+    if (statsDrillState.level === 'descriptions') {
+        statsDrillState.level = 'postes';
+        statsDrillState.poste = '';
+        statsDrillState.description = '';
+        return true;
+    }
+    if (statsDrillState.level === 'postes') {
+        statsDrillState.level = 'categories';
+        statsDrillState.category = '';
+        statsDrillState.poste = '';
+        statsDrillState.description = '';
+        return true;
+    }
+    return false;
+}
+
+function goBackDashboardSubtab() {
+    while (dashboardSubtabHistory.length) {
+        const previous = dashboardSubtabHistory.pop();
+        if (previous && previous !== activeDashboardSubtab && DASHBOARD_SUBTABS.has(previous)) {
+            switchDashboardSubtab(previous, { recordHistory: false });
+            return true;
+        }
+    }
+    return false;
+}
+
+function handleDashboardSwipeBack() {
+    const dashboardTab = document.getElementById('tab-dashboard');
+    if (!dashboardTab || !dashboardTab.classList.contains('active')) return false;
+
+    if (activeDashboardSubtab === 'statistiques' && stepBackStatsDrilldown()) {
+        renderStatsView();
+        return true;
+    }
+    return goBackDashboardSubtab();
+}
+
+function bindDashboardSwipeBackGesture() {
+    if (dashboardSwipeGestureBound) return;
+    dashboardSwipeGestureBound = true;
+
+    let tracking = false;
+    let startX = 0;
+    let startY = 0;
+    let startT = 0;
+
+    document.addEventListener('touchstart', e => {
+        if (!e.touches || e.touches.length !== 1) return;
+        const t = e.touches[0];
+        const dashboardTab = document.getElementById('tab-dashboard');
+        if (!dashboardTab || !dashboardTab.classList.contains('active')) return;
+        if (window.innerWidth > 900) return;
+        if (t.clientX > 26) return;
+
+        tracking = true;
+        startX = t.clientX;
+        startY = t.clientY;
+        startT = Date.now();
+    }, { passive: true });
+
+    document.addEventListener('touchmove', e => {
+        if (!tracking || !e.touches || e.touches.length !== 1) return;
+        const t = e.touches[0];
+        const dx = t.clientX - startX;
+        const dy = t.clientY - startY;
+        if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2 && dx > 0) {
+            e.preventDefault();
+        }
+        if (Math.abs(dy) > 80) tracking = false;
+    }, { passive: false });
+
+    document.addEventListener('touchend', e => {
+        if (!tracking) return;
+        tracking = false;
+        const t = e.changedTouches?.[0];
+        if (!t) return;
+
+        const dx = t.clientX - startX;
+        const dy = t.clientY - startY;
+        const dt = Date.now() - startT;
+
+        if (dx >= 85 && Math.abs(dy) <= 70 && dt <= 700) {
+            handleDashboardSwipeBack();
+        }
+    }, { passive: true });
 }
 
 function getDashboardAvailableMonths() {
