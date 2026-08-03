@@ -114,18 +114,15 @@ function setBudgetAmount(poste, description, amount) {
 
 function getBudgetSeverity(actual, budget) {
     if (!budget || budget <= 0) {
+        // Budget à 0€ (ou non défini) : toute dépense est un dépassement.
         return actual > 0 ? 'over' : 'ok';
     }
-    const ratio = actual / budget;
-    if (ratio > 1.1) return 'over';
-    if (ratio >= 1) return 'warn';
-    return 'ok';
+    return actual > budget ? 'over' : 'ok';
 }
 
 function getBudgetVisuals(actual, budget) {
     const severity = getBudgetSeverity(actual, budget);
     if (severity === 'over') return { color: '#e11d48', barClass: 'budget-over' };
-    if (severity === 'warn') return { color: '#d97706', barClass: 'budget-warn' };
     if (severity === 'ok')   return { color: '#059669', barClass: 'budget-ok' };
     return { color: '#0f172a', barClass: 'budget-ok' };
 }
