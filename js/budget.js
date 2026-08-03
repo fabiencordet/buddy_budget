@@ -24,8 +24,8 @@ function openBudgetModal() {
         o.value = cat; o.textContent = cat;
         catSel.appendChild(o);
     });
-    populatePosteSelect(catSel.value);
     catSel.onchange = () => populatePosteSelect(catSel.value);
+    populatePosteSelect(catSel.value);
 
     renderBudgetLinesList();
     document.getElementById('budget-modal').classList.remove('hidden');
@@ -34,48 +34,41 @@ function openBudgetModal() {
 function populatePosteSelect(categorie) {
     const posteSel = document.getElementById('budget-poste-select');
     posteSel.innerHTML = '';
-    const postes = Object.keys(budgetStructure[categorie] || {}).sort();
-    postes.forEach(p => {
+    Object.keys(budgetStructure[categorie] || {}).sort().forEach(p => {
         const o = document.createElement('option');
         o.value = p; o.textContent = p;
         posteSel.appendChild(o);
     });
-    populateDescriptionSelect(categorie, posteSel.value);
     posteSel.onchange = () => populateDescriptionSelect(categorie, posteSel.value);
+    populateDescriptionSelect(categorie, posteSel.value);
 }
 
 function populateDescriptionSelect(categorie, poste) {
     const descSel = document.getElementById('budget-description-select');
     descSel.innerHTML = '';
-    const descs = (budgetStructure[categorie]?.[poste] || []).slice().sort();
-    descs.forEach(d => {
+    (budgetStructure[categorie]?.[poste] || []).slice().sort().forEach(d => {
         const o = document.createElement('option');
         o.value = d; o.textContent = d;
         descSel.appendChild(o);
     });
 }
 
-function addBudgetLine() {
-    const catSel  = document.getElementById('budget-categorie-select');
-    const posteSel = document.getElementById('budget-poste-select');
-    const descSel = document.getElementById('budget-description-select');
-    const poste  = posteSel.value;
-    const description = descSel.value;
-    const amount = parseFloat(document.getElementById('budget-amount-input').value);
+function closeBudgetModal() {
+    document.getElementById('budget-modal').classList.add('hidden');
+    refreshDashboard();
+}
 
+function addBudgetLine() {
+    const poste = document.getElementById('budget-poste-select').value;
+    const description = document.getElementById('budget-description-select').value;
+    const amount = parseFloat(document.getElementById('budget-amount-input').value);
     if (!poste || !description || isNaN(amount) || amount <= 0) {
         alert('Sélectionnez une catégorie, un poste, une description et un montant valide.');
         return;
     }
-
     setBudgetAmount(poste, description, amount);
     document.getElementById('budget-amount-input').value = '';
     renderBudgetLinesList();
-}
-
-function closeBudgetModal() {
-    document.getElementById('budget-modal').classList.add('hidden');
-    refreshDashboard();
 }
 
 function deleteBudgetLine(index) {
@@ -94,7 +87,10 @@ function renderBudgetLinesList() {
         const item = document.createElement('div');
         item.className = 'flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50';
         item.innerHTML = `
-            <div class="flex-1"><p class="text-xs font-semibold text-slate-700">${b.poste}</p></div>
+            <div class="flex-1">
+                <p class="text-xs font-semibold text-slate-700">${b.poste}</p>
+                <p class="text-[10px] text-slate-400">${b.description || ''}</p>
+            </div>
             <input type="number" min="0" step="10" value="${b.amount}"
                 class="field mono text-right w-24 text-xs"
                 onchange="budgetLines[${i}].amount=parseFloat(this.value)||0;saveBudgetLines();renderBudgetLinesList()">
@@ -118,7 +114,6 @@ function setBudgetAmount(poste, description, amount) {
 
 function getBudgetSeverity(actual, budget) {
     if (!budget || budget <= 0) {
-        // Budget implicite à 0€ : toute dépense est un dépassement.
         return actual > 0 ? 'over' : 'ok';
     }
     const ratio = actual / budget;
@@ -182,7 +177,6 @@ function renderBudgetPrevisionnel(activeMonth) {
 
     container.innerHTML = '';
 
-    // Ligne total
     const totalVisuals = getBudgetVisuals(totalActual, totalBudget);
     const totalPct  = totalBudget > 0 ? Math.round(totalActual / totalBudget * 100) : 0;
     const totalColor = totalVisuals.color;
@@ -328,4 +322,3 @@ function renderBudgetPrevisionnel(activeMonth) {
         container.appendChild(catWrap);
     });
 }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
