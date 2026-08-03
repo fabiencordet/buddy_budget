@@ -17,33 +17,65 @@ async function saveBudgetLines() {
 }
 
 function openBudgetModal() {
-    const sel = document.getElementById('budget-poste-select');
-    sel.innerHTML = '';
-    const allPostes = [...new Set(Object.values(budgetStructure).flatMap(c => Object.keys(c)))].sort();
-    allPostes.forEach(p => {
+    const catSel = document.getElementById('budget-categorie-select');
+    catSel.innerHTML = '';
+    Object.keys(budgetStructure).sort().forEach(cat => {
         const o = document.createElement('option');
-        o.value = p; o.textContent = p;
-        sel.appendChild(o);
+        o.value = cat; o.textContent = cat;
+        catSel.appendChild(o);
     });
+    populatePosteSelect(catSel.value);
+    catSel.onchange = () => populatePosteSelect(catSel.value);
+
     renderBudgetLinesList();
     document.getElementById('budget-modal').classList.remove('hidden');
+}
+
+function populatePosteSelect(categorie) {
+    const posteSel = document.getElementById('budget-poste-select');
+    posteSel.innerHTML = '';
+    const postes = Object.keys(budgetStructure[categorie] || {}).sort();
+    postes.forEach(p => {
+        const o = document.createElement('option');
+        o.value = p; o.textContent = p;
+        posteSel.appendChild(o);
+    });
+    populateDescriptionSelect(categorie, posteSel.value);
+    posteSel.onchange = () => populateDescriptionSelect(categorie, posteSel.value);
+}
+
+function populateDescriptionSelect(categorie, poste) {
+    const descSel = document.getElementById('budget-description-select');
+    descSel.innerHTML = '';
+    const descs = (budgetStructure[categorie]?.[poste] || []).slice().sort();
+    descs.forEach(d => {
+        const o = document.createElement('option');
+        o.value = d; o.textContent = d;
+        descSel.appendChild(o);
+    });
+}
+
+function addBudgetLine() {
+    const catSel  = document.getElementById('budget-categorie-select');
+    const posteSel = document.getElementById('budget-poste-select');
+    const descSel = document.getElementById('budget-description-select');
+    const poste  = posteSel.value;
+    const description = descSel.value;
+    const amount = parseFloat(document.getElementById('budget-amount-input').value);
+
+    if (!poste || !description || isNaN(amount) || amount <= 0) {
+        alert('Sélectionnez une catégorie, un poste, une description et un montant valide.');
+        return;
+    }
+
+    setBudgetAmount(poste, description, amount);
+    document.getElementById('budget-amount-input').value = '';
+    renderBudgetLinesList();
 }
 
 function closeBudgetModal() {
     document.getElementById('budget-modal').classList.add('hidden');
     refreshDashboard();
-}
-
-function addBudgetLine() {
-    const poste  = document.getElementById('budget-poste-select').value;
-    const amount = parseFloat(document.getElementById('budget-amount-input').value);
-    if (!poste || isNaN(amount) || amount <= 0) { alert('Sélectionnez un poste et un montant valide.'); return; }
-    const existing = budgetLines.findIndex(b => b.poste === poste);
-    if (existing >= 0) budgetLines[existing].amount = amount;
-    else budgetLines.push({ poste, amount });
-    document.getElementById('budget-amount-input').value = '';
-    saveBudgetLines();
-    renderBudgetLinesList();
 }
 
 function deleteBudgetLine(index) {
