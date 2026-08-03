@@ -130,7 +130,7 @@ function renderBudgetLinesList() {
 function setBudgetAmount(poste, description, amount) {
     const key = poste.toUpperCase().trim() + '||' + (description || '').toUpperCase().trim();
     const idx = budgetLines.findIndex(b => b.key === key);
-    if (amount <= 0) {
+    if (amount < 0 || isNaN(amount)) {
         if (idx >= 0) budgetLines.splice(idx, 1);
     } else {
         if (idx >= 0) budgetLines[idx].amount = amount;
