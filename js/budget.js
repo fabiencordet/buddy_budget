@@ -170,7 +170,9 @@ function getForecastAccentColor(category) {
 function renderBudgetPrevisionnel(activeMonth) {
     const container = document.getElementById('budget-previsionnel-container');
     if (!container) return;
-
+    const forecastEntries = Object.entries(budgetStructure).filter(
+        ([cat]) => cat.toUpperCase().trim() !== 'REVENUS'
+    );
     const spentByDesc = {}, spentByPoste = {};
     transactions.forEach(t => {
         if (t.exclu_dashboard) return;
@@ -186,7 +188,7 @@ function renderBudgetPrevisionnel(activeMonth) {
     });
 
     let totalBudget = 0, totalActual = 0;
-    Object.entries(budgetStructure).forEach(([, postes]) => {
+    forecastEntries.forEach(([, postes]) => {
         Object.entries(postes).forEach(([poste, descs]) => {
             const pk = poste.toUpperCase().trim();
             descs.forEach(desc => {
@@ -218,7 +220,7 @@ function renderBudgetPrevisionnel(activeMonth) {
         </div>`;
     container.appendChild(totalRow);
 
-    Object.entries(budgetStructure).forEach(([cat, postes]) => {
+    forecastEntries.forEach(([cat, postes]) => {
         let catBudget = 0, catActual = 0;
         Object.entries(postes).forEach(([poste, descs]) => {
             const pk = poste.toUpperCase().trim();
