@@ -309,14 +309,34 @@ function renderBudgetPrevisionnel(activeMonth) {
                     <div class="forecast-values">
                         <span class="forecast-spent mono" style="color:${dColor}">${fmt(actual)}</span>
                         <span class="forecast-divider">/</span>
-                        <span class="forecast-target mono">${fmt(budget)}</span>
-                        <input type="number" min="0" step="10" value="${budget}"
-                            class="field mono text-right w-20 text-[11px] py-0.5 px-1.5 hidden sm:block"
-                            title="Budget mensuel pour ${desc}"
-                            onchange="setBudgetAmount('${poste.replace(/'/g,"\\'")}','${desc.replace(/'/g,"\\'")}',parseFloat(this.value)||0);renderBudgetPrevisionnel(document.getElementById('dashboard-month-select')?.value||'');renderMainBudgetChart();">
-                        <span class="text-[10px] text-slate-400 hidden sm:block">€</span>
+                        <span class="forecast-target mono budget-editable" title="Cliquer pour modifier le budget">${fmt(budget)}</span>
                     </div>`;
                 descWrap.appendChild(descTop);
+
+                const targetSpan = descTop.querySelector('.forecast-target');
+                targetSpan.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.min = '0';
+                    input.step = '10';
+                    input.value = budget;
+                    input.className = 'field mono text-right w-20 text-[11px] py-0.5 px-1.5';
+                    targetSpan.replaceWith(input);
+                    input.focus();
+                    input.select();
+                    const commit = () => {
+                        const newVal = parseFloat(input.value) || 0;
+                        setBudgetAmount(poste, desc, newVal);
+                        renderBudgetPrevisionnel(document.getElementById('dashboard-month-select')?.value || '');
+                        renderMainBudgetChart();
+                    };
+                    input.addEventListener('blur', commit);
+                    input.addEventListener('keydown', (ev) => {
+                        if (ev.key === 'Enter') input.blur();
+                        if (ev.key === 'Escape') input.replaceWith(targetSpan);
+                    });
+                });
                 if (budget > 0) {
                     const barRow = document.createElement('div');
                     barRow.className = 'budget-desc-progress';
