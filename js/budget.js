@@ -136,7 +136,6 @@ function setBudgetAmount(poste, description, amount) {
         if (idx >= 0) budgetLines[idx].amount = amount;
         else budgetLines.push({ key, poste: poste.toUpperCase().trim(), description: (description || '').toUpperCase().trim(), amount });
     }
-    saveBudgetLines();
 }
 
 function getBudgetSeverity(actual, budget) {
@@ -325,9 +324,10 @@ function renderBudgetPrevisionnel(activeMonth) {
                     targetSpan.replaceWith(input);
                     input.focus();
                     input.select();
-                    const commit = () => {
+                    const commit = async () => {
                         const newVal = parseFloat(input.value) || 0;
-                        setBudgetAmount(poste, desc, newVal);
+                        setBudgetAmount(poste, desc, newVal); // met à jour budgetLines localement + lance la sauvegarde
+                        await saveBudgetLines(); // attend la fin réelle de la sauvegarde Supabase
                         renderBudgetPrevisionnel(document.getElementById('dashboard-month-select')?.value || '');
                         renderMainBudgetChart();
                     };
