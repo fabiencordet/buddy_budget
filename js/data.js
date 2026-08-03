@@ -46,7 +46,7 @@ const budgetStructure = {
     },
     "VACANCES": {
         "AUTRES DEPENSES": ["Activité","Visite","Achats","Autres","Remboursement"],
-        "ALIMENTATION": ["Courses alimentaires","Restaurant","Autres","Remboursement"],
+        "ALIMENTATION VACANCES": ["Courses alimentaires","Restaurant","Autres","Remboursement"],
         "HEBERGEMENT": ["Camping","Hôtel","Location","Autres","Remboursement"],
         "TRANSPORT": ["Carburant","Location","Parking","Péage","Train","Vol","Remboursement"],
     },
