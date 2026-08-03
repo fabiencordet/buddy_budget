@@ -83,20 +83,47 @@ function renderBudgetLinesList() {
     list.innerHTML = '';
     if (!budgetLines.length) { empty.classList.remove('hidden'); return; }
     empty.classList.add('hidden');
+
+    // Table de correspondance poste -> catégorie, à partir de budgetStructure
+    const posteToCat = {};
+    Object.entries(budgetStructure).forEach(([cat, postes]) => {
+        Object.keys(postes).forEach(p => { posteToCat[p.toUpperCase().trim()] = cat; });
+    });
+
+    // Regroupement catégorie > poste > lignes
+    const grouped = {};
     budgetLines.forEach((b, i) => {
-        const item = document.createElement('div');
-        item.className = 'flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50';
-        item.innerHTML = `
-            <div class="flex-1">
-                <p class="text-xs font-semibold text-slate-700">${b.poste}</p>
-                <p class="text-[10px] text-slate-400">${b.description || ''}</p>
-            </div>
-            <input type="number" min="0" step="10" value="${b.amount}"
-                class="field mono text-right w-24 text-xs"
-                onchange="budgetLines[${i}].amount=parseFloat(this.value)||0;saveBudgetLines();renderBudgetLinesList()">
-            <span class="text-[11px] text-slate-400">€/mois</span>
-            <button onclick="deleteBudgetLine(${i})" class="text-rose-400 hover:text-rose-600 text-lg font-light leading-none transition">×</button>`;
-        list.appendChild(item);
+        const cat = posteToCat[b.poste] || 'Autre';
+        if (!grouped[cat]) grouped[cat] = {};
+        if (!grouped[cat][b.poste]) grouped[cat][b.poste] = [];
+        grouped[cat][b.poste].push({ ...b, index: i });
+    });
+
+    Object.keys(grouped).sort().forEach(cat => {
+        const catBlock = document.createElement('div');
+        catBlock.className = 'space-y-1.5';
+        catBlock.innerHTML = `<p class="text-[10px] font-bold text-slate-500 uppercase tracking-wide pt-1">${cat}</p>`;
+
+        Object.keys(grouped[cat]).sort().forEach(poste => {
+            const posteBlock = document.createElement('div');
+            posteBlock.className = 'space-y-1 pl-2 border-l-2 border-slate-100';
+            posteBlock.innerHTML = `<p class="text-[10px] font-semibold text-slate-400 uppercase">${poste}</p>`;
+
+            grouped[cat][poste].forEach(b => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center gap-3 p-2.5 rounded-xl border border-slate-100 bg-slate-50';
+                item.innerHTML = `
+                    <div class="flex-1 min-w-0"><p class="text-[11px] text-slate-600 truncate">${b.description || '—'}</p></div>
+                    <input type="number" min="0" step="10" value="${b.amount}"
+                        class="field mono text-right w-24 text-xs"
+                        onchange="budgetLines[${b.index}].amount=parseFloat(this.value)||0;saveBudgetLines();renderBudgetLinesList()">
+                    <span class="text-[11px] text-slate-400">€/mois</span>
+                    <button onclick="deleteBudgetLine(${b.index})" class="text-rose-400 hover:text-rose-600 text-lg font-light leading-none transition">×</button>`;
+                posteBlock.appendChild(item);
+            });
+            catBlock.appendChild(posteBlock);
+        });
+        list.appendChild(catBlock);
     });
 }
 
