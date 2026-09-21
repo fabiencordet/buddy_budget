@@ -10,7 +10,12 @@ async function saveBudgetLines() {
     if (!_supabase || !currentUser) return;
     await _supabase.from('budget_lines').delete().neq('id', 0);
     if (budgetLines.length) {
-        const rows = budgetLines.map(b => ({ poste: b.poste, description: b.description || '', amount: b.amount }));
+        const rows = budgetLines.map(b => ({
+            categorie: b.categorie || inferBudgetCategoryFromStructure(b.poste, b.description) || '',
+            poste: b.poste,
+            description: b.description || '',
+            amount: b.amount
+        }));
         const { error } = await _supabase.from('budget_lines').insert(rows);
         if (error) console.error('Erreur save budget_lines:', error.message);
     }
@@ -191,6 +196,36 @@ function getForecastAccentColor(category) {
 
 function normalizeBudgetText(value = '') {
     return String(value || '').toUpperCase().trim();
+}
+
+function normalizeBudgetLines(rawLines = []) {
+    const merged = new Map();
+    (rawLines || []).forEach(line => {
+        const poste = normalizeBudgetText(line.poste || '');
+        const description = normalizeBudgetText(line.description || '');
+        if (!poste && !description) return;
+
+        const categorie = normalizeBudgetText(line.categorie || inferBudgetCategoryFromStructure(poste, description));
+        const legacyKey = `${poste}||${description}`;
+        const current = merged.get(legacyKey);
+
+        if (!current) {
+            merged.set(legacyKey, {
+                key: getBudgetMatchKey(poste, description, categorie),
+                categorie,
+                poste,
+                description,
+                amount: Number(line.amount) || 0
+            });
+            return;
+        }
+
+        current.amount += Number(line.amount) || 0;
+        if (!current.categorie && categorie) current.categorie = categorie;
+        current.key = getBudgetMatchKey(current.poste, current.description, current.categorie);
+    });
+
+    return Array.from(merged.values());
 }
 
 function inferBudgetCategoryFromStructure(poste, description) {

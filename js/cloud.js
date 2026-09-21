@@ -38,16 +38,12 @@ async function fetchBudgetLinesFromCloud() {
     try {
         const { data, error } = await _supabase.from('budget_lines').select('*').order('id', { ascending: true });
         if (error) throw error;
-        budgetLines = (data || []).map(r => {
-            const categorie = inferBudgetCategoryFromStructure(r.poste, r.description);
-            return {
-                key:         getBudgetMatchKey(r.poste, r.description, categorie),
-                categorie:  normalizeBudgetText(categorie),
-                poste:       normalizeBudgetText(r.poste),
-                description: normalizeBudgetText(r.description),
-                amount:      r.amount
-            };
-        });
+        budgetLines = normalizeBudgetLines((data || []).map(r => ({
+            categorie: r.categorie || '',
+            poste: r.poste,
+            description: r.description,
+            amount: r.amount
+        })));
         calculateDashboardMetrics();
         renderMainBudgetChart();
     } catch(err) { console.error('Erreur fetch budget_lines:', err.message); }
