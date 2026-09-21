@@ -867,11 +867,11 @@ function renderMainBudgetChart() {
             if (m !== currentMonth) return;
             const amt = parseFloat(t.montant) || 0;
             if (amt >= 0) return;
-            const k = (t.poste||'').toUpperCase().trim() + '||' + (t.description||'').toUpperCase().trim();
-            spentByDesc[k] = (spentByDesc[k] || 0) + Math.abs(amt);
+            const key = getBudgetMatchKey(t.poste, t.description, t.categorie);
+            spentByDesc[key] = (spentByDesc[key] || 0) + Math.abs(amt);
         });
         budgetLines.forEach(b => {
-            const spent = spentByDesc[b.key] || 0;
+            const spent = spentByDesc[b.key] || spentByDesc[getBudgetMatchKey(b.poste, b.description, b.categorie)] || 0;
             const reste = b.amount - spent;
             if (reste > 0) budgetRestant += reste;
         });

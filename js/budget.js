@@ -59,14 +59,15 @@ function closeBudgetModal() {
 }
 
 function addBudgetLine() {
+    const categorie = document.getElementById('budget-categorie-select').value;
     const poste = document.getElementById('budget-poste-select').value;
     const description = document.getElementById('budget-description-select').value;
     const amount = parseFloat(document.getElementById('budget-amount-input').value);
-    if (!poste || !description || isNaN(amount) || amount <= 0) {
+    if (!categorie || !poste || !description || isNaN(amount) || amount <= 0) {
         alert('Sélectionnez une catégorie, un poste, une description et un montant valide.');
         return;
     }
-    setBudgetAmount(poste, description, amount);
+    setBudgetAmount(poste, description, amount, categorie);
     document.getElementById('budget-amount-input').value = '';
     renderBudgetLinesList();
 }
@@ -127,14 +128,36 @@ function renderBudgetLinesList() {
     });
 }
 
-function setBudgetAmount(poste, description, amount) {
-    const key = poste.toUpperCase().trim() + '||' + (description || '').toUpperCase().trim();
-    const idx = budgetLines.findIndex(b => b.key === key);
+function setBudgetAmount(poste, description, amount, categorie = '') {
+    const normalizedPoste = normalizeBudgetText(poste);
+    const normalizedDescription = normalizeBudgetText(description);
+    const finalCategorie = normalizeBudgetText(categorie || inferBudgetCategoryFromStructure(poste, description));
+    const key = getBudgetMatchKey(normalizedPoste, normalizedDescription, finalCategorie);
+    const legacyKey = `${normalizedPoste}||${normalizedDescription}`;
+    const idx = budgetLines.findIndex(b => {
+        if (b.key === key) return true;
+        if (!b.categorie && b.key === legacyKey && !finalCategorie) return true;
+        if (!b.categorie && b.key === legacyKey && normalizeBudgetText(b.categorie || '') === finalCategorie) return true;
+        return false;
+    });
     if (amount < 0 || isNaN(amount)) {
         if (idx >= 0) budgetLines.splice(idx, 1);
     } else {
-        if (idx >= 0) budgetLines[idx].amount = amount;
-        else budgetLines.push({ key, poste: poste.toUpperCase().trim(), description: (description || '').toUpperCase().trim(), amount });
+        if (idx >= 0) {
+            budgetLines[idx].amount = amount;
+            budgetLines[idx].categorie = finalCategorie;
+            budgetLines[idx].key = key;
+            budgetLines[idx].poste = normalizedPoste;
+            budgetLines[idx].description = normalizedDescription;
+        } else {
+            budgetLines.push({
+                key,
+                categorie: finalCategorie,
+                poste: normalizedPoste,
+                description: normalizedDescription,
+                amount
+            });
+        }
     }
 }
 
@@ -166,6 +189,44 @@ function getForecastAccentColor(category) {
     return categoryBarColor?.[category] || '#64748b';
 }
 
+function normalizeBudgetText(value = '') {
+    return String(value || '').toUpperCase().trim();
+}
+
+function inferBudgetCategoryFromStructure(poste, description) {
+    const p = normalizeBudgetText(poste);
+    const d = normalizeBudgetText(description);
+    for (const [cat, postes] of Object.entries(budgetStructure || {})) {
+        for (const [posteName, descs] of Object.entries(postes || {})) {
+            if (normalizeBudgetText(posteName) !== p) continue;
+            if ((descs || []).some(desc => normalizeBudgetText(desc) === d)) return cat;
+        }
+    }
+    return '';
+}
+
+function getBudgetMatchKey(poste, description, categorie = '') {
+    const p = normalizeBudgetText(poste);
+    const d = normalizeBudgetText(description);
+    const c = normalizeBudgetText(categorie || inferBudgetCategoryFromStructure(poste, description));
+    return c ? `${c}||${p}||${d}` : `${p}||${d}`;
+}
+
+function findBudgetLine(poste, description, categorie = '') {
+    const exactKey = getBudgetMatchKey(poste, description, categorie);
+    const legacyKey = `${normalizeBudgetText(poste)}||${normalizeBudgetText(description)}`;
+    const category = normalizeBudgetText(categorie || inferBudgetCategoryFromStructure(poste, description));
+
+    const exactMatch = budgetLines.find(x => x.key === exactKey);
+    if (exactMatch) return exactMatch;
+
+    if (!category) {
+        return budgetLines.find(x => x.key === legacyKey) || null;
+    }
+
+    return budgetLines.find(x => x.key === legacyKey && (!x.categorie || normalizeBudgetText(x.categorie) === category)) || null;
+}
+
 // ── Rendu accordéon prévisionnel ────────────────────────
 function renderBudgetPrevisionnel(activeMonth) {
     const container = document.getElementById('budget-previsionnel-container');
@@ -182,9 +243,10 @@ function renderBudgetPrevisionnel(activeMonth) {
         const amt = parseFloat(t.montant) || 0;
         if (!Number.isFinite(amt) || amt === 0) return;
 
-        const p = (t.poste || '').toUpperCase().trim();
-        const d = (t.description || '').toUpperCase().trim();
-        const k = p + '||' + d;
+        const p = normalizeBudgetText(t.poste);
+        const d = normalizeBudgetText(t.description);
+        const category = normalizeBudgetText(t.categorie || inferBudgetCategoryFromStructure(t.poste, t.description));
+        const k = category ? `${category}||${p}||${d}` : `${p}||${d}`;
         const netAmt = -amt;
 
         spentByDesc[k]  = (spentByDesc[k]  || 0) + netAmt;
@@ -192,12 +254,12 @@ function renderBudgetPrevisionnel(activeMonth) {
     });
 
     let totalBudget = 0, totalActual = 0;
-    forecastEntries.forEach(([, postes]) => {
+    forecastEntries.forEach(([cat, postes]) => {
         Object.entries(postes).forEach(([poste, descs]) => {
-            const pk = poste.toUpperCase().trim();
+            const pk = normalizeBudgetText(poste);
             descs.forEach(desc => {
-                const dk = pk + '||' + desc.toUpperCase().trim();
-                const b = budgetLines.find(x => x.key === dk);
+                const dk = getBudgetMatchKey(poste, desc, cat);
+                const b = findBudgetLine(poste, desc, cat);
                 totalBudget += b ? b.amount : DEFAULT_FORECAST_BUDGET;
                 totalActual += (spentByDesc[dk] || 0);
             });
@@ -227,10 +289,10 @@ function renderBudgetPrevisionnel(activeMonth) {
     forecastEntries.forEach(([cat, postes]) => {
         let catBudget = 0, catActual = 0;
         Object.entries(postes).forEach(([poste, descs]) => {
-            const pk = poste.toUpperCase().trim();
+            const pk = normalizeBudgetText(poste);
             descs.forEach(desc => {
-                const dk = pk + '||' + desc.toUpperCase().trim();
-                const b = budgetLines.find(x => x.key === dk);
+                const dk = getBudgetMatchKey(poste, desc, cat);
+                const b = findBudgetLine(poste, desc, cat);
                 catBudget += b ? b.amount : DEFAULT_FORECAST_BUDGET;
                 catActual += (spentByDesc[dk] || 0);
             });
@@ -261,11 +323,11 @@ function renderBudgetPrevisionnel(activeMonth) {
         catBody.className = 'hidden forecast-cat-body';
 
         Object.entries(postes).forEach(([poste, descs]) => {
-            const pk = poste.toUpperCase().trim();
+            const pk = normalizeBudgetText(poste);
             let posteBudget = 0, posteActual = 0;
             descs.forEach(desc => {
-                const dk = pk + '||' + desc.toUpperCase().trim();
-                const b = budgetLines.find(x => x.key === dk);
+                const dk = getBudgetMatchKey(poste, desc, cat);
+                const b = findBudgetLine(poste, desc, cat);
                 posteBudget += b ? b.amount : DEFAULT_FORECAST_BUDGET;
                 posteActual += (spentByDesc[dk] || 0);
             });
@@ -293,8 +355,8 @@ function renderBudgetPrevisionnel(activeMonth) {
             posteBody.className = 'hidden forecast-poste-body';
 
             descs.forEach(desc => {
-                const dk     = pk + '||' + desc.toUpperCase().trim();
-                const b      = budgetLines.find(x => x.key === dk);
+                const dk     = getBudgetMatchKey(poste, desc, cat);
+                const b      = findBudgetLine(poste, desc, cat);
                 const budget = b ? b.amount : DEFAULT_FORECAST_BUDGET;
                 const actual = spentByDesc[dk] || 0;
                 const pct    = budget > 0 ? Math.min(Math.round(actual / budget * 100), 100) : 0;
@@ -356,7 +418,7 @@ function renderBudgetPrevisionnel(activeMonth) {
                 const open = !posteBody.classList.contains('hidden');
                 posteBody.classList.toggle('hidden', open);
                 posteHeader.querySelector('.accordion-arrow').style.transform = open ? '' : 'rotate(90deg)';
-            });
+             });
             posteWrap.appendChild(posteHeader);
             posteWrap.appendChild(posteBody);
             catBody.appendChild(posteWrap);
