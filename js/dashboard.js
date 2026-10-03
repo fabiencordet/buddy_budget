@@ -849,10 +849,19 @@ function renderMainBudgetChart() {
         if (!transactionPassesDashFilters(t)) return;
         const m = t.mois_affectation || getYearMonthString(t.date);
         if (!m) return;
-        if (!monthlyData[m]) monthlyData[m] = { entrees: 0, depenses: 0 };
+        if (!monthlyData[m]) monthlyData[m] = { entrees: 0, depenses: 0, epargne: 0 };
         const amt = parseFloat(t.montant) || 0;
-        if (amt > 0) monthlyData[m].entrees  += amt;
-        else         monthlyData[m].depenses += Math.abs(amt);
+        const keyCategorie = String(t.categorie || '').trim().toUpperCase();
+        if (amt > 0) {
+            monthlyData[m].entrees += amt;
+            return;
+        }
+        const montantAbs = Math.abs(amt);
+        if (keyCategorie === 'ÉPARGNE' || keyCategorie === 'EPARGNE') {
+            monthlyData[m].epargne += montantAbs;
+        } else {
+            monthlyData[m].depenses += montantAbs;
+        }
     });
 
     const months = Object.keys(monthlyData).sort();
@@ -878,8 +887,9 @@ function renderMainBudgetChart() {
     }
 
     const datasets = [
-        { label:'Entrées',  data:months.map(m => monthlyData[m].entrees),  backgroundColor:'rgba(16,185,129,.85)', borderRadius:6, order:2 },
-        { label:'Dépenses', data:months.map(m => monthlyData[m].depenses), backgroundColor:'rgba(244,63,94,.80)',  borderRadius:6, order:2 }
+        { label:'Entrées',  data:months.map(m => monthlyData[m].entrees),  backgroundColor:'rgba(16,185,129,.85)', borderRadius:6, order:2, stack:'entrees' },
+        { label:'Dépenses', data:months.map(m => monthlyData[m].depenses), backgroundColor:'rgba(244,63,94,.80)',  borderRadius:6, order:2, stack:'depenses' },
+        { label:'Épargne', data:months.map(m => monthlyData[m].epargne), backgroundColor:'rgba(245,158,11,.88)', borderRadius:6, order:2, stack:'depenses' }
     ];
 
     if (budgetRestant > 0 && months.includes(currentMonth)) {
@@ -889,13 +899,12 @@ function renderMainBudgetChart() {
             backgroundColor: 'rgba(251,146,60,.75)',
             borderRadius: 6, order: 2, stack: 'depenses'
         });
-        datasets[1].stack = 'depenses';
     }
 
     if (showSolde) {
         datasets.unshift({
             label:'Solde', type:'line',
-            data:months.map(m => monthlyData[m].entrees - monthlyData[m].depenses),
+            data:months.map(m => monthlyData[m].entrees - (monthlyData[m].depenses + monthlyData[m].epargne)),
             borderColor:'#0f172a', backgroundColor:'#0f172a',
             borderWidth:2, tension:0.4, fill:false,
             pointRadius:4, pointBackgroundColor:'#fff', pointBorderWidth:2, order:1
