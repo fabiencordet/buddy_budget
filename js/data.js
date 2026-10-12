@@ -52,6 +52,218 @@ const budgetStructure = {
     },
 };
 
+/**
+ * Budgets prévisionnels par défaut.
+ *
+ * Structure attendue :
+ * Catégorie > Poste > Description > Montant mensuel
+ *
+ * Exemple :
+ * "PRÉLEVÈMENTS (FIXES)": {
+ *     "BANQUE": {
+ *         "SG": 12.5
+ *     }
+ * }
+ *
+ * Si un montant est modifié dans l'interface, la valeur enregistrée prend le dessus
+ * et sera reprise les mois suivants.
+ */
+const defaultForecastBudgets = {
+    "REVENUS": {
+        "REVENUS FABIEN": {
+            "Revenu principal": 0,
+            "chômage": 0,
+            "frais km": 0,
+            "Remboursement": 0,
+        },
+        "REVENUS MARINA": {
+            "Revenu secondaire": 0,
+            "Remboursement": 0,
+        },
+        "CAF": {
+            "Prestations familiales": 76.13,
+            "Remboursement": 0,
+        },
+    },
+    "PRÉLEVÈMENTS (FIXES)": {
+        "ABONNEMENTS TV": {
+            "Deezer": 0,
+            "Disney Plus": 0,
+            "Molotov": 0,
+            "Netflix": 0,
+            "Autres": 0,
+            "Remboursement": 0,
+        },
+        "ASSURANCES": {
+            "Juridique": 0,
+            "Maison / Auto": 227.99,
+            "Prévoyance": 0,
+            "Mutuelle": 0,
+            "Remboursement": 0,
+        },
+        "BANQUE": {
+            "SG": 0,
+            "Fortuneo": 0,
+            "Boursobank": 0.99,
+            "Remboursement": 0,
+        },
+        "ECOLE": {
+            "Collège": 0,
+        },
+        "ÉNERGIE": {
+            "Eau": 69.58,
+            "Gaz": 228,
+            "Electricité": 165,
+            "Remboursement": 0,
+        },
+        "IMPÔTS": {
+            "Fonciers": 64,
+            "Revenus": 0,
+            "Remboursement": 0,
+        },
+        "INVESTISSEMENT IMMO": {
+            "SCI Lille": 0,
+            "Remboursement": 0,
+        },
+        "MAISON": {
+            "Emprunt principal": 1012,
+            "Assurance prêt immo": 63.76,
+            "Remboursement": 0,
+        },
+        "MÉNAGE ET URSSAF": {
+            "Lina": 300,
+            "Remboursement": 0,
+        },
+        "TELEPHONIE, INTERNET": {
+            "SFR, Emile": 1.99,
+            "Free, Internet": 29.99,
+            "SFR, Fabien perso": 5.99,
+            "SFR, Fabien pro": 11.99,
+            "Free, Mobile Marina": 19.99,
+            "Remboursement": 0,
+        },
+        "VOITURE": {
+            "5008": 394.14,
+            "e-C3": 350.82,
+            "Remboursement": 0,
+        },
+    },
+    "DÉPENSES QUOTIDIENNES": {
+        "ALIMENTATION": {
+            "Courses alimentaires": 900,
+            "Snacking": 40,
+            "Remboursement": 0,
+        },
+        "ANIMAUX": {
+            "Nourriture": 0,
+            "Vétérinaire": 0,
+            "Remboursement": 0,
+        },
+        "CADEAUX": {
+            "Événements / Fêtes": 0,
+            "Remboursement": 0,
+        },
+        "CHÈQUES": {
+            "Suivi chèques émis": 0,
+            "Remboursement": 0,
+        },
+        "ESTHÉTIQUE & SOINS": {
+            "Coiffeur": 100,
+            "Cosmétique": 0,
+            "Remboursement": 0,
+        },
+        "LOISIRS": {
+            "Sorties": 0,
+            "Remboursement": 0,
+        },
+        "SANTÉ": {
+            "Médecin": 0,
+            "Pharmacie": 0,
+            "Dentaire": 0,
+            "Optique": 0,
+            "Labo": 0,
+            "Remboursement": 0,
+        },
+        "SHOPPING": {
+            "Amazon divers": 0,
+            "Vêtements": 200,
+            "Maison": 0,
+            "Fournitures Boulot": 0,
+            "Remboursement": 0,
+        },
+        "VOITURE": {
+            "Carburant": 0,
+            "Carburant PRO": 0,
+            "Entretien": 0,
+            "Parking": 0,
+            "Péage": 0,
+            "Remboursement": 0,
+            "Réparation": 0,
+        },
+    },
+    "ÉPARGNE": {
+        "ÉPARGNE": {
+            "Épargne, Ménage": 200,
+            "Épargne, Leonie": 200,
+            "Épargne, Emile": 200,
+            "Remboursement": 0,
+        },
+    },
+    "PATIN": {
+        "STAGE": {
+            "Stage": 0,
+            "Remboursement": 0,
+        },
+        "DÉPLACEMENT": {
+            "Déplacement": 0,
+            "Remboursement": 0,
+        },
+        "CAFÉTÉRIA": {
+            "Cafétéria": 0,
+            "Remboursement": 0,
+        },
+        "ÉQUIPEMENTS": {
+            "Équipements": 0,
+            "Remboursement": 0,
+        },
+        "COTISATION": {
+            "Cotisation": 0,
+            "Remboursement": 0,
+        },
+    },
+    "VACANCES": {
+        "AUTRES DEPENSES": {
+            "Activité": 0,
+            "Visite": 0,
+            "Achats": 0,
+            "Autres": 0,
+            "Remboursement": 0,
+        },
+        "ALIMENTATION VACANCES": {
+            "Courses alimentaires": 0,
+            "Restaurant": 0,
+            "Autres": 0,
+            "Remboursement": 0,
+        },
+        "HEBERGEMENT": {
+            "Camping": 0,
+            "Hôtel": 0,
+            "Location": 0,
+            "Autres": 0,
+            "Remboursement": 0,
+        },
+        "TRANSPORT": {
+            "Carburant": 0,
+            "Location": 0,
+            "Parking": 0,
+            "Péage": 0,
+            "Train": 0,
+            "Vol": 0,
+            "Remboursement": 0,
+        },
+    },
+};
+
 /** Classe CSS du badge par catégorie */
 const categoryBadgeClass = {
     "REVENUS":                  "badge badge-entrees",

@@ -4,7 +4,7 @@
  * sauvegarde Supabase, rendu accordéon catégorie > poste > description.
  */
 
-const DEFAULT_FORECAST_BUDGET = 1;
+const DEFAULT_FORECAST_BUDGET = 0;
 
 async function saveBudgetLines() {
     if (!_supabase || !currentUser) return;
@@ -198,6 +198,28 @@ function normalizeBudgetText(value = '') {
     return String(value || '').toUpperCase().trim();
 }
 
+function getNormalizedObjectValue(source, key) {
+    if (!source || typeof source !== 'object') return undefined;
+    const normalizedKey = normalizeBudgetText(key);
+    const entry = Object.entries(source).find(([entryKey]) => normalizeBudgetText(entryKey) === normalizedKey);
+    return entry ? entry[1] : undefined;
+}
+
+function getConfiguredForecastBudget(categorie, poste, description) {
+    const categoryDefaults = getNormalizedObjectValue(defaultForecastBudgets, categorie);
+    const posteDefaults = getNormalizedObjectValue(categoryDefaults, poste);
+    const amount = getNormalizedObjectValue(posteDefaults, description);
+    const numericAmount = Number(amount);
+    return Number.isFinite(numericAmount) ? numericAmount : null;
+}
+
+function getForecastBudgetAmount(poste, description, categorie = '') {
+    const budgetLine = findBudgetLine(poste, description, categorie);
+    if (budgetLine) return budgetLine.amount;
+    const configuredAmount = getConfiguredForecastBudget(categorie, poste, description);
+    return configuredAmount ?? DEFAULT_FORECAST_BUDGET;
+}
+
 function normalizeBudgetLines(rawLines = []) {
     const merged = new Map();
     (rawLines || []).forEach(line => {
@@ -291,11 +313,9 @@ function renderBudgetPrevisionnel(activeMonth) {
     let totalBudget = 0, totalActual = 0;
     forecastEntries.forEach(([cat, postes]) => {
         Object.entries(postes).forEach(([poste, descs]) => {
-            const pk = normalizeBudgetText(poste);
             descs.forEach(desc => {
                 const dk = getBudgetMatchKey(poste, desc, cat);
-                const b = findBudgetLine(poste, desc, cat);
-                totalBudget += b ? b.amount : DEFAULT_FORECAST_BUDGET;
+                totalBudget += getForecastBudgetAmount(poste, desc, cat);
                 totalActual += (spentByDesc[dk] || 0);
             });
         });
@@ -324,11 +344,9 @@ function renderBudgetPrevisionnel(activeMonth) {
     forecastEntries.forEach(([cat, postes]) => {
         let catBudget = 0, catActual = 0;
         Object.entries(postes).forEach(([poste, descs]) => {
-            const pk = normalizeBudgetText(poste);
             descs.forEach(desc => {
                 const dk = getBudgetMatchKey(poste, desc, cat);
-                const b = findBudgetLine(poste, desc, cat);
-                catBudget += b ? b.amount : DEFAULT_FORECAST_BUDGET;
+                catBudget += getForecastBudgetAmount(poste, desc, cat);
                 catActual += (spentByDesc[dk] || 0);
             });
         });
@@ -358,12 +376,10 @@ function renderBudgetPrevisionnel(activeMonth) {
         catBody.className = 'hidden forecast-cat-body';
 
         Object.entries(postes).forEach(([poste, descs]) => {
-            const pk = normalizeBudgetText(poste);
             let posteBudget = 0, posteActual = 0;
             descs.forEach(desc => {
                 const dk = getBudgetMatchKey(poste, desc, cat);
-                const b = findBudgetLine(poste, desc, cat);
-                posteBudget += b ? b.amount : DEFAULT_FORECAST_BUDGET;
+                posteBudget += getForecastBudgetAmount(poste, desc, cat);
                 posteActual += (spentByDesc[dk] || 0);
             });
             const posteVisuals = getBudgetVisuals(posteActual, posteBudget);
@@ -391,8 +407,7 @@ function renderBudgetPrevisionnel(activeMonth) {
 
             descs.forEach(desc => {
                 const dk     = getBudgetMatchKey(poste, desc, cat);
-                const b      = findBudgetLine(poste, desc, cat);
-                const budget = b ? b.amount : DEFAULT_FORECAST_BUDGET;
+                const budget = getForecastBudgetAmount(poste, desc, cat);
                 const actual = spentByDesc[dk] || 0;
                 const pct    = budget > 0 ? Math.min(Math.round(actual / budget * 100), 100) : 0;
                 const descVisuals = getBudgetVisuals(actual, budget);
