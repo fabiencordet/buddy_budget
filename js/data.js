@@ -87,11 +87,11 @@ const defaultForecastBudgets = {
     },
     "PRÉLEVÈMENTS (FIXES)": {
         "ABONNEMENTS TV": {
-            "Deezer": 0,
+            "Deezer": 19.99,
             "Disney Plus": 0,
-            "Molotov": 0,
+            "Molotov": 7.99,
             "Netflix": 0,
-            "Autres": 0,
+            "Autres": 28.95,
             "Remboursement": 0,
         },
         "ASSURANCES": {
@@ -102,7 +102,7 @@ const defaultForecastBudgets = {
             "Remboursement": 0,
         },
         "BANQUE": {
-            "SG": 0,
+            "SG": 26,
             "Fortuneo": 0,
             "Boursobank": 0.99,
             "Remboursement": 0,
@@ -118,7 +118,7 @@ const defaultForecastBudgets = {
         },
         "IMPÔTS": {
             "Fonciers": 64,
-            "Revenus": 0,
+            "Revenus": 190,
             "Remboursement": 0,
         },
         "INVESTISSEMENT IMMO": {
@@ -185,14 +185,14 @@ const defaultForecastBudgets = {
             "Remboursement": 0,
         },
         "SHOPPING": {
-            "Amazon divers": 0,
-            "Vêtements": 200,
-            "Maison": 0,
+            "Amazon divers": 50,
+            "Vêtements": 250,
+            "Maison": 20,
             "Fournitures Boulot": 0,
             "Remboursement": 0,
         },
         "VOITURE": {
-            "Carburant": 0,
+            "Carburant": 150,
             "Carburant PRO": 0,
             "Entretien": 0,
             "Parking": 0,
@@ -219,7 +219,7 @@ const defaultForecastBudgets = {
             "Remboursement": 0,
         },
         "CAFÉTÉRIA": {
-            "Cafétéria": 0,
+            "Cafétéria": 50,
             "Remboursement": 0,
         },
         "ÉQUIPEMENTS": {
@@ -227,7 +227,7 @@ const defaultForecastBudgets = {
             "Remboursement": 0,
         },
         "COTISATION": {
-            "Cotisation": 0,
+            "Cotisation": 400,
             "Remboursement": 0,
         },
     },
